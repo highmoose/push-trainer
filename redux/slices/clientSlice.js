@@ -33,6 +33,21 @@ export const addClient = createAsyncThunk(
   }
 );
 
+// Add a temporary client to be linked to a real client later
+export const addTempClient = createAsyncThunk(
+  "clients/addTemp",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await api.post("/api/trainer/clients/addTemp", payload);
+      return res.data.client;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to add temp client"
+      );
+    }
+  }
+);
+
 // Get a single client by ID
 export const getClient = createAsyncThunk(
   "clients/get",
@@ -88,6 +103,9 @@ const clientSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(addTempClient.fulfilled, (state, action) => {
+        state.list.push(action.payload);
+      })
       .addCase(fetchClients.pending, (state) => {
         state.status = "loading";
         state.error = null;

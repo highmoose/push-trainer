@@ -12,7 +12,7 @@ import { Columns2, Columns3, Columns4, Square } from "lucide-react";
 import api from "@/lib/axios";
 import { initSocket } from "@/lib/socket";
 
-export default function Messages({ authUserId }) {
+export default function Messages() {
   const dispatch = useDispatch();
   const socketRef = useRef(null);
 
@@ -21,6 +21,9 @@ export default function Messages({ authUserId }) {
   );
 
   console.log("conversations", conversations);
+
+  const authUser = useSelector((state) => state.auth.user);
+  const authUserId = authUser?.user?.id;
 
   const [newMessages, setNewMessages] = useState({});
   const [timeframe, setTimeframe] = useState("24h");
@@ -40,6 +43,14 @@ export default function Messages({ authUserId }) {
       socket.disconnect();
     };
   }, [authUserId]);
+
+  useEffect(() => {
+    if (authUserId) {
+      dispatch({ type: "messaging/setAuthUserId", payload: authUserId });
+      dispatch(fetchConversations()); // ✅ fine
+      dispatch(fetchAllMessages({ authUserId })); // ✅ pass id explicitly
+    }
+  }, [dispatch, authUserId]);
 
   const handleInputChange = (userId, value) => {
     setNewMessages((prev) => ({ ...prev, [userId]: value }));

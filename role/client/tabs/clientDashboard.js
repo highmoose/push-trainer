@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import DataTable from "@components/common/dataTable";
+import Header from "@/components/layout/header";
+import Footer from "@/components/layout/footer";
+import Messages from "@/role/client/tabs/messages";
 
 const columns = [
   { key: "product", label: "Product Name" },
@@ -11,37 +14,16 @@ const columns = [
   { key: "weight", label: "Weight" },
 ];
 
-const data = [
-  {
-    product: 'Apple MacBook Pro 17"',
-    color: "Silver",
-    category: "Laptop",
-    accessories: "Yes",
-    available: "Yes",
-    price: "$2999",
-    weight: "3.0 lb.",
-  },
-  {
-    product: "Microsoft Surface Pro",
-    color: "White",
-    category: "Laptop PC",
-    accessories: "No",
-    available: "Yes",
-    price: "$1999",
-    weight: "1.0 lb.",
-  },
-];
-
 export default function clientDashboard() {
+  const [showTab, setShowTab] = useState("dashboard");
+
   return (
-    <div>
-      <div className="text-3xl mb-4">Client Dashboard</div>
-      <div className="text-xl">Quick Stats</div>
-      <div className="text-xl">My Diet Plan</div>
-      <div className="text-xl">My Workout Plan,</div>
-      <div className="text-xl">Goals</div>
-      <div className="text-xl">Messages...</div>
-      <DataTable columns={columns} data={data} minRows={5} />
+    <div className="flex flex-col w-full min-h-screen ">
+      <Header showTab={showTab} setShowTab={setShowTab} />
+      <div className="flex-1 w-full px-8 pb-8">
+        {showTab === "messages" && <Messages />}
+      </div>
+      <Footer />
     </div>
   );
 }

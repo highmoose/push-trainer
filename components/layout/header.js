@@ -30,6 +30,14 @@ export default function Header({ setShowTab }) {
     { label: "Blueprints" },
   ];
 
+  const clientMenu = [
+    { label: "Quick Stats" },
+    { label: "Messages" },
+    { label: "Diet Plan" },
+    { label: "Workout Plan" },
+    { label: "Goal Tracker" },
+  ];
+
   // Potentionally convert to a megamenu
   // Clients dropdown has clients images in a carousel to select from in menu dropdown
 
@@ -45,6 +53,19 @@ export default function Header({ setShowTab }) {
       {user?.role === "trainer" && (
         <div className="flex gap-2">
           {trainerMenu.map((item, index) => (
+            <button
+              key={index}
+              onClick={() => setShowTab(item.label.toLowerCase())}
+              className="bg-zinc-900 hover:bg-zinc-800 py-3 px-6 text-[15px] font-semibold rounded cursor-pointer transition-colors duration-300"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {user?.role === "client" && (
+        <div className="flex gap-2">
+          {clientMenu.map((item, index) => (
             <button
               key={index}
               onClick={() => setShowTab(item.label.toLowerCase())}

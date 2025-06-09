@@ -17,7 +17,7 @@ export default function ReusableTable({
       }}
     >
       <table className="w-full text-sm text-left rtl:text-right text-zinc-white">
-        <thead className="text-xs text-zinc-white uppercase bg-zinc-900 sticky top-0 z-10">
+        <thead className="text-xs text-zinc-white uppercase bg-zinc-900 sticky top-0">
           <tr>
             {columns.map((col) => (
               <th key={col.key} scope="col" className="px-6 py-3 bg-zinc-900">
@@ -47,8 +47,8 @@ export default function ReusableTable({
                 </td>
               ))}
               {renderActions && (
-                <td className="px-6 py-3 text-right">
-                  <div className="inline-flex justify-end gap-4">
+                <td className="px-6  text-right">
+                  <div className="inline-flex my-2.5 justify-end gap-4">
                     {renderActions(row, idx)}
                   </div>
                 </td>
@@ -58,7 +58,7 @@ export default function ReusableTable({
 
           {Array.from({ length: Math.max(minRows - data.length, 0) }).map(
             (_, idx) => (
-              <tr key={`empty-${idx}`} className="bg-zinc-200">
+              <tr key={`empty-${idx}`} className="bg-zinc-200 ">
                 {columns.map((col) => (
                   <td key={col.key} className="px-6 py-3">
                     &nbsp;

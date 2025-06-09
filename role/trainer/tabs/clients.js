@@ -1,69 +1,65 @@
 "use client";
 
 import AddClientModal from "@/components/trainer/addClientModal";
-import { ChartSpline, Pencil, Plus, X } from "lucide-react";
-import { fetchClients } from "@/redux/slices/clientSlice";
+import DeleteClientModal from "@/components/trainer/deleteClientModal";
+import { ChartNoAxesCombinedIcon, Eye, Pencil, Plus, X } from "lucide-react";
 import SearchInput from "@/components/common/searchInput";
 import { useDispatch, useSelector } from "react-redux";
 import DataTable from "@components/common/dataTable";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import ClientInfoModal from "@/components/trainer/clientInfoModal";
+import LinkStatusBadge from "@/components/common/LinkStatusBadge";
+import AllClientStats from "@/components/trainer/allClientStats";
 
 const columns = [
   { key: "name", label: "Client Name" },
   { key: "email", label: "Email" },
   { key: "role", label: "Position" },
+  { key: "is_temp_badge", label: "Client Linked" },
   { key: "created_at", label: "Join Date" },
 ];
 
 export default function Clients() {
   const dispatch = useDispatch();
-  const { list: clients = [], status } = useSelector((state) => state.clients);
   const user = useSelector((state) => state.auth.user);
+  const { list: clients = [], status } = useSelector((state) => state.clients);
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+
+  const [addClientModalOpen, setAddClientModalOpen] = useState(false);
+  const [viewClientInfoModalOpen, setViewClientInfoModalOpen] = useState(false);
+  const [deleteClientModalOpen, setDeleteClientModalOpen] = useState(false);
 
   const [searchString, setSearchString] = useState("");
 
-  useEffect(() => {
-    if (user?.role === "trainer") {
-      dispatch(fetchClients());
-    }
-  }, [dispatch, user]);
-
   const filteredClients = clients
     .filter((client) => {
-      const search = searchString.toLowerCase();
-      return (
-        client.name.toLowerCase().includes(search) ||
-        client.email.toLowerCase().includes(search)
-      );
+      const search = (searchString ?? "").toLowerCase();
+      const fullName = `${client.first_name ?? ""} ${
+        client.last_name ?? ""
+      }`.toLowerCase();
+      const email = (client.email ?? "").toLowerCase();
+
+      return fullName.includes(search) || email.includes(search);
     })
     .map((client) => ({
       ...client,
+      name: `${client.first_name ?? ""} ${client.last_name ?? ""}`.trim(),
       created_at: new Date(client.created_at).toLocaleDateString(),
       role: client.role.charAt(0).toUpperCase() + client.role.slice(1),
+      is_temp_badge: <LinkStatusBadge isTemp={client.is_temp} />,
     }));
 
-  const handleEdit = (row) => {
-    console.log("Edit clicked for:", row.name);
-  };
-
-  const handleDelete = (row) => {
-    console.log("Delete clicked for:", row.name);
+  const handleEditClient = (row) => {
+    setSelectedClient(row);
+    setAddClientModalOpen(true);
   };
 
   return (
     <div className="w-full h-full">
       <div className="flex flex-col gap-4 w-full h-full">
-        <div className="flex flex-1 gap-4 w-full h-[200px] ">
-          <div className="w-full h-full bg-zinc-200 rounded"></div>
-          <div className="w-full h-full bg-zinc-200 rounded"></div>
-          <div className="w-full h-full bg-zinc-200 rounded"></div>
-          <div className="w-full h-full bg-zinc-200 rounded"></div>
-        </div>
-        <div className="flex flex-1 gap-4 w-full h-[200px] ">
-          <div className="w-2/3 h-full bg-zinc-200 rounded"></div>
-          <div className="w-1/3 h-full bg-zinc-200 rounded"></div>
+        <div className="flex flex-1 p-12 gap-10 bg-zinc-900 h-[600px] w-full">
+          <AllClientStats client={selectedClient} />
         </div>
         <div className="flex w-full justify-between h-[54px] bg-zinc-900 rounded p-2">
           <SearchInput
@@ -73,7 +69,7 @@ export default function Clients() {
           />
           <div className="flex gap-2">
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={() => setAddClientModalOpen(true)}
               className="flex items-center gap-1 font-semibold bg-zinc-800 text-white text-[15px] rounded px-4 py-2 cursor-pointer"
             >
               <p> Add Client </p>
@@ -89,21 +85,35 @@ export default function Clients() {
           data={filteredClients}
           minRows={6}
           renderActions={(row) => (
-            <div className="flex gap-4">
+            <div className="flex gap-2 items-center">
               <button
-                onClick={() => handleEdit(row)}
+                onClick={() => {
+                  setSelectedClient(row);
+                  setViewClientInfoModalOpen(true);
+                }}
+                className="text-zinc-400 hover:text-zinc-600"
+              >
+                <Eye size={20} />
+              </button>
+              <button
+                onClick={() => {
+                  handleEditClient(row);
+                }}
                 className="text-zinc-400 hover:text-zinc-600"
               >
                 <Pencil size={20} />
               </button>
               <button
-                onClick={() => handleDelete(row)}
+                onClick={() => handleDeleteClient(row)}
                 className="text-zinc-400 hover:text-zinc-600"
               >
-                <ChartSpline size={20} />
+                <ChartNoAxesCombinedIcon size={20} />
               </button>
               <button
-                onClick={() => handleDelete(row)}
+                onClick={() => {
+                  setSelectedClient(row);
+                  setDeleteClientModalOpen(true);
+                }}
                 className="text-zinc-400 hover:text-zinc-600"
               >
                 <X size={24} />
@@ -111,11 +121,31 @@ export default function Clients() {
             </div>
           )}
         />
-        {console.log("Modal Open?", modalOpen)}
-        <AddClientModal
-          opened={modalOpen}
-          onClose={() => setModalOpen(false)}
-        />
+        {addClientModalOpen && (
+          <AddClientModal
+            close={() => setAddClientModalOpen(false)}
+            selectedClient={selectedClient}
+          />
+        )}
+
+        {deleteClientModalOpen && (
+          <DeleteClientModal
+            close={() => {
+              setDeleteClientModalOpen(false);
+              setSelectedClient(null);
+            }}
+            clientName={selectedClient.name}
+            clientId={selectedClient.id}
+            onConfirm={() => handleDelete(selectedClient.id)}
+          />
+        )}
+
+        {viewClientInfoModalOpen && (
+          <ClientInfoModal
+            close={() => setViewClientInfoModalOpen(false)}
+            client={selectedClient}
+          />
+        )}
       </div>
     </div>
   );

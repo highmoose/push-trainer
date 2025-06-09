@@ -11,11 +11,11 @@ export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);
 
   return (
-    <div className="flex flex-col w-full h-screen justify-center items-center ">
+    <div className="flex flex-col w-full min-h-screen justify-center items-center ">
       <div className="flex w-full h-full">
         {user?.role === "trainer" && <TrainerArea />}
-        {/* {user?.role === "client" && <ClientDashboard />}
-        {user?.role === "gym_owner" && <GymOwnerDashboard />} */}
+        {user?.role === "client" && <ClientDashboard />}
+        {/* {user?.role === "gym_owner" && <GymOwnerDashboard />} */}
       </div>
     </div>
   );
