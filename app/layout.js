@@ -2,11 +2,12 @@
 
 import { Geist, Geist_Mono } from "next/font/google";
 import { Provider as ReduxProvider } from "react-redux";
+import { MantineProvider } from "@mantine/core";
+import { DatesProvider } from "@mantine/dates";
 import store from "@redux/store";
 import AuthHydration from "@redux/store/AuthHydration";
 import "./globals.css";
 
-// Load custom fonts
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -23,9 +24,15 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <div id="mantine-portal" />
+
         <ReduxProvider store={store}>
           <AuthHydration />
-          {children}
+          <MantineProvider withGlobalStyles withNormalizeCSS>
+            <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
+              {children}
+            </DatesProvider>
+          </MantineProvider>
         </ReduxProvider>
       </body>
     </html>

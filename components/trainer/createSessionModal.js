@@ -8,6 +8,7 @@ import {
   cancelSession,
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
+import { DateTimePicker } from "@mantine/dates";
 
 export default function CreateSessionModal({
   close,
@@ -28,22 +29,21 @@ export default function CreateSessionModal({
   console.log("form", form);
 
   useEffect(() => {
-    if (mode === "edit" && initialValues.start_time && initialValues.end_time) {
-      const start = initialValues.start_time.slice(0, 16);
-      const duration =
-        (new Date(initialValues.end_time) -
-          new Date(initialValues.start_time)) /
-        60000;
+    if (initialValues?.start_time) {
+      const start = new Date(initialValues.start_time);
+      const duration = initialValues.end_time
+        ? (new Date(initialValues.end_time) - start) / 60000
+        : 60;
 
       setForm({
         client_id: initialValues.client_id?.toString() || "",
-        scheduled_at: start,
+        scheduled_at: start.toISOString().slice(0, 16), // keep HTML input compatibility
         duration,
         notes: initialValues.notes || "",
-        status: initialValues.status || "",
+        status: initialValues.status || "scheduled",
       });
     }
-  }, [mode, initialValues]);
+  }, [initialValues]);
 
   const handleSubmit = async () => {
     if (mode === "edit") {
@@ -71,7 +71,7 @@ export default function CreateSessionModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-      <div className="bg-zinc-900 p-6 rounded w-[400px]">
+      <div className="bg-zinc-900 rounded w-[400px] p-8">
         <h2 className="text-white text-lg font-bold mb-4">
           {mode === "edit" ? "Edit Session" : "Schedule Session"}
         </h2>
@@ -89,11 +89,17 @@ export default function CreateSessionModal({
           ))}
         </select>
 
-        <input
-          type="datetime-local"
-          className="w-full p-2 mb-2 rounded bg-zinc-800 text-white"
-          value={form.scheduled_at || ""}
-          onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
+        <DateTimePicker
+          className="mb-2 bg-zinc-800 py-2 rounded px-2.5"
+          value={form.scheduled_at ? new Date(form.scheduled_at) : null}
+          onChange={(date) =>
+            setForm({
+              ...form,
+              scheduled_at: date?.toISOString().slice(0, 16) || "",
+            })
+          }
+          valueFormat="MMM D YYYY h:mma"
+          placeholder="Pick date and time"
         />
 
         <input
@@ -129,7 +135,7 @@ export default function CreateSessionModal({
               onClick={handleCancelSession}
               className="text-red-400 hover:text-red-500 text-sm"
             >
-              Cancel Session
+              Remove Session
             </button>
           )}
           <div className="flex gap-2">

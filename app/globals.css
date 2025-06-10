@@ -23,6 +23,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), monospace;
+  height: 100%;
 }
 
 /* WebKit scrollbar styles */
@@ -69,7 +70,7 @@ input:-webkit-autofill {
 
 .scrollbar-dark {
   scrollbar-width: thin;
-  scrollbar-color: #1d1d1e #00000000;
+  scrollbar-color: #363637 #00000000;
 }
 
 .scrollbar-dark::-webkit-scrollbar {
