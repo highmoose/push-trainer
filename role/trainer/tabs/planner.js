@@ -30,6 +30,11 @@ export default function TrainerCalendarPage() {
 
   const [hoveredLine, setHoveredLine] = useState(null);
 
+  const [showSheduled, setShowScheduled] = useState(true);
+  const [showPending, setShowPending] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCancelled, setShowCancelled] = useState(true);
+
   const renderWeekGridWithTimes = () => {
     const days = [...Array(7)].map((_, i) =>
       currentDate.startOf("week").add(i, "day")
@@ -128,6 +133,17 @@ export default function TrainerCalendarPage() {
                     {sessions
                       .filter((s) => dayjs(s.start_time).isSame(day, "day"))
                       .filter((s) => dayjs(s.start_time).hour() === hour)
+                      .filter((s) => {
+                        if (s.status === "scheduled" && !showSheduled)
+                          return false;
+                        if (s.status === "pending" && !showPending)
+                          return false;
+                        if (s.status === "completed" && !showCompleted)
+                          return false;
+                        if (s.status === "cancelled" && !showCancelled)
+                          return false;
+                        return true;
+                      })
                       .map((s, j) => {
                         const start = dayjs(s.start_time);
                         const end = dayjs(s.end_time);
@@ -136,7 +152,7 @@ export default function TrainerCalendarPage() {
                         return (
                           <div
                             key={j}
-                            className={`absolute left-1 right-1  text-xs p-2 rounded shadow cursor-pointer z-10 ${
+                            className={`absolute left-1 right-1 text-xs p-2 rounded shadow cursor-pointer z-10 ${
                               s.status === "scheduled" &&
                               "bg-zinc-200 hover:bg-zinc-100 text-black"
                             } ${
@@ -204,15 +220,41 @@ export default function TrainerCalendarPage() {
         >
           + New
         </button>
-        {/* <nav className="flex-1 overflow-y-auto">
-          <ul className="space-y-2 text-sm">
-            <li>Agenda</li>
-            <li className="font-bold">Calendar</li>
-            <li>Projects & Tasks</li>
-            <li>Team Schedule</li>
-            <li>Tutorials</li>
-          </ul>
-        </nav> */}
+        <div className="flex flex-col mb-4">
+          <p className="text-sm font-semibold text-zinc-600 mb-1">Show/hide</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showSheduled}
+              onChange={(e) => setShowScheduled(e.target.checked)}
+            />
+            Scheduled
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showPending}
+              onChange={(e) => setShowPending(e.target.checked)}
+            />
+            Pending
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+            />
+            Completed
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showCancelled}
+              onChange={(e) => setShowCancelled(e.target.checked)}
+            />
+            Cancelled
+          </label>
+        </div>
       </div>
 
       <div className="w-full flex flex-col h-full overflow-hidden">

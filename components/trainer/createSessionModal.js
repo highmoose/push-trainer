@@ -9,6 +9,7 @@ import {
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
 import { DateTimePicker } from "@mantine/dates";
+import dayjs from "dayjs";
 
 export default function CreateSessionModal({
   close,
@@ -20,7 +21,7 @@ export default function CreateSessionModal({
 
   const [form, setForm] = useState({
     client_id: "",
-    scheduled_at: "",
+    scheduled_at: null,
     duration: 60,
     notes: "",
     status: "",
@@ -37,7 +38,7 @@ export default function CreateSessionModal({
 
       setForm({
         client_id: initialValues.client_id?.toString() || "",
-        scheduled_at: start.toISOString().slice(0, 16), // keep HTML input compatibility
+        scheduled_at: start.toISOString().slice(0, 16), // ← THIS LINE
         duration,
         notes: initialValues.notes || "",
         status: initialValues.status || "scheduled",
@@ -46,22 +47,31 @@ export default function CreateSessionModal({
   }, [initialValues]);
 
   const handleSubmit = async () => {
+    const payload = {
+      ...form,
+      duration: parseInt(form.duration, 10),
+      scheduled_at: form.scheduled_at?.toISOString() || null, // safely format as ISO string
+    };
+
     if (mode === "edit") {
-      await dispatch(
-        updateSession({
-          id: initialValues.id,
-          data: {
-            ...form,
-            duration: parseInt(form.duration, 10), // <-- Fix here
-          },
-        })
-      );
+      await dispatch(updateSession({ id: initialValues.id, data: payload }));
     } else {
-      await dispatch(createSession(form));
+      await dispatch(createSession(payload));
     }
-    await dispatch(fetchSessions()); // refresh view
+
+    await dispatch(fetchSessions());
     close();
   };
+
+  // converts the session to cancelled status
+
+  // const handleCancelSession = async () => {
+  //   if (mode === "edit" && initialValues.id) {
+  //     await dispatch(cancelSession(initialValues.id));
+  //     await dispatch(fetchSessions());
+  //     close();
+  //   }
+  // };
 
   const handleCancelSession = async () => {
     await dispatch(cancelSession(initialValues.id));
@@ -90,12 +100,19 @@ export default function CreateSessionModal({
         </select>
 
         <DateTimePicker
-          className="mb-2 bg-zinc-800 py-2 rounded px-2.5"
-          value={form.scheduled_at ? new Date(form.scheduled_at) : null}
+          className="mb-2 bg-zinc-800 rounded"
+          style={{
+            width: "100%",
+            marginBottom: "0.5rem",
+            borderRadius: "0.375rem",
+            backgroundColor: "#1f2937",
+            color: "#ffffff",
+          }}
+          value={form.scheduled_at ? dayjs(form.scheduled_at).toDate() : null}
           onChange={(date) =>
             setForm({
               ...form,
-              scheduled_at: date?.toISOString().slice(0, 16) || "",
+              scheduled_at: date,
             })
           }
           valueFormat="MMM D YYYY h:mma"

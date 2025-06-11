@@ -6,7 +6,10 @@ import { MantineProvider } from "@mantine/core";
 import { DatesProvider } from "@mantine/dates";
 import store from "@redux/store";
 import AuthHydration from "@redux/store/AuthHydration";
+import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
 import "./globals.css";
+import mantineTheme from "mantineTheme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +31,11 @@ export default function RootLayout({ children }) {
 
         <ReduxProvider store={store}>
           <AuthHydration />
-          <MantineProvider withGlobalStyles withNormalizeCSS>
+          <MantineProvider
+            withGlobalStyles
+            withNormalizeCSS
+            theme={mantineTheme}
+          >
             <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
               {children}
             </DatesProvider>

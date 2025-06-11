@@ -42,7 +42,7 @@ export default function Header({ setShowTab }) {
   // Clients dropdown has clients images in a carousel to select from in menu dropdown
 
   return (
-    <div className="flex items-center justify-between w-full text-lg p-8">
+    <div className="flex items-center justify-between font-semibold w-full p-8">
       <Image
         src="/images/logo/push-logo-white.svg"
         width={190}
