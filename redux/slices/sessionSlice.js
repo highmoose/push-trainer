@@ -33,6 +33,55 @@ export const createSession = createAsyncThunk(
   }
 );
 
+// Update session time (for drag and drop operations)
+export const updateSessionTime = createAsyncThunk(
+  "sessions/updateTime",
+  async ({ id, start_time, end_time }, { rejectWithValue }) => {
+    try {
+      // Calculate duration in minutes
+      const startTime = new Date(start_time);
+      const endTime = new Date(end_time);
+      const duration = Math.round((endTime - startTime) / (1000 * 60)); // Convert to minutes
+
+      // Format the date for Laravel - send in local format (YYYY-MM-DD HH:mm:ss)
+      let formattedStartTime;
+      if (start_time.includes("T") && !start_time.includes("Z")) {
+        // Local time format (YYYY-MM-DDTHH:mm:ss) - convert T to space for Laravel
+        formattedStartTime = start_time.replace("T", " ");
+      } else {
+        // ISO format - convert to local time string without timezone
+        const localTime = new Date(start_time);
+        const year = localTime.getFullYear();
+        const month = String(localTime.getMonth() + 1).padStart(2, "0");
+        const day = String(localTime.getDate()).padStart(2, "0");
+        const hour = String(localTime.getHours()).padStart(2, "0");
+        const minute = String(localTime.getMinutes()).padStart(2, "0");
+        const second = String(localTime.getSeconds()).padStart(2, "0");
+        formattedStartTime = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+      }
+
+      console.log(
+        "API call - sending formatted time:",
+        formattedStartTime,
+        "from original:",
+        start_time
+      );
+
+      const res = await api.put(`/api/sessions/${id}`, {
+        scheduled_at: formattedStartTime,
+        duration: duration,
+      });
+
+      return res.data;
+    } catch (err) {
+      console.error("Update session time error:", err);
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to update session time"
+      );
+    }
+  }
+);
+
 // Update an existing session
 export const updateSession = createAsyncThunk(
   "sessions/update",
@@ -70,7 +119,33 @@ const sessionSlice = createSlice({
     status: "idle",
     error: null,
   },
-  reducers: {},
+  reducers: {
+    // Optimistic update for session time changes
+    updateSessionTimeOptimistic: (state, action) => {
+      const { id, start_time, end_time } = action.payload;
+      const index = state.list.findIndex((s) => s.id === id);
+      if (index !== -1) {
+        console.log("Optimistic update applied:", { id, start_time, end_time });
+        // Only update the time fields, preserve all other data
+        state.list[index] = {
+          ...state.list[index], // Preserve all existing session data
+          start_time,
+          end_time,
+        };
+        console.log("Updated session:", state.list[index]);
+      } else {
+        console.warn("Session not found for optimistic update:", id);
+      }
+    },
+    // Revert optimistic update if API call fails
+    revertSessionTimeUpdate: (state, action) => {
+      const { id, originalSession } = action.payload;
+      const index = state.list.findIndex((s) => s.id === id);
+      if (index !== -1) {
+        state.list[index] = originalSession;
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchSessions.pending, (state) => {
@@ -94,6 +169,51 @@ const sessionSlice = createSlice({
           state.list[index] = action.payload;
         }
       })
+      .addCase(updateSessionTime.pending, (state, action) => {
+        console.log("updateSessionTime pending:", action.meta.arg);
+      })
+      .addCase(updateSessionTime.fulfilled, (state, action) => {
+        console.log("updateSessionTime fulfilled:", action.payload);
+        const index = state.list.findIndex((s) => s.id === action.payload.id);
+        if (index !== -1) {
+          console.log(
+            "Confirming optimistic update at index:",
+            index,
+            "with API data:",
+            action.payload
+          );
+
+          // Preserve all existing session data as base, only update specific fields from API
+          const existingSession = state.list[index];
+          state.list[index] = {
+            ...existingSession, // Keep all existing data as base
+            // Only update safe fields from API response that won't break the UI
+            id: action.payload.id,
+            status: action.payload.status || existingSession.status,
+            notes:
+              action.payload.notes !== undefined
+                ? action.payload.notes
+                : existingSession.notes,
+            // Preserve the optimistic time updates (don't let API override them)
+            start_time: existingSession.start_time,
+            end_time: existingSession.end_time,
+          };
+
+          console.log(
+            "Final session after API confirmation:",
+            state.list[index]
+          );
+        } else {
+          console.warn(
+            "Session not found for update confirmation:",
+            action.payload.id
+          );
+        }
+      })
+      .addCase(updateSessionTime.rejected, (state, action) => {
+        console.error("updateSessionTime rejected:", action.payload);
+        state.error = action.payload;
+      })
       .addCase(cancelSession.fulfilled, (state, action) => {
         const index = state.list.findIndex((s) => s.id === action.payload.id);
         if (index !== -1) {
@@ -103,4 +223,6 @@ const sessionSlice = createSlice({
   },
 });
 
+export const { updateSessionTimeOptimistic, revertSessionTimeUpdate } =
+  sessionSlice.actions;
 export default sessionSlice.reducer;

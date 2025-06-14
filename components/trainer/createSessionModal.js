@@ -28,7 +28,6 @@ export default function CreateSessionModal({
   });
 
   console.log("form", form);
-
   useEffect(() => {
     if (initialValues?.start_time) {
       const start = new Date(initialValues.start_time);
@@ -36,21 +35,59 @@ export default function CreateSessionModal({
         ? (new Date(initialValues.end_time) - start) / 60000
         : 60;
 
+      // Format the date for the datetime-local input without timezone conversion
+      const year = start.getFullYear();
+      const month = String(start.getMonth() + 1).padStart(2, "0");
+      const day = String(start.getDate()).padStart(2, "0");
+      const hour = String(start.getHours()).padStart(2, "0");
+      const minute = String(start.getMinutes()).padStart(2, "0");
+      const formattedDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+
       setForm({
         client_id: initialValues.client_id?.toString() || "",
-        scheduled_at: start.toISOString().slice(0, 16), // ← THIS LINE
+        scheduled_at: formattedDateTime, // Use local time format without timezone conversion
         duration,
         notes: initialValues.notes || "",
         status: initialValues.status || "scheduled",
       });
     }
   }, [initialValues]);
-
   const handleSubmit = async () => {
+    // Format scheduled_at to match Laravel expectation (YYYY-MM-DD HH:mm:ss)
+    let formattedScheduledAt = null;
+    if (form.scheduled_at) {
+      if (typeof form.scheduled_at === "string") {
+        // If it's already a string, convert T to space and add seconds if needed
+        formattedScheduledAt = form.scheduled_at.replace("T", " ");
+        if (!formattedScheduledAt.includes(":")) {
+          formattedScheduledAt += ":00";
+        } else if (formattedScheduledAt.split(":").length === 2) {
+          formattedScheduledAt += ":00";
+        }
+      } else {
+        // If it's a Date object, format as local time
+        const date = form.scheduled_at;
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hour = String(date.getHours()).padStart(2, "0");
+        const minute = String(date.getMinutes()).padStart(2, "0");
+        const second = String(date.getSeconds()).padStart(2, "0");
+        formattedScheduledAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+      }
+    }
+
+    console.log(
+      "Modal - Submitting scheduled_at:",
+      formattedScheduledAt,
+      "from:",
+      form.scheduled_at
+    );
+
     const payload = {
       ...form,
       duration: parseInt(form.duration, 10),
-      scheduled_at: form.scheduled_at?.toISOString() || null, // safely format as ISO string
+      scheduled_at: formattedScheduledAt, // Send in Laravel-expected format
     };
 
     if (mode === "edit") {
