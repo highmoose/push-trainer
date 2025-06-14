@@ -19,6 +19,37 @@ export default function CreateSessionModal({
   const dispatch = useDispatch();
   const clients = useSelector((state) => state.clients.list || []);
   const sessions = useSelector((state) => state.sessions.list || []);
+
+  // Mock clients for development/testing when no API data is available
+  const mockClients = [
+    {
+      id: 1,
+      first_name: "John",
+      last_name: "Doe",
+      email: "john.doe@example.com",
+    },
+    {
+      id: 2,
+      first_name: "Sarah",
+      last_name: "Johnson",
+      email: "sarah.johnson@example.com",
+    },
+    {
+      id: 3,
+      first_name: "Mike",
+      last_name: "Wilson",
+      email: "mike.wilson@example.com",
+    },
+    {
+      id: 4,
+      first_name: "Emma",
+      last_name: "Davis",
+      email: "emma.davis@example.com",
+    },
+  ];
+
+  // Use mock data if no clients are loaded from API
+  const clientsToUse = clients.length > 0 ? clients : mockClients;
   // Session Templates
   const sessionTemplates = [
     {
@@ -106,9 +137,8 @@ export default function CreateSessionModal({
     preparation_notes: "",
     goals: "",
   });
-
   // Helper functions
-  const filteredClients = clients.filter((client) =>
+  const filteredClients = clientsToUse.filter((client) =>
     `${client.first_name} ${client.last_name}`
       .toLowerCase()
       .includes(clientSearch.toLowerCase())
