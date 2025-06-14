@@ -24,71 +24,16 @@ export default function TrainerCalendarPage() {
   const calendarContainerRef = useRef(null);
   const hoverLineRef = useRef(null);
   const { list: sessions = [] } = useSelector((state) => state.sessions);
-  const { list: clients = [], status } = useSelector((state) => state.clients);// Add some test sessions for debugging
-  // Fix timezone issue: create times in local timezone without UTC conversion
-  const now = dayjs();
-  const testSessions = [
-    {
-      id: "test1",
-      start_time: now
-        .startOf("day")
-        .hour(9)
-        .minute(30)
-        .second(0)
-        .format("YYYY-MM-DDTHH:mm:ss"),
-      end_time: now
-        .startOf("day")
-        .hour(10)
-        .minute(30)
-        .second(0)
-        .format("YYYY-MM-DDTHH:mm:ss"),
-      status: "scheduled",
-      first_name: "John",
-      last_name: "Doe",
-      gym: "Test Gym",
-      notes: "Test session - should show at 9:30 AM",
-    },
-    {
-      id: "test2",
-      start_time: now
-        .startOf("day")
-        .hour(14)
-        .minute(0)
-        .second(0)
-        .format("YYYY-MM-DDTHH:mm:ss"),
-      end_time: now
-        .startOf("day")
-        .hour(15)
-        .minute(0)
-        .second(0)
-        .format("YYYY-MM-DDTHH:mm:ss"),
-      status: "pending",
-      first_name: "Jane",
-      last_name: "Smith",
-      gym: "Test Gym 2",
-      notes: "Another test - should show at 2:00 PM",
-    },
-  ];
+  const { list: clients = [], status } = useSelector((state) => state.clients);
 
-  // Debug timezone
-  console.log("Timezone test:");
-  console.log("Current time:", now.format("YYYY-MM-DD HH:mm:ss"));
-  console.log(
-    "Test 1 expected: 9:30 AM, created as:",
-    testSessions[0].start_time
-  );
-  console.log(
-    "Test 2 expected: 2:00 PM, created as:",
-    testSessions[1].start_time
-  );
-
-  // Use test sessions if no real sessions exist
-  const displaySessions = sessions.length > 0 ? sessions : testSessions;
+  // Use real sessions from Redux store
+  const displaySessions = sessions;
   console.log("clients", clients);
   console.log("sessions", sessions);
   console.log("displaySessions", displaySessions);
   console.log("sessions count:", sessions.length);
   console.log("displaySessions count:", displaySessions.length);
+
   // Debug session times
   displaySessions.forEach((s, i) => {
     const start = dayjs(s.start_time);
@@ -145,7 +90,7 @@ export default function TrainerCalendarPage() {
         newColumnIndex = Math.max(0, Math.min(6, newColumnIndex)); // Clamp to valid range
       }
 
-      setDragCurrentColumn(newColumnIndex);      // Calculate which hour and minute we're in based on the grid
+      setDragCurrentColumn(newColumnIndex); // Calculate which hour and minute we're in based on the grid
       // Each hour block is 60px tall, header is approximately 40px
       const headerHeight = 40;
       const hourHeight = 60;
@@ -177,7 +122,8 @@ export default function TrainerCalendarPage() {
       const targetDay =
         newColumnIndex >= 0
           ? days[newColumnIndex]
-          : dayjs(draggingSession.start_time);      const newStart = targetDay
+          : dayjs(draggingSession.start_time);
+      const newStart = targetDay
         .startOf("day")
         .hour(actualHour)
         .minute(actualMinute)
@@ -203,68 +149,55 @@ export default function TrainerCalendarPage() {
       // Remove global drag state
       document.body.classList.remove("dragging", "no-select"); // Update session time via Redux
       if (draggingSession && draggingSession.id) {
-        // Only dispatch to Redux if it's a real session (not a test session)
-        if (!String(draggingSession.id).startsWith("test")) {
-          // Store original session for potential revert
-          const originalSession = sessions.find(
-            (s) => s.id === draggingSession.id
+        // Store original session for potential revert
+        const originalSession = sessions.find(
+          (s) => s.id === draggingSession.id
+        );
+
+        if (!originalSession) {
+          console.error(
+            "Original session not found for revert:",
+            draggingSession.id
           );
+          setDraggingSession(null);
+          return;
+        }
 
-          if (!originalSession) {
-            console.error(
-              "Original session not found for revert:",
-              draggingSession.id
-            );
-            setDraggingSession(null);
-            return;
-          }
+        // Validate dragging session has required data
+        if (!draggingSession.start_time || !draggingSession.end_time) {
+          console.error("Dragging session missing time data:", draggingSession);
+          setDraggingSession(null);
+          return;
+        }
 
-          // Validate dragging session has required data
-          if (!draggingSession.start_time || !draggingSession.end_time) {
-            console.error(
-              "Dragging session missing time data:",
-              draggingSession
-            );
-            setDraggingSession(null);
-            return;
-          }
-
-          // 1. Immediate optimistic update
-          dispatch(
-            updateSessionTimeOptimistic({
-              id: draggingSession.id,
-              start_time: draggingSession.start_time,
-              end_time: draggingSession.end_time,
-            })
-          );
-
-          // 2. API call in background
-          dispatch(
-            updateSessionTime({
-              id: draggingSession.id,
-              start_time: draggingSession.start_time,
-              end_time: draggingSession.end_time,
-            })
-          ).catch((error) => {
-            console.error("Failed to update session, reverting:", error);
-            // Revert optimistic update on API failure
-            if (originalSession) {
-              dispatch(
-                revertSessionTimeUpdate({
-                  id: draggingSession.id,
-                  originalSession,
-                })
-              );
-            }
-          });
-        } else {
-          // Handle test session updates locally (for now just log)
-          console.log("Test session updated:", {
+        // 1. Immediate optimistic update
+        dispatch(
+          updateSessionTimeOptimistic({
             id: draggingSession.id,
             start_time: draggingSession.start_time,
             end_time: draggingSession.end_time,
-          });
-        }
+          })
+        );
+
+        // 2. API call in background
+        dispatch(
+          updateSessionTime({
+            id: draggingSession.id,
+            start_time: draggingSession.start_time,
+            end_time: draggingSession.end_time,
+          })
+        ).catch((error) => {
+          console.error("Failed to update session, reverting:", error);
+          // Revert optimistic update on API failure
+          if (originalSession) {
+            dispatch(
+              revertSessionTimeUpdate({
+                id: draggingSession.id,
+                originalSession,
+              })
+            );
+          }
+        });
       }
 
       setDraggingSession(null);
@@ -302,7 +235,7 @@ export default function TrainerCalendarPage() {
       if (!calendarRef.current || !resizingSession) return;
 
       const calendarRect = calendarRef.current.getBoundingClientRect();
-      const y = e.clientY - calendarRect.top;      // Calculate which hour and minute we're in based on the grid
+      const y = e.clientY - calendarRect.top; // Calculate which hour and minute we're in based on the grid
       // Each hour block is 60px tall, header is approximately 40px
       const headerHeight = 40;
       const hourHeight = 60;
@@ -357,53 +290,41 @@ export default function TrainerCalendarPage() {
     const handleMouseUp = () => {
       setIsResizing(false);
       setResizeType(null); // Remove global resize state
-      document.body.classList.remove("resizing", "no-select");
-
-      // Update session time via Redux
+      document.body.classList.remove("resizing", "no-select"); // Update session time via Redux
       if (resizingSession && resizingSession.id) {
-        // Only dispatch to Redux if it's a real session (not a test session)
-        if (!String(resizingSession.id).startsWith("test")) {
-          // Store original session for potential revert
-          const originalSession = sessions.find(
-            (s) => s.id === resizingSession.id
-          );
+        // Store original session for potential revert
+        const originalSession = sessions.find(
+          (s) => s.id === resizingSession.id
+        );
 
-          // 1. Immediate optimistic update
-          dispatch(
-            updateSessionTimeOptimistic({
-              id: resizingSession.id,
-              start_time: resizingSession.start_time,
-              end_time: resizingSession.end_time,
-            })
-          );
-
-          // 2. API call in background
-          dispatch(
-            updateSessionTime({
-              id: resizingSession.id,
-              start_time: resizingSession.start_time,
-              end_time: resizingSession.end_time,
-            })
-          ).catch((error) => {
-            console.error("Failed to update session, reverting:", error);
-            // Revert optimistic update on API failure
-            if (originalSession) {
-              dispatch(
-                revertSessionTimeUpdate({
-                  id: resizingSession.id,
-                  originalSession,
-                })
-              );
-            }
-          });
-        } else {
-          // Handle test session updates locally (for now just log)
-          console.log("Test session updated:", {
+        // 1. Immediate optimistic update
+        dispatch(
+          updateSessionTimeOptimistic({
             id: resizingSession.id,
             start_time: resizingSession.start_time,
             end_time: resizingSession.end_time,
-          });
-        }
+          })
+        );
+
+        // 2. API call in background
+        dispatch(
+          updateSessionTime({
+            id: resizingSession.id,
+            start_time: resizingSession.start_time,
+            end_time: resizingSession.end_time,
+          })
+        ).catch((error) => {
+          console.error("Failed to update session, reverting:", error);
+          // Revert optimistic update on API failure
+          if (originalSession) {
+            dispatch(
+              revertSessionTimeUpdate({
+                id: resizingSession.id,
+                originalSession,
+              })
+            );
+          }
+        });
       }
 
       setResizingSession(null);
@@ -427,7 +348,8 @@ export default function TrainerCalendarPage() {
       window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.classList.remove("resizing", "no-select");
-    };  }, [isResizing, resizingSession, resizeType]);
+    };
+  }, [isResizing, resizingSession, resizeType]);
 
   // Scroll to middle of day (6 AM) on initial load
   useEffect(() => {
@@ -684,8 +606,8 @@ export default function TrainerCalendarPage() {
                               zIndex:
                                 (isDragging && s.id === draggingSession?.id) ||
                                 (isResizing && s.id === resizingSession?.id)
-                                  ? 50
-                                  : 10,
+                                  ? 60
+                                  : 45,
                               opacity:
                                 (isDragging && s.id === draggingSession?.id) ||
                                 (isResizing && s.id === resizingSession?.id)
@@ -779,10 +701,11 @@ export default function TrainerCalendarPage() {
         </div>
       </div>
     );
-  };  const renderGrid = () => {
+  };
+  const renderGrid = () => {
     if (currentView === "week")
       return (
-        <div 
+        <div
           ref={calendarContainerRef}
           className="min-h-full overflow-y-auto calendar-scroll scrollbar-dark"
         >
@@ -798,11 +721,11 @@ export default function TrainerCalendarPage() {
   return (
     <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Minimal Sidebar */}
-      <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
+      <div className="w-64 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
         {/* Header */}
         <div className="p-6 border-b border-zinc-800/30">
           <button
-            className="w-full bg-white text-black hover:bg-gray-100 px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm"
+            className="w-full bg-white text-black hover:bg-gray-100 !text-[16px] px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm cursor-pointer"
             onClick={() => setCreateModalOpen(true)}
           >
             + New Session
