@@ -69,7 +69,95 @@ export default function TrainerCalendarPage() {
   const [resizeType, setResizeType] = useState(null); // 'top' or 'bottom'
   const [resizingSession, setResizingSession] = useState(null);
   const [dragStartColumn, setDragStartColumn] = useState(null);
-  const [dragCurrentColumn, setDragCurrentColumn] = useState(null); // Enhanced useEffect for dragging with cross-day support
+  const [dragCurrentColumn, setDragCurrentColumn] = useState(null);
+  // Session Templates
+  const [sessionTemplates] = useState([
+    {
+      id: 1,
+      name: "Strength Training",
+      duration: 60,
+      color: "red-500",
+      type: "strength",
+    },
+    {
+      id: 2,
+      name: "Cardio Session",
+      duration: 45,
+      color: "orange-500",
+      type: "cardio",
+    },
+    {
+      id: 3,
+      name: "HIIT Workout",
+      duration: 30,
+      color: "yellow-500",
+      type: "hiit",
+    },
+    {
+      id: 4,
+      name: "Flexibility & Recovery",
+      duration: 45,
+      color: "green-500",
+      type: "recovery",
+    },
+    {
+      id: 5,
+      name: "Personal Assessment",
+      duration: 90,
+      color: "blue-500",
+      type: "assessment",
+    },
+    {
+      id: 6,
+      name: "Nutrition Consultation",
+      duration: 60,
+      color: "purple-500",
+      type: "consultation",
+    },
+  ]);
+
+  // Helper function to create session from template
+  const createFromTemplate = (template) => {
+    const now = dayjs();
+    const startTime = now.hour(9).minute(0).second(0); // Default to 9 AM
+    const endTime = startTime.add(template.duration, "minute");
+
+    setSelectedSession({
+      start_time: startTime.format("YYYY-MM-DDTHH:mm:ss"),
+      end_time: endTime.format("YYYY-MM-DDTHH:mm:ss"),
+      status: "scheduled",
+      session_type: template.type,
+      notes: `${template.name} session`,
+      gym: "",
+      first_name: "",
+      last_name: "",
+      rate: 0,
+    });
+    setCreateModalOpen(true);
+  };
+
+  // Helper function to calculate weekly stats
+  const calculateWeeklyStats = () => {
+    const weekStart = currentDate.startOf("week");
+    const weekEnd = currentDate.endOf("week");
+    const weekSessions = displaySessions.filter((s) => {
+      const sessionDate = dayjs(s.start_time);
+      return sessionDate.isAfter(weekStart) && sessionDate.isBefore(weekEnd);
+    });
+
+    return {
+      totalSessions: weekSessions.length,
+      totalHours: weekSessions.reduce((acc, s) => {
+        return acc + dayjs(s.end_time).diff(dayjs(s.start_time), "hour", true);
+      }, 0),
+      clients: new Set(
+        weekSessions.map((s) => `${s.first_name} ${s.last_name}`)
+      ).size,
+      revenue: weekSessions.reduce((acc, s) => acc + (s.rate || 0), 0),
+    };
+  };
+
+  // Enhanced useEffect for dragging with cross-day support
   useEffect(() => {
     if (!isDragging) return;
 
@@ -720,21 +808,144 @@ export default function TrainerCalendarPage() {
   };
   return (
     <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
-      {/* Minimal Sidebar */}
-      <div className="w-64 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
-        {/* Header */}
-        <div className="p-6 border-b border-zinc-800/30">
-          <button
-            className="w-full bg-white text-black hover:bg-gray-100 !text-[16px] px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm cursor-pointer"
-            onClick={() => setCreateModalOpen(true)}
-          >
-            + New Session
-          </button>
-        </div>{" "}
-        {/* Quick Stats */}
-        <div className="p-6 border-b border-zinc-800/30">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-zinc-300">This Week</h3>
+      {/* Professional Trainer Sidebar */}
+      <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
+        {/* Session Templates */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+            Session Templates
+          </h3>{" "}
+          <div className="space-y-2">
+            {sessionTemplates.slice(0, 3).map((template) => (
+              <div
+                key={template.id}
+                className={`flex items-center justify-between p-3 rounded-lg bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer group transition-all border-l-4 border-${template.color}`}
+                onClick={() => createFromTemplate(template)}
+              >
+                <div>
+                  <div className="text-sm font-medium text-zinc-300">
+                    {template.name}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {template.duration}min • {template.type}
+                  </div>
+                </div>
+                <div className="text-xs text-zinc-500 group-hover:text-zinc-300">
+                  +
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Weekly Overview */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-300">
+              Weekly Overview
+            </h3>
+            <div className="text-xs text-zinc-500">
+              {currentDate.startOf("week").format("MMM D")} -{" "}
+              {currentDate.endOf("week").format("MMM D")}
+            </div>
+          </div>
+
+          {(() => {
+            const stats = calculateWeeklyStats();
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {stats.totalSessions}
+                  </div>
+                  <div className="text-xs text-zinc-500">Sessions</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {stats.totalHours.toFixed(1)}h
+                  </div>
+                  <div className="text-xs text-zinc-500">Training Hours</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {stats.clients}
+                  </div>
+                  <div className="text-xs text-zinc-500">Active Clients</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    £{stats.revenue}
+                  </div>
+                  <div className="text-xs text-zinc-500">Revenue</div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Status Filters */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+            Status Filters
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showSheduled}
+                onChange={(e) => setShowScheduled(e.target.checked)}
+                className="transparent-checkbox"
+              />
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+              <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
+                Scheduled
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showPending}
+                onChange={(e) => setShowPending(e.target.checked)}
+                className="transparent-checkbox"
+              />
+              <div className="w-2 h-2 bg-zinc-500 rounded-full"></div>
+              <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
+                Pending
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showCompleted}
+                onChange={(e) => setShowCompleted(e.target.checked)}
+                className="transparent-checkbox"
+              />
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
+                Completed
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showCancelled}
+                onChange={(e) => setShowCancelled(e.target.checked)}
+                className="transparent-checkbox"
+              />
+              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+              <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
+                Cancelled
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Upcoming Sessions */}
+        <div className="flex-1 p-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-300">
+              Upcoming Sessions
+            </h3>
             <button
               onClick={() => setCurrentDate(dayjs())}
               className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -742,168 +953,40 @@ export default function TrainerCalendarPage() {
               Today
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="text-center">
-              <div className="text-xl font-semibold text-white">
-                {
-                  displaySessions.filter(
-                    (s) =>
-                      s.status === "scheduled" &&
-                      dayjs(s.start_time).isAfter(
-                        currentDate.startOf("week")
-                      ) &&
-                      dayjs(s.start_time).isBefore(currentDate.endOf("week"))
-                  ).length
-                }
-              </div>
-              <div className="text-xs text-zinc-500">Scheduled</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-semibold text-zinc-300">
-                {
-                  displaySessions.filter(
-                    (s) =>
-                      s.status === "pending" &&
-                      dayjs(s.start_time).isAfter(
-                        currentDate.startOf("week")
-                      ) &&
-                      dayjs(s.start_time).isBefore(currentDate.endOf("week"))
-                  ).length
-                }
-              </div>
-              <div className="text-xs text-zinc-500">Pending</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-semibold text-zinc-400">
-                {
-                  displaySessions.filter(
-                    (s) =>
-                      s.status === "completed" &&
-                      dayjs(s.start_time).isAfter(
-                        currentDate.startOf("week")
-                      ) &&
-                      dayjs(s.start_time).isBefore(currentDate.endOf("week"))
-                  ).length
-                }
-              </div>
-              <div className="text-xs text-zinc-500">Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-semibold text-zinc-500">
-                {
-                  displaySessions.filter(
-                    (s) =>
-                      s.status === "cancelled" &&
-                      dayjs(s.start_time).isAfter(
-                        currentDate.startOf("week")
-                      ) &&
-                      dayjs(s.start_time).isBefore(currentDate.endOf("week"))
-                  ).length
-                }
-              </div>
-              <div className="text-xs text-zinc-500">Cancelled</div>
-            </div>
-          </div>
-        </div>{" "}
-        {/* Session Filters */}
-        <div className="p-6 border-b border-zinc-800/30">
-          <h3 className="text-sm font-medium text-zinc-300 mb-4">Filters</h3>
-          <div className="space-y-3">
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
-                  Scheduled
-                </span>
-              </div>{" "}
-              <input
-                type="checkbox"
-                checked={showSheduled}
-                onChange={(e) => setShowScheduled(e.target.checked)}
-                className="transparent-checkbox"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-zinc-500 rounded-full"></div>
-                <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
-                  Pending
-                </span>
-              </div>{" "}
-              <input
-                type="checkbox"
-                checked={showPending}
-                onChange={(e) => setShowPending(e.target.checked)}
-                className="transparent-checkbox"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
-                  Completed
-                </span>
-              </div>{" "}
-              <input
-                type="checkbox"
-                checked={showCompleted}
-                onChange={(e) => setShowCompleted(e.target.checked)}
-                className="transparent-checkbox"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
-                  Cancelled
-                </span>
-              </div>{" "}
-              <input
-                type="checkbox"
-                checked={showCancelled}
-                onChange={(e) => setShowCancelled(e.target.checked)}
-                className="transparent-checkbox"
-              />
-            </label>
-          </div>
-        </div>
-        {/* Upcoming Sessions */}
-        <div className="flex-1 p-6 overflow-hidden">
-          <h3 className="text-sm font-medium text-zinc-300 mb-4">Upcoming</h3>
-          <div className="space-y-3 overflow-y-auto max-h-full">
+          <div className="space-y-2 overflow-y-auto max-h-full">
             {displaySessions
               .filter((session) => dayjs(session.start_time).isAfter(dayjs()))
               .sort((a, b) => dayjs(a.start_time).diff(dayjs(b.start_time)))
-              .slice(0, 8)
+              .slice(0, 10)
               .map((session, idx) => (
                 <div
                   key={`upcoming-${session.id}-${idx}`}
-                  className="p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900/80 cursor-pointer transition-all duration-200 border border-zinc-800/50 hover:border-zinc-700/50"
+                  className="p-3 rounded-lg cursor-pointer transition-all duration-200 bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800/50 hover:border-zinc-700/50"
                   onClick={() => {
                     setCurrentDate(dayjs(session.start_time));
                     setSelectedSession(session);
                     setEditModalOpen(true);
                   }}
                 >
-                  {" "}
                   <div className="flex items-center gap-3 mb-2">
                     <div
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-3 h-3 rounded-full ${
                         session.status === "scheduled"
-                          ? "bg-zinc-400"
+                          ? "bg-white"
                           : session.status === "pending"
-                          ? "bg-zinc-500"
+                          ? "bg-yellow-500"
                           : session.status === "completed"
-                          ? "bg-zinc-600"
-                          : "bg-zinc-700"
+                          ? "bg-green-400"
+                          : "bg-red-400"
                       }`}
                     />
-                    <div className="font-medium text-white text-sm">
+                    <div className="font-medium text-white text-sm flex-1">
                       {session.first_name} {session.last_name}
                     </div>
                   </div>
                   <div className="text-xs text-zinc-400 mb-1">
-                    {dayjs(session.start_time).format("MMM D, h:mm A")}
+                    {dayjs(session.start_time).format("MMM D, h:mm A")} -{" "}
+                    {dayjs(session.end_time).format("h:mm A")}
                   </div>
                   {session.gym && (
                     <div className="text-xs text-zinc-500">{session.gym}</div>
