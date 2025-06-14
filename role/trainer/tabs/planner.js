@@ -13,7 +13,7 @@ import {
 import "@/components/trainer/calendarStyles.css";
 
 const views = ["day", "week", "month", "year"];
-const hours = Array.from({ length: 16 }, (_, i) => i + 6); // 6 AM to 10 PM
+const hours = Array.from({ length: 24 }, (_, i) => i); // 0 (12 AM) to 23 (11 PM) - full 24 hours
 const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
   m.toString().padStart(2, "0")
 );
@@ -21,9 +21,10 @@ const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
 export default function TrainerCalendarPage() {
   const dispatch = useDispatch();
   const calendarRef = useRef(null);
+  const calendarContainerRef = useRef(null);
   const hoverLineRef = useRef(null);
   const { list: sessions = [] } = useSelector((state) => state.sessions);
-  const { list: clients = [], status } = useSelector((state) => state.clients); // Add some test sessions for debugging
+  const { list: clients = [], status } = useSelector((state) => state.clients);// Add some test sessions for debugging
   // Fix timezone issue: create times in local timezone without UTC conversion
   const now = dayjs();
   const testSessions = [
@@ -144,19 +145,19 @@ export default function TrainerCalendarPage() {
         newColumnIndex = Math.max(0, Math.min(6, newColumnIndex)); // Clamp to valid range
       }
 
-      setDragCurrentColumn(newColumnIndex); // Calculate which hour and minute we're in based on the grid
+      setDragCurrentColumn(newColumnIndex);      // Calculate which hour and minute we're in based on the grid
       // Each hour block is 60px tall, header is approximately 40px
       const headerHeight = 40;
       const hourHeight = 60;
       const adjustedY = Math.max(0, y - headerHeight);
 
-      // Calculate hour (0-15 for 6 AM to 10 PM)
+      // Calculate hour (0-23 for full 24 hours)
       const hourIndex = Math.floor(adjustedY / hourHeight);
       const minuteInHour = adjustedY % hourHeight;
 
       // Snap to 15-minute intervals
       let snappedMinute = Math.round(minuteInHour / 15) * 15;
-      let actualHour = Math.max(6, 6 + hourIndex);
+      let actualHour = Math.max(0, hourIndex);
 
       // Handle rollover when snapped minute is 60
       if (snappedMinute >= 60) {
@@ -164,8 +165,8 @@ export default function TrainerCalendarPage() {
         actualHour += 1;
       }
 
-      // Ensure we don't go beyond valid hours
-      actualHour = Math.min(22, actualHour);
+      // Ensure we don't go beyond valid hours (0-23)
+      actualHour = Math.min(23, actualHour);
       const actualMinute = snappedMinute;
 
       // Calculate new date and time
@@ -176,9 +177,7 @@ export default function TrainerCalendarPage() {
       const targetDay =
         newColumnIndex >= 0
           ? days[newColumnIndex]
-          : dayjs(draggingSession.start_time);
-
-      const newStart = targetDay
+          : dayjs(draggingSession.start_time);      const newStart = targetDay
         .startOf("day")
         .hour(actualHour)
         .minute(actualMinute)
@@ -187,14 +186,14 @@ export default function TrainerCalendarPage() {
         dayjs(draggingSession.start_time),
         "minute"
       );
-      const newEnd = newStart.add(duration, "minute"); // Validate the new times are reasonable (between 6 AM and 10 PM)
-      if (newStart.hour() >= 6 && newEnd.hour() <= 22) {
-        setDraggingSession({
-          ...draggingSession, // Preserve all existing session data
-          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-        });
-      }
+      const newEnd = newStart.add(duration, "minute");
+
+      // Always allow the update since we support full 24 hours
+      setDraggingSession({
+        ...draggingSession, // Preserve all existing session data
+        start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+        end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
+      });
     };
     const handleMouseUp = () => {
       setIsDragging(false);
@@ -303,19 +302,19 @@ export default function TrainerCalendarPage() {
       if (!calendarRef.current || !resizingSession) return;
 
       const calendarRect = calendarRef.current.getBoundingClientRect();
-      const y = e.clientY - calendarRect.top; // Calculate which hour and minute we're in based on the grid
+      const y = e.clientY - calendarRect.top;      // Calculate which hour and minute we're in based on the grid
       // Each hour block is 60px tall, header is approximately 40px
       const headerHeight = 40;
       const hourHeight = 60;
       const adjustedY = Math.max(0, y - headerHeight);
 
-      // Calculate hour (0-15 for 6 AM to 10 PM)
+      // Calculate hour (0-23 for full 24 hours)
       const hourIndex = Math.floor(adjustedY / hourHeight);
       const minuteInHour = adjustedY % hourHeight;
 
       // Snap to 15-minute intervals
       let snappedMinute = Math.round(minuteInHour / 15) * 15;
-      let actualHour = Math.max(6, 6 + hourIndex);
+      let actualHour = Math.max(0, hourIndex);
 
       // Handle rollover when snapped minute is 60
       if (snappedMinute >= 60) {
@@ -323,8 +322,8 @@ export default function TrainerCalendarPage() {
         actualHour += 1;
       }
 
-      // Clamp between 6 AM and 9 PM
-      actualHour = Math.max(6, Math.min(21, actualHour));
+      // Ensure we don't go beyond valid hours (0-23)
+      actualHour = Math.min(23, actualHour);
       const actualMinute = snappedMinute;
 
       const start = dayjs(resizingSession.start_time);
@@ -428,8 +427,17 @@ export default function TrainerCalendarPage() {
       window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.classList.remove("resizing", "no-select");
-    };
-  }, [isResizing, resizingSession, resizeType]);
+    };  }, [isResizing, resizingSession, resizeType]);
+
+  // Scroll to middle of day (6 AM) on initial load
+  useEffect(() => {
+    if (calendarContainerRef.current) {
+      // Each hour is 60px tall, header is 40px
+      // 6 AM is hour index 6, so scroll to 6 * 60 = 360px
+      const scrollToPosition = 6 * 60; // 6 AM position
+      calendarContainerRef.current.scrollTop = scrollToPosition;
+    }
+  }, []);
 
   const renderWeekGridWithTimes = () => {
     const days = [...Array(7)].map((_, i) =>
@@ -771,11 +779,13 @@ export default function TrainerCalendarPage() {
         </div>
       </div>
     );
-  };
-  const renderGrid = () => {
+  };  const renderGrid = () => {
     if (currentView === "week")
       return (
-        <div className="min-h-full overflow-y-auto calendar-scroll scrollbar-dark">
+        <div 
+          ref={calendarContainerRef}
+          className="min-h-full overflow-y-auto calendar-scroll scrollbar-dark"
+        >
           {renderWeekGridWithTimes()}
         </div>
       );
