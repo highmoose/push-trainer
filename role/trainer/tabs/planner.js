@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
+import weekday from "dayjs/plugin/weekday";
+import updateLocale from "dayjs/plugin/updateLocale";
 import CreateSessionModal from "@/components/trainer/createSessionModal";
+import CreateTaskModal from "@/components/trainer/CreateTaskModal";
+import CalendarContextMenu from "@/components/trainer/CalendarContextMenu";
 import {
   updateSession,
   updateSessionTime,
@@ -12,6 +16,13 @@ import {
 } from "@/redux/slices/sessionSlice";
 import "@/components/trainer/calendarStyles.css";
 import { Plus } from "lucide-react";
+
+// Configure dayjs to start week on Monday
+dayjs.extend(weekday);
+dayjs.extend(updateLocale);
+dayjs.updateLocale("en", {
+  weekStart: 1, // Monday = 1, Sunday = 0
+});
 
 const views = ["day", "week", "month", "year"];
 const hours = Array.from({ length: 24 }, (_, i) => i); // 0 (12 AM) to 23 (11 PM) - full 24 hours
@@ -26,35 +37,23 @@ export default function TrainerCalendarPage() {
   const hoverLineRef = useRef(null);
   const { list: sessions = [] } = useSelector((state) => state.sessions);
   const { list: clients = [], status } = useSelector((state) => state.clients);
-
   // Use real sessions from Redux store
   const displaySessions = sessions;
-  console.log("clients", clients);
-  console.log("sessions", sessions);
-  console.log("displaySessions", displaySessions);
-  console.log("sessions count:", sessions.length);
-  console.log("displaySessions count:", displaySessions.length);
-
-  // Debug session times
-  displaySessions.forEach((s, i) => {
-    const start = dayjs(s.start_time);
-    const end = dayjs(s.end_time);
-    console.log(`Session ${i}:`, {
-      raw_start: s.start_time,
-      raw_end: s.end_time,
-      parsed_start: start.format("YYYY-MM-DD HH:mm"),
-      parsed_end: end.format("YYYY-MM-DD HH:mm"),
-      start_hour: start.hour(),
-      status: s.status,
-    });
-  });
 
   const [selectedSession, setSelectedSession] = useState(null);
-  console.log("selectedSession", selectedSession);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [currentView, setCurrentView] = useState("week");
+  // Context menu states
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [contextMenuData, setContextMenuData] = useState(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
 
   const [hoveredLine, setHoveredLine] = useState(null);
 
@@ -116,7 +115,6 @@ export default function TrainerCalendarPage() {
       type: "consultation",
     },
   ]);
-
   // Helper function to create session from template
   const createFromTemplate = (template) => {
     const now = dayjs();
@@ -135,6 +133,63 @@ export default function TrainerCalendarPage() {
       rate: 0,
     });
     setCreateModalOpen(true);
+  }; // Context menu handlers
+  const handleCalendarClick = (clickedTime, event) => {
+    // Prevent click when dragging or resizing
+    if (isDragging || isResizing) return;
+
+    const timeSlotRect = event.currentTarget.getBoundingClientRect();
+
+    // Create a unique key for the selected time slot
+    const timeSlotKey = `${clickedTime.format(
+      "YYYY-MM-DD"
+    )}-${clickedTime.hour()}-${clickedTime.minute()}`;
+
+    // Store the clicked time data
+    setContextMenuData({
+      start_time: clickedTime.format("YYYY-MM-DDTHH:mm:ss"),
+      end_time: clickedTime.add(30, "minute").format("YYYY-MM-DDTHH:mm:ss"),
+      timeSlotKey: timeSlotKey,
+    });
+
+    // Set selected time slot for highlighting
+    setSelectedTimeSlot(timeSlotKey);
+
+    // Position context menu to the left of the time slot section
+    const contextMenuX = timeSlotRect.left - 220; // Position menu 220px to the left of the time slot
+    const contextMenuY = timeSlotRect.top + timeSlotRect.height / 2 - 50; // Center vertically on the time slot
+
+    setContextMenuPosition({ x: contextMenuX, y: contextMenuY });
+    setContextMenuOpen(true);
+  };
+  const handleCreateSession = () => {
+    if (contextMenuData) {
+      setSelectedSession({
+        ...contextMenuData,
+        status: "scheduled",
+        notes: "",
+        gym: "",
+        first_name: "",
+        last_name: "",
+      });
+      setCreateModalOpen(true);
+    }
+    closeContextMenu(); // This will also clear the selected time slot
+  };
+
+  const handleCreateTask = () => {
+    if (contextMenuData) {
+      setSelectedSession({
+        due_date: contextMenuData.start_time,
+      });
+      setCreateTaskModalOpen(true);
+    }
+    closeContextMenu(); // This will also clear the selected time slot
+  };
+  const closeContextMenu = () => {
+    setContextMenuOpen(false);
+    setContextMenuData(null);
+    setSelectedTimeSlot(null); // Clear selection when context menu closes
   };
 
   // Helper function to calculate weekly stats
@@ -519,6 +574,7 @@ export default function TrainerCalendarPage() {
                     key={`cell-${day.toString()}-${hour}`}
                     className="time-grid-cell relative border-b border-l border-zinc-800/60 h-[60px] bg-zinc-900/50"
                   >
+                    {" "}
                     {/* Invisible 15-minute hover zones */}
                     {[0, 15, 30, 45].map((minutes, idx) => {
                       const top = (minutes / 60) * 60; // 15, 30, 45
@@ -527,10 +583,20 @@ export default function TrainerCalendarPage() {
                         .minute(minutes)
                         .second(0);
 
+                      // Create unique key for this time slot
+                      const timeSlotKey = `${clickedTime.format(
+                        "YYYY-MM-DD"
+                      )}-${clickedTime.hour()}-${clickedTime.minute()}`;
+                      const isSelected = selectedTimeSlot === timeSlotKey;
+
                       return (
                         <div
                           key={`hover-${idx}`}
-                          className="absolute inset-x-0 h-[15px] z-0"
+                          className={`absolute inset-x-0 h-[15px] z-0 transition-all duration-200 ${
+                            isSelected
+                              ? "bg-white/5 border border-zinc-100 border-dashed rounded-sm"
+                              : "hover:bg-zinc-700/30"
+                          }`}
                           style={{ top }}
                           onMouseEnter={(e) => {
                             // Don't show hover line when dragging or resizing
@@ -555,23 +621,8 @@ export default function TrainerCalendarPage() {
                               );
                             }
                           }}
-                          onClick={() => {
-                            // Prevent click when dragging or resizing
-                            if (isDragging || isResizing) return;
-                            setSelectedSession({
-                              start_time: clickedTime.format(
-                                "YYYY-MM-DDTHH:mm:ss"
-                              ),
-                              end_time: clickedTime
-                                .add(30, "minute")
-                                .format("YYYY-MM-DDTHH:mm:ss"),
-                              status: "scheduled",
-                              notes: "",
-                              gym: "",
-                              first_name: "",
-                              last_name: "",
-                            });
-                            setCreateModalOpen(true);
+                          onClick={(event) => {
+                            handleCalendarClick(clickedTime, event);
                           }}
                         />
                       );
@@ -646,25 +697,13 @@ export default function TrainerCalendarPage() {
 
                         // Position is based on minutes from start of the starting hour
                         const sessionTopPosition =
-                          (sessionStartMinute / 60) * 60; // Convert to pixels (1 minute = 1 pixel)
-
-                        // Height calculation: total duration in minutes
+                          (sessionStartMinute / 60) * 60; // Convert to pixels (1 minute = 1 pixel)                        // Height calculation: total duration in minutes
                         const totalDurationMinutes = end.diff(start, "minute");
                         const sessionHeight = Math.max(
                           15,
                           totalDurationMinutes
                         ); // Minimum 15px height
 
-                        console.log(
-                          `[${s.first_name} ${
-                            s.last_name
-                          }] Starting at ${sessionStartHour}:${sessionStartMinute
-                            .toString()
-                            .padStart(
-                              2,
-                              "0"
-                            )}, Duration: ${totalDurationMinutes}min, Height: ${sessionHeight}px, Position: ${sessionTopPosition}px`
-                        );
                         return (
                           <div
                             key={j}
@@ -797,6 +836,13 @@ export default function TrainerCalendarPage() {
         <div
           ref={calendarContainerRef}
           className="min-h-full overflow-y-auto calendar-scroll scrollbar-dark"
+          onClick={(e) => {
+            // Clear selection if clicking on calendar container but not on a time slot
+            if (e.target === e.currentTarget) {
+              setSelectedTimeSlot(null);
+              setContextMenuOpen(false);
+            }
+          }}
         >
           {renderWeekGridWithTimes()}
         </div>
@@ -810,7 +856,6 @@ export default function TrainerCalendarPage() {
   return (
     <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Professional Trainer Sidebar */}
-
       <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
         <div className="flex flex-col w-full">
           {" "}
@@ -822,7 +867,7 @@ export default function TrainerCalendarPage() {
             <p className="font-semibold">Create Session</p>
           </button>
           <button
-            onClick={() => setCreateModalOpen(true)}
+            onClick={() => setCreateTaskModalOpen(true)}
             className="cursor-pointer flex items-center justify-center gap-2 p-2 bg-zinc-800 hover:bg-zinc-900 border-zinc-400 text-white rounded mx-4 mt-3 mb-2"
           >
             <Plus size={18} />
@@ -1067,12 +1112,19 @@ export default function TrainerCalendarPage() {
 
         {/* Calendar grid (scrolls) */}
         <div className="flex-1 h-0  b-4">{renderGrid()}</div>
-      </div>
+      </div>{" "}
       {createModalOpen && (
         <CreateSessionModal
           mode="create"
           close={() => setCreateModalOpen(false)}
           initialValues={selectedSession || {}} // <-- fallback to empty object
+        />
+      )}
+      {createTaskModalOpen && (
+        <CreateTaskModal
+          mode="create"
+          close={() => setCreateTaskModalOpen(false)}
+          initialValues={selectedSession || {}}
         />
       )}
       {editModalOpen && selectedSession && (
@@ -1082,6 +1134,14 @@ export default function TrainerCalendarPage() {
           initialValues={selectedSession}
         />
       )}
+      {/* Context Menu */}
+      <CalendarContextMenu
+        isOpen={contextMenuOpen}
+        position={contextMenuPosition}
+        onClose={closeContextMenu}
+        onCreateSession={handleCreateSession}
+        onCreateTask={handleCreateTask}
+      />
     </div>
   );
 }

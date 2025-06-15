@@ -11,6 +11,7 @@ import Footer from "@/components/layout/footer";
 
 import { fetchClients } from "@/redux/slices/clientSlice";
 import { fetchSessions } from "@/redux/slices/sessionSlice";
+import { fetchTasks } from "@/redux/slices/taskSlice";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -28,12 +29,12 @@ export default function trainerDashboard() {
 
   const authUser = useSelector((state) => state.auth.user);
   const authUserId = authUser?.user?.id;
-
   useEffect(() => {
     if (user?.role === "trainer") {
       // Once all pages are in, pull all this data in one go instead of seperate calls
       dispatch(fetchClients());
       dispatch(fetchSessions());
+      dispatch(fetchTasks());
       dispatch({ type: "messaging/setAuthUserId", payload: authUserId });
       dispatch(fetchConversations()); // ✅ fine
       dispatch(fetchAllMessages({ authUserId })); // ✅ pass id explicitly
