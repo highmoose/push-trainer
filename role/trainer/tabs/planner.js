@@ -11,6 +11,7 @@ import {
   revertSessionTimeUpdate,
 } from "@/redux/slices/sessionSlice";
 import "@/components/trainer/calendarStyles.css";
+import { Plus } from "lucide-react";
 
 const views = ["day", "week", "month", "year"];
 const hours = Array.from({ length: 24 }, (_, i) => i); // 0 (12 AM) to 23 (11 PM) - full 24 hours
@@ -809,9 +810,17 @@ export default function TrainerCalendarPage() {
   return (
     <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Professional Trainer Sidebar */}
+
       <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="cursor-pointer flex items-center justify-center gap-2 p-2 border hover:bg-zinc-900 border-zinc-400 text-white rounded m-4"
+        >
+          <Plus size={18} />
+          <p className="font-semibold">Create Session</p>
+        </button>
         {/* Session Templates */}
-        <div className="p-4 border-b border-zinc-800/30">
+        {/* <div className="p-4 border-b border-zinc-800/30">
           <h3 className="text-sm font-medium text-zinc-300 mb-3">
             Session Templates
           </h3>{" "}
@@ -836,7 +845,7 @@ export default function TrainerCalendarPage() {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* Weekly Overview */}
         <div className="p-4 border-b border-zinc-800/30">

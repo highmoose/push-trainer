@@ -45,7 +45,7 @@ export default function Header({ setShowTab }) {
     <div className="flex items-center justify-between font-semibold w-full p-8">
       <Image
         src="/images/logo/push-logo-white.svg"
-        width={190}
+        width={180}
         height={200}
         alt="logo"
       />
