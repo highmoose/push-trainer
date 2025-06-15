@@ -150,13 +150,11 @@ export default function TrainerCalendarPage() {
       start_time: clickedTime.format("YYYY-MM-DDTHH:mm:ss"),
       end_time: clickedTime.add(30, "minute").format("YYYY-MM-DDTHH:mm:ss"),
       timeSlotKey: timeSlotKey,
-    });
-
-    // Set selected time slot for highlighting
+    }); // Set selected time slot for highlighting
     setSelectedTimeSlot(timeSlotKey);
 
-    // Position context menu to the left of the time slot section
-    const contextMenuX = timeSlotRect.left - 220; // Position menu 220px to the left of the time slot
+    // Position context menu to the left of the time slot section with arrow pointing to it
+    const contextMenuX = timeSlotRect.left - 208; // Position menu so arrow points to the time slot
     const contextMenuY = timeSlotRect.top + timeSlotRect.height / 2 - 50; // Center vertically on the time slot
 
     setContextMenuPosition({ x: contextMenuX, y: contextMenuY });
