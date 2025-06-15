@@ -812,13 +812,23 @@ export default function TrainerCalendarPage() {
       {/* Professional Trainer Sidebar */}
 
       <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
-        <button
-          onClick={() => setCreateModalOpen(true)}
-          className="cursor-pointer flex items-center justify-center gap-2 p-2 border hover:bg-zinc-900 border-zinc-400 text-white rounded m-4"
-        >
-          <Plus size={18} />
-          <p className="font-semibold">Create Session</p>
-        </button>
+        <div className="flex flex-col w-full">
+          {" "}
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="cursor-pointer flex items-center justify-center gap-2 p-2 border border-zinc-700 hover:bg-zinc-900 hover:border-white text-white rounded mx-4 mt-4"
+          >
+            <Plus size={18} />
+            <p className="font-semibold">Create Session</p>
+          </button>
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="cursor-pointer flex items-center justify-center gap-2 p-2 bg-zinc-800 hover:bg-zinc-900 border-zinc-400 text-white rounded mx-4 mt-3 mb-2"
+          >
+            <Plus size={18} />
+            <p className="font-semibold">Create Task</p>
+          </button>
+        </div>
         {/* Session Templates */}
         {/* <div className="p-4 border-b border-zinc-800/30">
           <h3 className="text-sm font-medium text-zinc-300 mb-3">
