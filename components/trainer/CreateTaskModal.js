@@ -84,12 +84,12 @@ export default function CreateTaskModal({
       console.error("Error saving task:", error);
     }
   };
-
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-zinc-800">
+    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+      <div className="bg-zinc-950 border border-zinc-900 rounded  max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {" "}
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+        <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
           <div>
             <h2 className="text-white text-xl font-bold">
               {mode === "edit" ? "Edit Task" : "New Personal Task"}
@@ -99,10 +99,10 @@ export default function CreateTaskModal({
                 ? "Update task details"
                 : "Create a personal task or to-do item"}
             </p>
-          </div>
+          </div>{" "}
           <button
             onClick={close}
-            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-800 transition-colors"
+            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
           >
             <svg
               className="w-6 h-6"
@@ -118,16 +118,15 @@ export default function CreateTaskModal({
               />
             </svg>
           </button>
-        </div>
-
+        </div>{" "}
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 px-8 bg-zinc-900">
+          <div className="space-y-4">
             {/* Task Title */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Task Title *
-              </label>
+              </label>{" "}
               <input
                 type="text"
                 value={taskForm.title}
@@ -135,16 +134,15 @@ export default function CreateTaskModal({
                   setTaskForm((prev) => ({ ...prev, title: e.target.value }))
                 }
                 placeholder="Enter task title..."
-                className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full p-2 rounded text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 required
               />
             </div>
-
             {/* Task Description */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Description
-              </label>
+              </label>{" "}
               <textarea
                 value={taskForm.description}
                 onChange={(e) =>
@@ -154,16 +152,15 @@ export default function CreateTaskModal({
                   }))
                 }
                 placeholder="Add task description..."
-                rows={4}
-                className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                rows={3}
+                className="w-full p-2 rounded bg-zinc-800 text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
               />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>{" "}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Due Date
-                </label>
+                </label>{" "}
                 <input
                   type="datetime-local"
                   value={taskForm.due_date || ""}
@@ -173,12 +170,12 @@ export default function CreateTaskModal({
                       due_date: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800 text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Priority
                 </label>
                 <select
@@ -189,7 +186,7 @@ export default function CreateTaskModal({
                       priority: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
                   <option value="low">Low Priority</option>
                   <option value="medium">Medium Priority</option>
@@ -197,10 +194,9 @@ export default function CreateTaskModal({
                 </select>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Category
                 </label>
                 <select
@@ -211,7 +207,7 @@ export default function CreateTaskModal({
                       category: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
                   <option value="general">General</option>
                   <option value="client-related">Client Related</option>
@@ -221,7 +217,7 @@ export default function CreateTaskModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Status
                 </label>
                 <select
@@ -232,15 +228,14 @@ export default function CreateTaskModal({
                       status: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
-            </div>
-
+            </div>{" "}
             {/* Reminder */}
             <div className="flex items-center gap-3">
               <input
@@ -253,7 +248,7 @@ export default function CreateTaskModal({
                     reminder: e.target.checked,
                   }))
                 }
-                className="w-4 h-4 text-blue-600 bg-zinc-800 border-zinc-700 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-blue-600 bg-zinc-800/50 border-zinc-800/30 rounded focus:ring-blue-500 focus:ring-2"
               />
               <label htmlFor="reminder" className="text-sm text-zinc-300">
                 Set reminder for this task
@@ -261,19 +256,18 @@ export default function CreateTaskModal({
             </div>
           </div>
         </div>
-
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-zinc-800">
+        <div className="flex justify-end gap-3 pb-6 pt-4 px-8 border-t border-zinc-800/30 bg-zinc-900 ">
           <button
             onClick={close}
-            className="px-6 py-2 text-zinc-400 hover:text-white transition-colors"
+            className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleTaskSubmit}
             disabled={!taskForm.title.trim()}
-            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:text-zinc-400 text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white  hover:border-white rounded transition-colors flex items-center gap-2"
           >
             <ClipboardCheck className="w-4 h-4" />
             {mode === "edit" ? "Update Task" : "Create Task"}

@@ -279,12 +279,12 @@ export default function CreateSessionModal({
       }
     }
   };
-
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-zinc-800">
+    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+      <div className="bg-zinc-950 border border-zinc-900 rounded max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {" "}
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+        <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
           <div>
             <h2 className="text-white text-xl font-bold">
               {mode === "edit" ? "Edit Session" : "New Training Session"}
@@ -294,10 +294,10 @@ export default function CreateSessionModal({
                 ? "Update session details"
                 : "Schedule a new training session with a client"}
             </p>
-          </div>
+          </div>{" "}
           <button
             onClick={close}
-            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-800 transition-colors"
+            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
           >
             <svg
               className="w-6 h-6"
@@ -312,41 +312,41 @@ export default function CreateSessionModal({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
-        </div>
-
+          </button>{" "}
+        </div>{" "}
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
+          <div className="space-y-4">
+            {" "}
             {/* Client Selection Section */}
-            <div className="bg-zinc-800/50 rounded p-4 border border-zinc-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-medium">Client Selection</h3>
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
+            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-zinc-300">
+                  Client Selection
+                </h3>
+                <label className="flex items-center gap-2 text-sm text-zinc-400">
                   <input
                     type="checkbox"
                     checked={manualEntry}
                     onChange={(e) => setManualEntry(e.target.checked)}
-                    className="rounded border-zinc-600 bg-zinc-700 text-blue-500 focus:ring-blue-500"
+                    className="rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500"
                   />
                   Manual Entry
                 </label>
               </div>
-
-              {/* Loading/Error States */}
+              {/* Loading/Error States */}{" "}
               {!manualEntry && clientsStatus === "loading" && (
-                <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded">
+                <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
                   <div className="flex items-center gap-2 text-blue-400 text-sm">
                     <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     Loading clients...
                   </div>
                 </div>
-              )}
-
+              )}{" "}
               {!manualEntry &&
                 clientsStatus === "succeeded" &&
                 clientsToUse.length === 0 && (
-                  <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/50 rounded">
+                  <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
                     <div className="text-amber-400 text-sm font-medium mb-1">
                       No clients available
                     </div>
@@ -355,10 +355,9 @@ export default function CreateSessionModal({
                       tab or use Manual Entry.
                     </div>
                   </div>
-                )}
-
+                )}{" "}
               {!manualEntry && clientsStatus === "failed" && (
-                <div className="mb-4 p-3 bg-red-900/20 border border-red-700/50 rounded">
+                <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
                   <div className="text-red-400 text-sm font-medium mb-1">
                     Failed to load clients
                   </div>
@@ -368,15 +367,13 @@ export default function CreateSessionModal({
                   </div>
                 </div>
               )}
-
               {/* Client Selection UI */}
               {!manualEntry ? (
                 <div className="space-y-3">
                   {sessionForm.client_id &&
                   sessionForm.first_name &&
-                  sessionForm.last_name ? (
-                    /* Selected Client Display */
-                    <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+                  sessionForm.last_name /* Selected Client Display */ ? (
+                    <div className="flex items-center justify-between p-2 bg-zinc-900 border border-zinc-800 rounded">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
                           {sessionForm.first_name.charAt(0)}
@@ -386,7 +383,7 @@ export default function CreateSessionModal({
                           <div className="text-white font-medium">
                             {sessionForm.first_name} {sessionForm.last_name}
                           </div>
-                          <div className="text-blue-300 text-sm">
+                          <div className="text-zinc-400 text-sm">
                             Selected Client
                           </div>
                         </div>
@@ -401,7 +398,7 @@ export default function CreateSessionModal({
                           }));
                           setClientSearch("");
                         }}
-                        className="p-1 rounded-full hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
+                        className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-red-400 transition-colors"
                       >
                         ✕
                       </button>
@@ -410,15 +407,16 @@ export default function CreateSessionModal({
                     /* Search Bar */
                     <>
                       <div className="relative">
+                        {" "}
                         <input
                           type="text"
                           placeholder="Search clients..."
-                          className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                           value={clientSearch}
                           onChange={(e) => setClientSearch(e.target.value)}
-                        />
+                        />{" "}
                         <svg
-                          className="absolute right-3 top-3 w-5 h-5 text-zinc-400"
+                          className="absolute right-2 top-2 w-5 h-5 text-zinc-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -430,10 +428,9 @@ export default function CreateSessionModal({
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                           />
                         </svg>
-                      </div>
-
+                      </div>{" "}
                       {clientSearch && (
-                        <div className="max-h-40 overflow-y-auto bg-zinc-800 rounded border border-zinc-700">
+                        <div className="max-h-40 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded">
                           {filteredClients.length > 0 ? (
                             filteredClients.map((client) => (
                               <button
@@ -447,7 +444,7 @@ export default function CreateSessionModal({
                                   }));
                                   setClientSearch("");
                                 }}
-                                className="w-full text-left p-3 hover:bg-zinc-700 transition-colors border-b border-zinc-700 last:border-b-0"
+                                className="w-full text-left p-2 hover:bg-zinc-900 transition-colors border-b border-zinc-800 last:border-b-0"
                               >
                                 <div className="text-white font-medium">
                                   {client.first_name} {client.last_name}
@@ -458,7 +455,7 @@ export default function CreateSessionModal({
                               </button>
                             ))
                           ) : (
-                            <div className="p-3 text-zinc-400 text-center">
+                            <div className="p-2 text-zinc-400 text-center">
                               No clients match your search
                             </div>
                           )}
@@ -468,12 +465,11 @@ export default function CreateSessionModal({
                   )}
                 </div>
               ) : (
-                /* Manual Entry */
-                <div className="grid grid-cols-2 gap-4">
+                /* Manual Entry */ <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
                       First Name *
-                    </label>
+                    </label>{" "}
                     <input
                       type="text"
                       value={sessionForm.first_name}
@@ -483,14 +479,14 @@ export default function CreateSessionModal({
                           first_name: e.target.value,
                         }))
                       }
-                      className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                       placeholder="Enter first name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
                       Last Name *
-                    </label>
+                    </label>{" "}
                     <input
                       type="text"
                       value={sessionForm.last_name}
@@ -500,45 +496,45 @@ export default function CreateSessionModal({
                           last_name: e.target.value,
                         }))
                       }
-                      className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                       placeholder="Enter last name"
                     />
                   </div>
                 </div>
               )}
-            </div>
-
+            </div>{" "}
             {/* Session Templates */}
-            <div className="bg-zinc-800/50 rounded p-4 border border-zinc-700">
-              <h3 className="text-white font-medium mb-4">Quick Templates</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+              <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                Workout Selection
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {sessionTemplates.map((template) => (
                   <button
                     key={template.id}
                     onClick={() => applyTemplate(template)}
-                    className={`p-3 rounded border-2 transition-all text-left hover:border-blue-500 ${
+                    className={`p-2 rounded border-2 transition-all text-left hover:bg-white hover:text-black group ${
                       sessionForm.session_type === template.type
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
+                        ? "border-blue-500 bg-zinc-900 text-white"
+                        : "border-zinc-800 bg-zinc-900 text-white hover:border-white"
                     }`}
                   >
-                    <div className="text-white font-medium text-sm">
+                    <div className="font-medium text-sm group-hover:text-black">
                       {template.name}
                     </div>
-                    <div className="text-zinc-400 text-xs mt-1">
+                    <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
                       {template.duration}min • ${template.rate}
                     </div>
                   </button>
                 ))}
               </div>
-            </div>
-
+            </div>{" "}
             {/* Session Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Date & Time *
-                </label>
+                </label>{" "}
                 <input
                   type="datetime-local"
                   value={sessionForm.scheduled_at || ""}
@@ -548,35 +544,74 @@ export default function CreateSessionModal({
                       scheduled_at: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={sessionForm.duration}
-                  onChange={(e) =>
-                    setSessionForm((prev) => ({
-                      ...prev,
-                      duration: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  min="15"
-                  step="15"
-                />
+              </div>{" "}
+              <div className="">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-medium text-zinc-300">
+                    Duration (minutes)
+                  </label>
+                  <div className="text-xs text-zinc-400">Presets</div>
+                </div>
+                <div className="flex justify-between items-center w-full">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={sessionForm.duration}
+                      onChange={(e) =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          duration: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-20 overflow-hidden p-2 pl-8 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
+                      min="15"
+                      step="15"
+                      placeholder="Custom"
+                    />
+                    <svg
+                      className="absolute left-2 top-2.5 w-4 h-4 text-zinc-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12,6 12,12 16,14" />
+                    </svg>
+                  </div>
+                  <p className="text-zinc-500">-</p>
+                  <div className="flex">
+                    <div className="flex gap-1 flex-wrap">
+                      {[30, 45, 60, 75, 90].map((duration) => (
+                        <button
+                          key={duration}
+                          type="button"
+                          onClick={() =>
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              duration: duration,
+                            }))
+                          }
+                          className={`px-3 py-2 text-xs rounded transition-all ${
+                            sessionForm.duration === duration
+                              ? "bg-white text-zinc-900"
+                              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                          }`}
+                        >
+                          {duration}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Location
-                </label>
+                </label>{" "}
                 <select
                   value={sessionForm.location}
                   onChange={(e) =>
@@ -585,7 +620,7 @@ export default function CreateSessionModal({
                       location: e.target.value,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
                   <option value="">Select location</option>
                   {locations.map((location) => (
@@ -597,9 +632,9 @@ export default function CreateSessionModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Rate ($)
-                </label>
+                </label>{" "}
                 <input
                   type="number"
                   value={sessionForm.rate}
@@ -609,18 +644,17 @@ export default function CreateSessionModal({
                       rate: parseFloat(e.target.value) || 0,
                     }))
                   }
-                  className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   min="0"
                   step="5"
                 />
               </div>
-            </div>
-
+            </div>{" "}
             {/* Session Notes */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Session Notes
-              </label>
+              </label>{" "}
               <textarea
                 value={sessionForm.notes}
                 onChange={(e) =>
@@ -629,15 +663,14 @@ export default function CreateSessionModal({
                     notes: e.target.value,
                   }))
                 }
-                className="w-full p-3 rounded bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
                 rows="3"
                 placeholder="Add session notes, goals, or special instructions..."
               />
-            </div>
-
+            </div>{" "}
             {/* Conflicts Warning */}
             {conflicts.length > 0 && (
-              <div className="bg-red-900/20 border border-red-700 rounded p-4">
+              <div className="bg-zinc-900 border border-red-700 rounded p-3">
                 <div className="flex items-center gap-2 text-red-400">
                   <svg
                     className="w-5 h-5"
@@ -654,11 +687,10 @@ export default function CreateSessionModal({
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
+          </div>{" "}
+        </div>{" "}
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-zinc-800">
+        <div className="flex items-center justify-between pb-6 pt-4 px-8 border-t border-zinc-800 bg-zinc-900">
           <div>
             {conflicts.length > 0 && (
               <div className="flex items-center gap-2 text-red-400 text-sm">
@@ -672,12 +704,12 @@ export default function CreateSessionModal({
                 {conflicts.length} conflict(s) detected
               </div>
             )}
-          </div>
-
+          </div>{" "}
           <div className="flex items-center gap-3">
+            {" "}
             <button
               onClick={close}
-              className="px-6 py-2 text-zinc-400 hover:text-white transition-colors"
+              className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
             >
               Cancel
             </button>
@@ -688,7 +720,7 @@ export default function CreateSessionModal({
                 !sessionForm.last_name ||
                 !sessionForm.scheduled_at
               }
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-400 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
             >
               <User className="w-4 h-4" />
               {mode === "edit" ? "Update Session" : "Create Session"}
