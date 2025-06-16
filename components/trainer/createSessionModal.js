@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   createSession,
@@ -9,7 +9,7 @@ import {
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
 import dayjs from "dayjs";
-import { User } from "lucide-react";
+import { Clock, User } from "lucide-react";
 
 export default function CreateSessionModal({
   close,
@@ -83,10 +83,12 @@ export default function CreateSessionModal({
     "Client's Home",
     "Online Session",
   ];
-
   const [manualEntry, setManualEntry] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [showConflicts, setShowConflicts] = useState(false);
+
+  // Ref for client search input
+  const clientSearchRef = useRef(null);
 
   // Session form state
   const [sessionForm, setSessionForm] = useState({
@@ -194,6 +196,18 @@ export default function CreateSessionModal({
       }
     }
   }, [initialValues]);
+
+  // Focus client search input when modal loads
+  useEffect(() => {
+    // Small delay to ensure the modal is fully rendered
+    const timer = setTimeout(() => {
+      if (clientSearchRef.current && !manualEntry) {
+        clientSearchRef.current.focus();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [manualEntry]);
 
   const handleSessionSubmit = async () => {
     let formattedScheduledAt = null;
@@ -409,6 +423,7 @@ export default function CreateSessionModal({
                       <div className="relative">
                         {" "}
                         <input
+                          ref={clientSearchRef}
                           type="text"
                           placeholder="Search clients..."
                           className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -501,173 +516,182 @@ export default function CreateSessionModal({
                     />
                   </div>
                 </div>
-              )}
+              )}{" "}
             </div>{" "}
-            {/* Session Templates */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                Workout Selection
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {sessionTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => applyTemplate(template)}
-                    className={`p-2 rounded border-2 transition-all text-left hover:bg-white hover:text-black group ${
-                      sessionForm.session_type === template.type
-                        ? "border-blue-500 bg-zinc-900 text-white"
-                        : "border-zinc-800 bg-zinc-900 text-white hover:border-white"
-                    }`}
-                  >
-                    <div className="font-medium text-sm group-hover:text-black">
-                      {template.name}
-                    </div>
-                    <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
-                      {template.duration}min • ${template.rate}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>{" "}
-            {/* Session Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Date & Time *
-                </label>{" "}
-                <input
-                  type="datetime-local"
-                  value={sessionForm.scheduled_at || ""}
-                  onChange={(e) =>
-                    setSessionForm((prev) => ({
-                      ...prev,
-                      scheduled_at: e.target.value,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                />
-              </div>{" "}
-              <div className="">
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm font-medium text-zinc-300">
-                    Duration (minutes)
-                  </label>
-                  <div className="text-xs text-zinc-400">Presets</div>
-                </div>
-                <div className="flex justify-between items-center w-full">
-                  <div className="relative">
+            {/* Show additional fields only when client is selected, manual entry is enabled, or in edit mode */}
+            {(sessionForm.client_id &&
+              sessionForm.first_name &&
+              sessionForm.last_name) ||
+            manualEntry ||
+            mode === "edit" ? (
+              <>
+                {/* Session Templates */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Workout Selection
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {sessionTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => applyTemplate(template)}
+                        className={`p-2 rounded border-2 transition-all text-left hover:bg-white hover:text-black group ${
+                          sessionForm.session_type === template.type
+                            ? "border-blue-500 bg-zinc-900 text-white"
+                            : "border-zinc-800 bg-zinc-900 text-white hover:border-white"
+                        }`}
+                      >
+                        <div className="font-medium text-sm group-hover:text-black">
+                          {template.name}
+                        </div>
+                        <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
+                          {template.duration}min • ${template.rate}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>{" "}
+                {/* Session Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Date & Time *
+                    </label>{" "}
                     <input
-                      type="number"
-                      value={sessionForm.duration}
+                      type="datetime-local"
+                      value={sessionForm.scheduled_at || ""}
                       onChange={(e) =>
                         setSessionForm((prev) => ({
                           ...prev,
-                          duration: parseInt(e.target.value) || 0,
+                          scheduled_at: e.target.value,
                         }))
                       }
-                      className="w-20 overflow-hidden p-2 pl-8 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
-                      min="15"
-                      step="15"
-                      placeholder="Custom"
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                     />
-                    <svg
-                      className="absolute left-2 top-2.5 w-4 h-4 text-zinc-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12,6 12,12 16,14" />
-                    </svg>
-                  </div>
-                  <p className="text-zinc-500">-</p>
-                  <div className="flex">
-                    <div className="flex gap-1 flex-wrap">
-                      {[30, 45, 60, 75, 90].map((duration) => (
-                        <button
-                          key={duration}
-                          type="button"
-                          onClick={() =>
+                  </div>{" "}
+                  <div className="">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-sm font-medium text-zinc-300">
+                        Duration (minutes)
+                      </label>
+                      <div className="text-xs text-zinc-400">Presets</div>
+                    </div>
+                    <div className="flex justify-between items-center w-full">
+                      <div className="relative">
+                        {" "}
+                        <input
+                          type="number"
+                          value={sessionForm.duration}
+                          onChange={(e) =>
                             setSessionForm((prev) => ({
                               ...prev,
-                              duration: duration,
+                              duration: parseInt(e.target.value) || 0,
                             }))
                           }
-                          className={`px-3 py-2 text-xs rounded transition-all ${
-                            sessionForm.duration === duration
-                              ? "bg-white text-zinc-900"
-                              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                          }`}
-                        >
-                          {duration}
-                        </button>
-                      ))}
+                          className="w-20 p-2 pl-8 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          min="15"
+                          step="15"
+                          placeholder="Custom"
+                        />
+                        <Clock className="absolute left-2 top-3 w-4 h-4 text-zinc-600" />
+                      </div>
+                      <p className="text-zinc-500">-</p>
+                      <div className="flex">
+                        <div className="flex gap-1 flex-wrap">
+                          {[30, 45, 60, 75, 90].map((duration) => (
+                            <button
+                              key={duration}
+                              type="button"
+                              onClick={() =>
+                                setSessionForm((prev) => ({
+                                  ...prev,
+                                  duration: duration,
+                                }))
+                              }
+                              className={`px-3 py-2 text-xs rounded transition-all ${
+                                sessionForm.duration === duration
+                                  ? "bg-white text-zinc-900"
+                                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                              }`}
+                            >
+                              {duration}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Location
-                </label>{" "}
-                <select
-                  value={sessionForm.location}
-                  onChange={(e) =>
-                    setSessionForm((prev) => ({
-                      ...prev,
-                      location: e.target.value,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                >
-                  <option value="">Select location</option>
-                  {locations.map((location) => (
-                    <option key={location} value={location}>
-                      {location}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Location
+                    </label>{" "}
+                    <select
+                      value={sessionForm.location}
+                      onChange={(e) =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          location: e.target.value,
+                        }))
+                      }
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    >
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location} value={location}>
+                          {location}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Rate ($)
-                </label>{" "}
-                <input
-                  type="number"
-                  value={sessionForm.rate}
-                  onChange={(e) =>
-                    setSessionForm((prev) => ({
-                      ...prev,
-                      rate: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  min="0"
-                  step="5"
-                />
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Rate (£)
+                    </label>{" "}
+                    <input
+                      type="number"
+                      value={sessionForm.rate}
+                      onChange={(e) =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          rate: parseFloat(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      min="0"
+                      step="5"
+                    />
+                  </div>
+                </div>{" "}
+                {/* Session Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                    Session Notes
+                  </label>{" "}
+                  <textarea
+                    value={sessionForm.notes}
+                    onChange={(e) =>
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                    rows="3"
+                    placeholder="Add session notes, goals, or special instructions..."
+                  />{" "}
+                </div>{" "}
+              </>
+            ) : (
+              <div className="bg-zinc-900 border border-zinc-800 rounded p-3 text-center">
+                <div className="text-zinc-400 text-sm">
+                  Please select a client or enable manual entry to continue with
+                  session creation
+                </div>
               </div>
-            </div>{" "}
-            {/* Session Notes */}
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Session Notes
-              </label>{" "}
-              <textarea
-                value={sessionForm.notes}
-                onChange={(e) =>
-                  setSessionForm((prev) => ({
-                    ...prev,
-                    notes: e.target.value,
-                  }))
-                }
-                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                rows="3"
-                placeholder="Add session notes, goals, or special instructions..."
-              />
-            </div>{" "}
+            )}
             {/* Conflicts Warning */}
             {conflicts.length > 0 && (
               <div className="bg-zinc-900 border border-red-700 rounded p-3">
