@@ -130,6 +130,25 @@ const taskSlice = createSlice({
       state.status = "idle";
       state.error = null;
     },
+    // Optimistic task update
+    updateTaskOptimistic: (state, action) => {
+      const { id, due_date } = action.payload;
+      const taskIndex = state.list.findIndex((t) => t.id === id);
+      if (taskIndex !== -1) {
+        state.list[taskIndex] = {
+          ...state.list[taskIndex],
+          due_date,
+        };
+      }
+    },
+    // Revert optimistic update
+    revertTaskUpdate: (state, action) => {
+      const { id, originalTask } = action.payload;
+      const taskIndex = state.list.findIndex((t) => t.id === id);
+      if (taskIndex !== -1 && originalTask) {
+        state.list[taskIndex] = originalTask;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -247,5 +266,10 @@ const taskSlice = createSlice({
   },
 });
 
-export const { clearError, resetTasks } = taskSlice.actions;
+export const {
+  clearError,
+  resetTasks,
+  updateTaskOptimistic,
+  revertTaskUpdate,
+} = taskSlice.actions;
 export default taskSlice.reducer;

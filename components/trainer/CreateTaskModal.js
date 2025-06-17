@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { createTask } from "@/redux/slices/taskSlice";
+import { createTask, updateTask } from "@/redux/slices/taskSlice";
 import dayjs from "dayjs";
 import { ClipboardCheck } from "lucide-react";
 
@@ -12,7 +12,6 @@ export default function CreateTaskModal({
   mode = "create",
 }) {
   const dispatch = useDispatch();
-
   // Task form state
   const [taskForm, setTaskForm] = useState({
     title: "",
@@ -22,18 +21,22 @@ export default function CreateTaskModal({
     category: "general",
     status: "pending",
     reminder: false,
+    reminderTime: "15min",
   });
-
   // Initialize form with initial values if provided
   useEffect(() => {
-    if (initialValues?.due_date) {
-      const dueDate = new Date(initialValues.due_date);
-      const year = dueDate.getFullYear();
-      const month = String(dueDate.getMonth() + 1).padStart(2, "0");
-      const day = String(dueDate.getDate()).padStart(2, "0");
-      const hour = String(dueDate.getHours()).padStart(2, "0");
-      const minute = String(dueDate.getMinutes()).padStart(2, "0");
-      const formattedDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+    if (initialValues) {
+      let formattedDateTime = "";
+
+      if (initialValues.due_date) {
+        const dueDate = new Date(initialValues.due_date);
+        const year = dueDate.getFullYear();
+        const month = String(dueDate.getMonth() + 1).padStart(2, "0");
+        const day = String(dueDate.getDate()).padStart(2, "0");
+        const hour = String(dueDate.getHours()).padStart(2, "0");
+        const minute = String(dueDate.getMinutes()).padStart(2, "0");
+        formattedDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+      }
 
       setTaskForm({
         title: initialValues.title || "",
@@ -43,10 +46,10 @@ export default function CreateTaskModal({
         category: initialValues.category || "general",
         status: initialValues.status || "pending",
         reminder: initialValues.reminder || false,
+        reminderTime: initialValues.reminderTime || "15min",
       });
     }
   }, [initialValues]);
-
   const handleTaskSubmit = async () => {
     // Format due_date for task
     let formattedDueDate = null;
@@ -75,10 +78,27 @@ export default function CreateTaskModal({
       priority: taskForm.priority,
       category: taskForm.category,
       status: taskForm.status,
-      reminder: taskForm.reminder,
+      reminder: taskForm.reminder
+        ? {
+            enabled: true,
+            time: taskForm.reminderTime,
+          }
+        : null,
     };
+
     try {
-      await dispatch(createTask(payload)).unwrap();
+      if (mode === "edit" && initialValues?.id) {
+        // Update existing task
+        await dispatch(
+          updateTask({
+            id: initialValues.id,
+            data: payload,
+          })
+        ).unwrap();
+      } else {
+        // Create new task
+        await dispatch(createTask(payload)).unwrap();
+      }
       close();
     } catch (error) {
       console.error("Error saving task:", error);
@@ -153,7 +173,7 @@ export default function CreateTaskModal({
                 }
                 placeholder="Add task description..."
                 rows={3}
-                className="w-full p-2 rounded bg-zinc-800 text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
               />
             </div>{" "}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -170,7 +190,7 @@ export default function CreateTaskModal({
                       due_date: e.target.value,
                     }))
                   }
-                  className="w-full p-2 rounded bg-zinc-800 text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
               </div>
 
@@ -230,29 +250,55 @@ export default function CreateTaskModal({
                   }
                   className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
+                  {" "}
                   <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
+                  <option value="in-progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
             </div>{" "}
             {/* Reminder */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="reminder"
-                checked={taskForm.reminder}
-                onChange={(e) =>
-                  setTaskForm((prev) => ({
-                    ...prev,
-                    reminder: e.target.checked,
-                  }))
-                }
-                className="w-4 h-4 text-blue-600 bg-zinc-800/50 border-zinc-800/30 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor="reminder" className="text-sm text-zinc-300">
-                Set reminder for this task
-              </label>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="reminder"
+                  checked={taskForm.reminder}
+                  onChange={(e) =>
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      reminder: e.target.checked,
+                    }))
+                  }
+                  className="w-4 h-4 text-blue-600 bg-zinc-800/50 border-zinc-800/30 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <label htmlFor="reminder" className="text-sm text-zinc-300">
+                  Set reminder for this task
+                </label>
+              </div>
+
+              {taskForm.reminder && (
+                <div className="ml-7">
+                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                    Reminder Time
+                  </label>
+                  <select
+                    value={taskForm.reminderTime}
+                    onChange={(e) =>
+                      setTaskForm((prev) => ({
+                        ...prev,
+                        reminderTime: e.target.value,
+                      }))
+                    }
+                    className="w-full max-w-48 p-2 rounded bg-zinc-800/50 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  >
+                    <option value="15min">15 minutes before</option>
+                    <option value="30min">30 minutes before</option>
+                    <option value="1hour">1 hour before</option>
+                    <option value="1day">1 day before</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         </div>

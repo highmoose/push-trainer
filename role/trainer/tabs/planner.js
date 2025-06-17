@@ -14,6 +14,7 @@ import {
   updateSessionTimeOptimistic,
   revertSessionTimeUpdate,
 } from "@/redux/slices/sessionSlice";
+import { fetchTasks, updateTask } from "@/redux/slices/taskSlice";
 import "@/components/trainer/calendarStyles.css";
 import { Plus } from "lucide-react";
 
@@ -37,13 +38,15 @@ export default function TrainerCalendarPage() {
   const hoverLineRef = useRef(null);
   const { list: sessions = [] } = useSelector((state) => state.sessions);
   const { list: clients = [], status } = useSelector((state) => state.clients);
+  const { list: tasks = [] } = useSelector((state) => state.tasks);
   // Use real sessions from Redux store
   const displaySessions = sessions;
-
   const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editTaskModalOpen, setEditTaskModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [currentView, setCurrentView] = useState("week");
   // Context menu states
@@ -57,7 +60,7 @@ export default function TrainerCalendarPage() {
 
   const [hoveredLine, setHoveredLine] = useState(null);
 
-  const [showSheduled, setShowScheduled] = useState(true);
+  const [showScheduled, setShowScheduled] = useState(true);
   const [showPending, setShowPending] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCancelled, setShowCancelled] = useState(true);
@@ -70,6 +73,12 @@ export default function TrainerCalendarPage() {
   const [resizingSession, setResizingSession] = useState(null);
   const [dragStartColumn, setDragStartColumn] = useState(null);
   const [dragCurrentColumn, setDragCurrentColumn] = useState(null);
+
+  // Task drag/resize states (same as sessions)
+  const [draggingTask, setDraggingTask] = useState(null);
+  const [resizingTask, setResizingTask] = useState(null);
+  const [isDraggingTask, setIsDraggingTask] = useState(false);
+  const [isResizingTask, setIsResizingTask] = useState(false);
   // Session Templates
   const [sessionTemplates] = useState([
     {
@@ -136,7 +145,7 @@ export default function TrainerCalendarPage() {
   }; // Context menu handlers
   const handleCalendarClick = (clickedTime, event) => {
     // Prevent click when dragging or resizing
-    if (isDragging || isResizing) return;
+    if (isDragging || isResizing || isDraggingTask || isResizingTask) return;
 
     const timeSlotRect = event.currentTarget.getBoundingClientRect();
 
@@ -174,7 +183,6 @@ export default function TrainerCalendarPage() {
     }
     closeContextMenu(); // This will also clear the selected time slot
   };
-
   const handleCreateTask = () => {
     if (contextMenuData) {
       setSelectedSession({
@@ -184,11 +192,29 @@ export default function TrainerCalendarPage() {
     }
     closeContextMenu(); // This will also clear the selected time slot
   };
+  const handleTaskModalClose = () => {
+    setCreateTaskModalOpen(false);
+    // Refresh tasks after modal closes to show newly created tasks
+    dispatch(fetchTasks());
+  };
+
+  const handleEditTaskModalClose = () => {
+    setEditTaskModalOpen(false);
+    setSelectedTask(null);
+    // Refresh tasks after modal closes to show updated tasks
+    dispatch(fetchTasks());
+  };
+
   const closeContextMenu = () => {
     setContextMenuOpen(false);
     setContextMenuData(null);
     setSelectedTimeSlot(null); // Clear selection when context menu closes
   };
+
+  // Fetch tasks when component mounts
+  useEffect(() => {
+    dispatch(fetchTasks());
+  }, [dispatch]);
 
   // Helper function to calculate weekly stats
   const calculateWeeklyStats = () => {
@@ -210,15 +236,14 @@ export default function TrainerCalendarPage() {
       revenue: weekSessions.reduce((acc, s) => acc + (s.rate || 0), 0),
     };
   };
-
-  // Enhanced useEffect for dragging with cross-day support
+  // Enhanced useEffect for dragging with cross-day support (sessions and tasks)
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging && !isDraggingTask) return;
 
     // Add global drag state
     document.body.classList.add("dragging", "no-select");
     const handleMouseMove = (e) => {
-      if (!calendarRef.current || !draggingSession) return;
+      if (!calendarRef.current || (!draggingSession && !draggingTask)) return;
 
       const calendarRect = calendarRef.current.getBoundingClientRect();
       const x = e.clientX - calendarRect.left;
@@ -260,36 +285,57 @@ export default function TrainerCalendarPage() {
       const days = [...Array(7)].map((_, i) =>
         currentDate.startOf("week").add(i, "day")
       );
-
       const targetDay =
         newColumnIndex >= 0
           ? days[newColumnIndex]
-          : dayjs(draggingSession.start_time);
-      const newStart = targetDay
-        .startOf("day")
-        .hour(actualHour)
-        .minute(actualMinute)
-        .second(0);
-      const duration = dayjs(draggingSession.end_time).diff(
-        dayjs(draggingSession.start_time),
-        "minute"
-      );
-      const newEnd = newStart.add(duration, "minute");
+          : isDragging
+          ? dayjs(draggingSession.start_time)
+          : dayjs(draggingTask.due_date);
 
-      // Always allow the update since we support full 24 hours
-      setDraggingSession({
-        ...draggingSession, // Preserve all existing session data
-        start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-        end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-      });
+      // Handle session dragging
+      if (isDragging && draggingSession) {
+        const newStart = targetDay
+          .startOf("day")
+          .hour(actualHour)
+          .minute(actualMinute)
+          .second(0);
+        const duration = dayjs(draggingSession.end_time).diff(
+          dayjs(draggingSession.start_time),
+          "minute"
+        );
+        const newEnd = newStart.add(duration, "minute");
+
+        setDraggingSession({
+          ...draggingSession, // Preserve all existing session data
+          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
+        });
+      }
+
+      // Handle task dragging
+      if (isDraggingTask && draggingTask) {
+        const newDueDate = targetDay
+          .startOf("day")
+          .hour(actualHour)
+          .minute(actualMinute)
+          .second(0);
+
+        setDraggingTask({
+          ...draggingTask, // Preserve all existing task data
+          due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
+        });
+      }
     };
     const handleMouseUp = () => {
       setIsDragging(false);
+      setIsDraggingTask(false);
       setDragCurrentColumn(null);
       setDragStartColumn(null);
 
       // Remove global drag state
-      document.body.classList.remove("dragging", "no-select"); // Update session time via Redux
+      document.body.classList.remove("dragging", "no-select");
+
+      // Update session time via Redux
       if (draggingSession && draggingSession.id) {
         // Store original session for potential revert
         const originalSession = sessions.find(
@@ -342,16 +388,42 @@ export default function TrainerCalendarPage() {
         });
       }
 
+      // Update task time via Redux
+      if (draggingTask && draggingTask.id) {
+        if (!draggingTask.due_date) {
+          console.error("Dragging task missing due_date:", draggingTask);
+          setDraggingTask(null);
+          return;
+        }
+
+        // Update task via API
+        dispatch(
+          updateTask({
+            id: draggingTask.id,
+            data: {
+              ...draggingTask,
+              due_date: draggingTask.due_date,
+            },
+          })
+        ).catch((error) => {
+          console.error("Failed to update task:", error);
+          // Refresh tasks to revert on failure
+          dispatch(fetchTasks());
+        });
+      }
       setDraggingSession(null);
+      setDraggingTask(null);
     };
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         setIsDragging(false);
+        setIsDraggingTask(false);
         setDragCurrentColumn(null);
         setDragStartColumn(null);
         document.body.classList.remove("dragging", "no-select");
         setDraggingSession(null);
+        setDraggingTask(null);
       }
     };
 
@@ -365,16 +437,22 @@ export default function TrainerCalendarPage() {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.classList.remove("dragging", "no-select");
     };
-  }, [isDragging, draggingSession, dragOffsetY, currentDate]);
-
-  // New useEffect for resizing
+  }, [
+    isDragging,
+    isDraggingTask,
+    draggingSession,
+    draggingTask,
+    dragOffsetY,
+    currentDate,
+  ]);
+  // New useEffect for resizing (sessions and tasks)
   useEffect(() => {
-    if (!isResizing) return;
+    if (!isResizing && !isResizingTask) return;
 
     // Add global resize state
     document.body.classList.add("resizing", "no-select");
     const handleMouseMove = (e) => {
-      if (!calendarRef.current || !resizingSession) return;
+      if (!calendarRef.current || (!resizingSession && !resizingTask)) return;
 
       const calendarRect = calendarRef.current.getBoundingClientRect();
       const y = e.clientY - calendarRect.top; // Calculate which hour and minute we're in based on the grid
@@ -399,40 +477,62 @@ export default function TrainerCalendarPage() {
 
       // Ensure we don't go beyond valid hours (0-23)
       actualHour = Math.min(23, actualHour);
-      const actualMinute = snappedMinute;
+      const actualMinute = snappedMinute; // Handle session resizing
+      if (isResizing && resizingSession) {
+        const start = dayjs(resizingSession.start_time);
+        const end = dayjs(resizingSession.end_time);
+        const baseDay = start.startOf("day");
 
-      const start = dayjs(resizingSession.start_time);
-      const end = dayjs(resizingSession.end_time);
-      const baseDay = start.startOf("day");
+        let newStart = start;
+        let newEnd = end;
 
-      let newStart = start;
-      let newEnd = end;
-
-      if (resizeType === "top") {
-        // Resize from top (change start time)
-        newStart = baseDay.hour(actualHour).minute(actualMinute).second(0);
-        // Ensure minimum 15-minute duration
-        if (newStart.isAfter(end.subtract(15, "minute"))) {
-          newStart = end.subtract(15, "minute");
+        if (resizeType === "top") {
+          // Resize from top (change start time)
+          newStart = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          // Ensure minimum 15-minute duration
+          if (newStart.isAfter(end.subtract(15, "minute"))) {
+            newStart = end.subtract(15, "minute");
+          }
+        } else if (resizeType === "bottom") {
+          // Resize from bottom (change end time)
+          newEnd = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          // Ensure minimum 15-minute duration
+          if (newEnd.isBefore(start.add(15, "minute"))) {
+            newEnd = start.add(15, "minute");
+          }
         }
-      } else if (resizeType === "bottom") {
-        // Resize from bottom (change end time)
-        newEnd = baseDay.hour(actualHour).minute(actualMinute).second(0);
-        // Ensure minimum 15-minute duration
-        if (newEnd.isBefore(start.add(15, "minute"))) {
-          newEnd = start.add(15, "minute");
-        }
+
+        setResizingSession({
+          ...resizingSession,
+          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
+        });
       }
-      setResizingSession({
-        ...resizingSession,
-        start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-        end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-      });
+
+      // Handle task resizing (tasks don't have start/end times, just due_date, so we only update due_date)
+      if (isResizingTask && resizingTask) {
+        const taskDate = dayjs(resizingTask.due_date);
+        const baseDay = taskDate.startOf("day");
+
+        // For tasks, we just update the due_date time
+        const newDueDate = baseDay
+          .hour(actualHour)
+          .minute(actualMinute)
+          .second(0);
+
+        setResizingTask({
+          ...resizingTask,
+          due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
+        });
+      }
     };
     const handleMouseUp = () => {
       setIsResizing(false);
+      setIsResizingTask(false);
       setResizeType(null); // Remove global resize state
-      document.body.classList.remove("resizing", "no-select"); // Update session time via Redux
+      document.body.classList.remove("resizing", "no-select");
+
+      // Update session time via Redux
       if (resizingSession && resizingSession.id) {
         // Store original session for potential revert
         const originalSession = sessions.find(
@@ -469,7 +569,32 @@ export default function TrainerCalendarPage() {
         });
       }
 
+      // Update task time via Redux
+      if (resizingTask && resizingTask.id) {
+        if (!resizingTask.due_date) {
+          console.error("Resizing task missing due_date:", resizingTask);
+          setResizingTask(null);
+          return;
+        }
+
+        // Update task via API
+        dispatch(
+          updateTask({
+            id: resizingTask.id,
+            data: {
+              ...resizingTask,
+              due_date: resizingTask.due_date,
+            },
+          })
+        ).catch((error) => {
+          console.error("Failed to update task:", error);
+          // Refresh tasks to revert on failure
+          dispatch(fetchTasks());
+        });
+      }
+
       setResizingSession(null);
+      setResizingTask(null);
     };
 
     const handleKeyDown = (e) => {
@@ -521,9 +646,9 @@ export default function TrainerCalendarPage() {
             className="absolute left-[50px] right-0 border-t border-dashed border-zinc-500 z-40 pointer-events-none"
             style={{ top: hoveredLine }}
           />
-        )}
+        )}{" "}
         {/* Cross-day drag indicator */}
-        {isDragging &&
+        {(isDragging || isDraggingTask) &&
           dragCurrentColumn !== null &&
           dragCurrentColumn !== dragStartColumn && (
             <div
@@ -598,7 +723,13 @@ export default function TrainerCalendarPage() {
                           style={{ top }}
                           onMouseEnter={(e) => {
                             // Don't show hover line when dragging or resizing
-                            if (isDragging || isResizing) return;
+                            if (
+                              isDragging ||
+                              isResizing ||
+                              isDraggingTask ||
+                              isResizingTask
+                            )
+                              return;
 
                             const lineTop =
                               e.currentTarget.getBoundingClientRect().top -
@@ -653,7 +784,7 @@ export default function TrainerCalendarPage() {
                         return sessionHour === hour;
                       })
                       .filter((s) => {
-                        if (s.status === "scheduled" && !showSheduled)
+                        if (s.status === "scheduled" && !showScheduled)
                           return false;
                         if (s.status === "pending" && !showPending)
                           return false;
@@ -818,6 +949,188 @@ export default function TrainerCalendarPage() {
                             </div>
                           </div>
                         );
+                      })}{" "}
+                    {/* Render Tasks - Only render in the correct hour block */}
+                    {tasks
+                      .filter((task) => {
+                        if (!task.due_date) return false;
+                        // For dragging tasks, show them in the column they're being dragged to
+                        if (isDraggingTask && task.id === draggingTask?.id) {
+                          return dayjs(draggingTask.due_date).isSame(
+                            day,
+                            "day"
+                          );
+                        }
+                        // For normal tasks, show them in their original day
+                        return dayjs(task.due_date).isSame(day, "day");
+                      })
+                      .filter((task) => {
+                        // Only show task in its starting hour block to avoid duplicates
+                        const taskToCheck =
+                          isResizingTask && task.id === resizingTask?.id
+                            ? resizingTask
+                            : isDraggingTask && task.id === draggingTask?.id
+                            ? draggingTask
+                            : task;
+                        const taskDateTime = dayjs(taskToCheck.due_date);
+                        const taskHour = taskDateTime.hour();
+
+                        // Only render in the hour block where the task starts
+                        return taskHour === hour;
+                      })
+                      .filter((task) => {
+                        // Apply status filters (map task statuses to session filter logic)
+                        if (task.status === "completed" && !showCompleted)
+                          return false;
+                        if (
+                          (task.status === "pending" ||
+                            task.status === "in-progress") &&
+                          !showPending
+                        )
+                          return false;
+                        // Tasks don't have cancelled status typically, but if they do:
+                        if (task.status === "cancelled" && !showCancelled)
+                          return false;
+                        return true;
+                      })
+                      .map((task, taskIndex) => {
+                        // Use resizing task data if this task is being resized
+                        let taskDateTime;
+                        if (isResizingTask && task.id === resizingTask?.id) {
+                          taskDateTime = dayjs(resizingTask.due_date);
+                        } else if (
+                          isDraggingTask &&
+                          task.id === draggingTask?.id
+                        ) {
+                          taskDateTime = dayjs(draggingTask.due_date);
+                        } else {
+                          taskDateTime = dayjs(task.due_date);
+                        }
+
+                        const taskMinute = taskDateTime.minute();
+                        const taskTopPosition = (taskMinute / 60) * 60;
+                        const taskHeight = 45; // Increased height to match session style
+
+                        return (
+                          <div
+                            key={`task-${task.id}`}
+                            className={`calendar-task absolute mx-1 text-xs p-2 rounded shadow cursor-grab z-10 group border-l-4 ${
+                              isDraggingTask && task.id === draggingTask?.id
+                                ? "dragging"
+                                : ""
+                            } ${
+                              isResizingTask && task.id === resizingTask?.id
+                                ? "resizing"
+                                : ""
+                            } ${
+                              task.status === "completed"
+                                ? "bg-green-800 hover:bg-green-700 text-green-100 border-green-400"
+                                : task.status === "in-progress"
+                                ? "bg-blue-800 hover:bg-blue-700 text-blue-100 border-blue-400"
+                                : task.priority === "high"
+                                ? "bg-red-800 hover:bg-red-700 text-red-100 border-red-400"
+                                : task.priority === "medium"
+                                ? "bg-yellow-800 hover:bg-yellow-700 text-yellow-100 border-yellow-400"
+                                : "bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-400"
+                            }`}
+                            style={{
+                              top: `${taskTopPosition}px`,
+                              height: `${taskHeight}px`,
+                              zIndex:
+                                (isDraggingTask &&
+                                  task.id === draggingTask?.id) ||
+                                (isResizingTask && task.id === resizingTask?.id)
+                                  ? 60
+                                  : 45,
+                              opacity:
+                                (isDraggingTask &&
+                                  task.id === draggingTask?.id) ||
+                                (isResizingTask && task.id === resizingTask?.id)
+                                  ? 0.9
+                                  : 1,
+                            }}
+                            onClick={(e) => {
+                              // Prevent click when dragging or resizing
+                              if (
+                                isDragging ||
+                                isResizing ||
+                                isDraggingTask ||
+                                isResizingTask
+                              )
+                                return;
+                              e.stopPropagation();
+                              setSelectedTask(task);
+                              setEditTaskModalOpen(true);
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+
+                              const taskRect =
+                                e.currentTarget.getBoundingClientRect();
+                              const calendarRect =
+                                calendarRef.current.getBoundingClientRect();
+
+                              // Check if clicking on resize handles
+                              const clickY = e.clientY - taskRect.top;
+                              const isTopResize = clickY <= 8;
+                              const isBottomResize =
+                                clickY >= taskRect.height - 8;
+
+                              if (isTopResize || isBottomResize) {
+                                // Start resizing (for tasks we'll just update due_date time)
+                                setResizingTask(task);
+                                setIsResizingTask(true);
+                                setResizeType(isTopResize ? "top" : "bottom");
+                              } else {
+                                // Start dragging
+                                const clickOffset = e.clientY - taskRect.top;
+                                const currentColumn = days.findIndex((day) =>
+                                  dayjs(task.due_date).isSame(day, "day")
+                                );
+
+                                // Calculate the current position of the task relative to the calendar
+                                const taskTopInCalendar =
+                                  taskRect.top - calendarRect.top;
+
+                                setDraggingTask(task);
+                                setDragOffsetY(clickOffset);
+                                setDragPositionY(taskTopInCalendar);
+                                setIsDraggingTask(true);
+                                setDragStartColumn(currentColumn);
+                                setDragCurrentColumn(currentColumn);
+                              }
+                            }}
+                          >
+                            {/* Top resize handle */}
+                            <div className="resize-handle top" />
+                            {/* Bottom resize handle */}
+                            <div className="resize-handle bottom" />
+
+                            <div className="relative z-20 pointer-events-none">
+                              <div className="font-semibold truncate flex items-center gap-1">
+                                📋 {task.title}
+                              </div>
+                              <p className="text-xs opacity-80 truncate">
+                                {task.category?.replace("-", " ")} •{" "}
+                                {task.priority.toUpperCase()}
+                              </p>
+                              {task.description && (
+                                <p className="text-xs opacity-80 truncate">
+                                  {task.description}
+                                </p>
+                              )}
+                              <div className="text-xs font-medium mt-1">
+                                {isResizingTask && task.id === resizingTask?.id
+                                  ? dayjs(resizingTask.due_date).format("HH:mm")
+                                  : isDraggingTask &&
+                                    task.id === draggingTask?.id
+                                  ? dayjs(draggingTask.due_date).format("HH:mm")
+                                  : taskDateTime.format("HH:mm")}
+                              </div>
+                            </div>
+                          </div>
+                        );
                       })}
                   </div>
                 );
@@ -899,7 +1212,6 @@ export default function TrainerCalendarPage() {
             ))}
           </div>
         </div> */}
-
         {/* Weekly Overview */}
         <div className="p-4 border-b border-zinc-800/30">
           <div className="flex items-center justify-between mb-3">
@@ -911,7 +1223,6 @@ export default function TrainerCalendarPage() {
               {currentDate.endOf("week").format("MMM D")}
             </div>
           </div>
-
           {(() => {
             const stats = calculateWeeklyStats();
             return (
@@ -942,9 +1253,67 @@ export default function TrainerCalendarPage() {
                 </div>
               </div>
             );
-          })()}
+          })()}{" "}
         </div>
+        {/* Task Overview */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-300">Task Overview</h3>
+            <div className="text-xs text-zinc-500">{tasks.length} total</div>
+          </div>
 
+          {(() => {
+            const weekStart = currentDate.startOf("week");
+            const weekEnd = currentDate.endOf("week");
+            const weekTasks = tasks.filter((task) => {
+              if (!task.due_date) return false;
+              const taskDate = dayjs(task.due_date);
+              return taskDate.isAfter(weekStart) && taskDate.isBefore(weekEnd);
+            });
+
+            const pendingTasks = tasks.filter(
+              (t) => t.status === "pending"
+            ).length;
+            const inProgressTasks = tasks.filter(
+              (t) => t.status === "in-progress"
+            ).length;
+            const completedTasks = tasks.filter(
+              (t) => t.status === "completed"
+            ).length;
+            const highPriorityTasks = tasks.filter(
+              (t) => t.priority === "high"
+            ).length;
+
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {weekTasks.length}
+                  </div>
+                  <div className="text-xs text-zinc-500">This Week</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {pendingTasks}
+                  </div>
+                  <div className="text-xs text-zinc-500">Pending</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {inProgressTasks}
+                  </div>
+                  <div className="text-xs text-zinc-500">In Progress</div>
+                </div>
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                  <div className="text-lg font-bold text-zinc-300">
+                    {highPriorityTasks}
+                  </div>
+                  <div className="text-xs text-zinc-500">High Priority</div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>{" "}
         {/* Status Filters */}
         <div className="p-4 border-b border-zinc-800/30">
           <h3 className="text-sm font-medium text-zinc-300 mb-3">
@@ -954,7 +1323,7 @@ export default function TrainerCalendarPage() {
             <label className="flex items-center gap-2 cursor-pointer group">
               <input
                 type="checkbox"
-                checked={showSheduled}
+                checked={showScheduled}
                 onChange={(e) => setShowScheduled(e.target.checked)}
                 className="transparent-checkbox"
               />
@@ -972,7 +1341,7 @@ export default function TrainerCalendarPage() {
               />
               <div className="w-2 h-2 bg-zinc-500 rounded-full"></div>
               <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
-                Pending
+                Pending/Active
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group">
@@ -1000,13 +1369,15 @@ export default function TrainerCalendarPage() {
               </span>
             </label>
           </div>
-        </div>
-
-        {/* Upcoming Sessions */}
+          <div className="text-xs text-zinc-500 mt-2">
+            Applies to both sessions and tasks
+          </div>
+        </div>{" "}
+        {/* Upcoming Sessions & Tasks */}
         <div className="flex-1 p-4 overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">
-              Upcoming Sessions
+              Upcoming Items
             </h3>
             <button
               onClick={() => setCurrentDate(dayjs())}
@@ -1016,13 +1387,14 @@ export default function TrainerCalendarPage() {
             </button>
           </div>
           <div className="space-y-2 overflow-y-auto max-h-full">
+            {/* Upcoming Sessions */}
             {displaySessions
               .filter((session) => dayjs(session.start_time).isAfter(dayjs()))
               .sort((a, b) => dayjs(a.start_time).diff(dayjs(b.start_time)))
-              .slice(0, 10)
+              .slice(0, 5)
               .map((session, idx) => (
                 <div
-                  key={`upcoming-${session.id}-${idx}`}
+                  key={`upcoming-session-${session.id}-${idx}`}
                   className="p-3 rounded-lg cursor-pointer transition-all duration-200 bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800/50 hover:border-zinc-700/50"
                   onClick={() => {
                     setCurrentDate(dayjs(session.start_time));
@@ -1043,7 +1415,7 @@ export default function TrainerCalendarPage() {
                       }`}
                     />
                     <div className="font-medium text-white text-sm flex-1">
-                      {session.first_name} {session.last_name}
+                      👥 {session.first_name} {session.last_name}
                     </div>
                   </div>
                   <div className="text-xs text-zinc-400 mb-1">
@@ -1055,13 +1427,63 @@ export default function TrainerCalendarPage() {
                   )}
                 </div>
               ))}
+
+            {/* Upcoming Tasks */}
+            {tasks
+              .filter((task) => {
+                if (!task.due_date) return false;
+                return dayjs(task.due_date).isAfter(dayjs());
+              })
+              .sort((a, b) => dayjs(a.due_date).diff(dayjs(b.due_date)))
+              .slice(0, 5)
+              .map((task, idx) => (
+                <div
+                  key={`upcoming-task-${task.id}-${idx}`}
+                  className="p-3 rounded-lg cursor-pointer transition-all duration-200 bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800/50 hover:border-zinc-700/50 border-l-4 border-l-blue-400"
+                  onClick={() => {
+                    if (task.due_date) {
+                      setCurrentDate(dayjs(task.due_date));
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        task.status === "completed"
+                          ? "bg-green-400"
+                          : task.status === "in-progress"
+                          ? "bg-blue-400"
+                          : task.priority === "high"
+                          ? "bg-red-400"
+                          : task.priority === "medium"
+                          ? "bg-yellow-400"
+                          : "bg-gray-400"
+                      }`}
+                    />
+                    <div className="font-medium text-white text-sm flex-1">
+                      📋 {task.title}
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-400 mb-1">
+                    {dayjs(task.due_date).format("MMM D, h:mm A")}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {task.priority.toUpperCase()} •{" "}
+                    {task.category.replace("-", " ").toUpperCase()}
+                  </div>
+                </div>
+              ))}
+
             {displaySessions.filter((session) =>
               dayjs(session.start_time).isAfter(dayjs())
-            ).length === 0 && (
-              <div className="text-zinc-500 text-sm text-center py-8">
-                No upcoming sessions
-              </div>
-            )}
+            ).length === 0 &&
+              tasks.filter(
+                (task) => task.due_date && dayjs(task.due_date).isAfter(dayjs())
+              ).length === 0 && (
+                <div className="text-zinc-500 text-sm text-center py-8">
+                  No upcoming items
+                </div>
+              )}
           </div>
         </div>
       </div>
@@ -1117,19 +1539,26 @@ export default function TrainerCalendarPage() {
           close={() => setCreateModalOpen(false)}
           initialValues={selectedSession || {}} // <-- fallback to empty object
         />
-      )}
+      )}{" "}
       {createTaskModalOpen && (
         <CreateTaskModal
           mode="create"
-          close={() => setCreateTaskModalOpen(false)}
+          close={handleTaskModalClose}
           initialValues={selectedSession || {}}
         />
-      )}
+      )}{" "}
       {editModalOpen && selectedSession && (
         <CreateSessionModal
           mode="edit"
           close={() => setEditModalOpen(false)}
           initialValues={selectedSession}
+        />
+      )}{" "}
+      {editTaskModalOpen && selectedTask && (
+        <CreateTaskModal
+          mode="edit"
+          close={handleEditTaskModalClose}
+          initialValues={selectedTask}
         />
       )}
       {/* Context Menu */}

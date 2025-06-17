@@ -35,8 +35,8 @@ export const login = createAsyncThunk(
   "auth/login",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      await api.get("http://localhost:8000/sanctum/csrf-cookie");
-      const res = await api.post("http://localhost:8000/api/login", {
+      await api.get("/sanctum/csrf-cookie");
+      const res = await api.post("/api/login", {
         email,
         password,
       });
