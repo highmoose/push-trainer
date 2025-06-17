@@ -19,9 +19,18 @@ import {
   updateTask,
   updateTaskOptimistic,
   revertTaskUpdate,
+  markTaskCompleted,
+  markTaskCompletedOptimistic,
+  revertMarkTaskCompleted,
 } from "@/redux/slices/taskSlice";
 import "@/components/trainer/calendarStyles.css";
-import { Plus } from "lucide-react";
+import {
+  Circle,
+  CircleCheck,
+  Clipboard,
+  ClipboardCheck,
+  Plus,
+} from "lucide-react";
 
 // Configure dayjs to start week on Monday
 dayjs.extend(weekday);
@@ -43,7 +52,7 @@ export default function TrainerCalendarPage() {
   const hoverLineRef = useRef(null);
   const { list: sessions = [] } = useSelector((state) => state.sessions);
   const { list: clients = [], status } = useSelector((state) => state.clients);
-  const { list: tasks = [] } = useSelector((state) => state.tasks);
+  const { list: tasks = [], statistics } = useSelector((state) => state.tasks);
   // Use real sessions from Redux store
   const displaySessions = sessions;
   const [selectedSession, setSelectedSession] = useState(null);
@@ -78,12 +87,13 @@ export default function TrainerCalendarPage() {
   const [resizingSession, setResizingSession] = useState(null);
   const [dragStartColumn, setDragStartColumn] = useState(null);
   const [dragCurrentColumn, setDragCurrentColumn] = useState(null);
-
   // Task drag/resize states (same as sessions)
   const [draggingTask, setDraggingTask] = useState(null);
   const [resizingTask, setResizingTask] = useState(null);
   const [isDraggingTask, setIsDraggingTask] = useState(false);
   const [isResizingTask, setIsResizingTask] = useState(false);
+  // Task completion toggle state
+  const [updatingTasks, setUpdatingTasks] = useState(new Set());
   // Session Templates
   const [sessionTemplates] = useState([
     {
@@ -208,6 +218,88 @@ export default function TrainerCalendarPage() {
     setSelectedTask(null);
     // Refresh tasks after modal closes to show updated tasks
     dispatch(fetchTasks());
+  };  const handleTaskCompletionToggle = async (task, event) => {
+    // Prevent event from bubbling up to parent elements
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Prevent multiple clicks on the same task
+    if (updatingTasks.has(task.id)) {
+      return;
+    }
+
+    // Add task to updating set immediately
+    setUpdatingTasks((prev) => new Set(prev).add(task.id));
+
+    // Store original task and statistics for potential revert
+    const originalTask = { ...task };
+    const originalStats = { ...statistics };
+    const originalStatus = task.status;
+
+    try {
+      if (originalStatus === "pending") {
+        // Mark as completed optimistically
+        dispatch(markTaskCompletedOptimistic({ id: task.id }));
+
+        // API call to mark as completed - don't use .unwrap() to avoid double state updates
+        const result = await dispatch(markTaskCompleted(task.id));
+        
+        // Only check for actual failures, don't let the fulfilled case update state again
+        if (markTaskCompleted.rejected.match(result)) {
+          throw new Error(result.payload || 'Failed to update task');
+        }
+      } else if (originalStatus === "completed") {
+        // Mark as pending optimistically
+        dispatch(
+          updateTaskOptimistic({
+            id: task.id,
+            updates: { status: "pending" },
+          })
+        );
+
+        // API call to update status back to pending - don't use .unwrap()
+        const result = await dispatch(
+          updateTask({
+            id: task.id,
+            data: { status: "pending" },
+          })
+        );
+        
+        // Only check for actual failures
+        if (updateTask.rejected.match(result)) {
+          throw new Error(result.payload || 'Failed to update task');
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+
+      // Revert the optimistic update on error using original status
+      if (originalStatus === "pending") {
+        dispatch(
+          revertMarkTaskCompleted({
+            id: task.id,
+            originalTask,
+            originalStats,
+          })
+        );
+      } else if (originalStatus === "completed") {
+        dispatch(
+          revertTaskUpdate({
+            id: task.id,
+            originalTask,
+          })
+        );
+      }
+    } finally {
+      // Remove task from updating set with a slight delay to prevent rapid re-clicks
+      setTimeout(() => {
+        setUpdatingTasks((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(task.id);
+          return newSet;
+        });
+      }, 150);
+    }
   };
 
   const closeContextMenu = () => {
@@ -317,11 +409,13 @@ export default function TrainerCalendarPage() {
         });
       } // Handle task dragging
       if (isDraggingTask && draggingTask) {
-        const newDueDate = targetDay
+        const newStartTime = targetDay
           .startOf("day")
           .hour(actualHour)
           .minute(actualMinute)
           .second(0);
+        const duration = draggingTask.duration || 45; // Get task duration
+        const newDueDate = newStartTime.add(duration, "minute"); // due_date = start + duration
 
         setDraggingTask({
           ...draggingTask, // Preserve all existing task data including duration
@@ -404,14 +498,19 @@ export default function TrainerCalendarPage() {
           console.error("Dragging task missing due_date:", draggingTask);
           setDraggingTask(null);
           return;
-        } // 1. Immediate optimistic update
+        }
+
+        // 1. Immediate optimistic update
         dispatch(
           updateTaskOptimistic({
             id: draggingTask.id,
-            due_date: draggingTask.due_date,
-            duration: draggingTask.duration,
+            updates: {
+              due_date: draggingTask.due_date,
+              duration: draggingTask.duration,
+            },
           })
-        ); // 2. API call in background
+        );
+        // 2. API call in background
         dispatch(
           updateTask({
             id: draggingTask.id,
@@ -622,14 +721,19 @@ export default function TrainerCalendarPage() {
           console.error("Resizing task missing due_date:", resizingTask);
           setResizingTask(null);
           return;
-        } // 1. Immediate optimistic update
+        }
+
+        // 1. Immediate optimistic update
         dispatch(
           updateTaskOptimistic({
             id: resizingTask.id,
-            due_date: resizingTask.due_date,
-            duration: resizingTask.duration,
+            updates: {
+              due_date: resizingTask.due_date,
+              duration: resizingTask.duration,
+            },
           })
-        ); // 2. API call in background
+        );
+        // 2. API call in background
         dispatch(
           updateTask({
             id: resizingTask.id,
@@ -1047,11 +1151,7 @@ export default function TrainerCalendarPage() {
                         // Apply status filters (map task statuses to session filter logic)
                         if (task.status === "completed" && !showCompleted)
                           return false;
-                        if (
-                          (task.status === "pending" ||
-                            task.status === "in-progress") &&
-                          !showPending
-                        )
+                        if (task.status === "pending" && !showPending)
                           return false;
                         // Tasks don't have cancelled status typically, but if they do:
                         if (task.status === "cancelled" && !showCancelled)
@@ -1107,7 +1207,7 @@ export default function TrainerCalendarPage() {
                         return (
                           <div
                             key={`task-${task.id}`}
-                            className={`calendar-task absolute mx-1 text-xs p-2 rounded shadow cursor-grab z-10 group border-l-4 ${
+                            className={`calendar-task absolute mx-1 text-xs p-2 rounded shadow cursor-grab z-10 group border-l-[2.3px] bg-zinc-800 hover:bg-zinc-700 text-gray-100 ${
                               isDraggingTask && task.id === draggingTask?.id
                                 ? "dragging"
                                 : ""
@@ -1117,14 +1217,12 @@ export default function TrainerCalendarPage() {
                                 : ""
                             } ${
                               task.status === "completed"
-                                ? "bg-green-800 hover:bg-green-700 text-green-100 border-green-400"
-                                : task.status === "in-progress"
-                                ? "bg-blue-800 hover:bg-blue-700 text-blue-100 border-blue-400"
+                                ? "border-green-400"
                                 : task.priority === "high"
-                                ? "bg-red-800 hover:bg-red-700 text-red-100 border-red-400"
+                                ? "border-red-400"
                                 : task.priority === "medium"
-                                ? "bg-yellow-800 hover:bg-yellow-700 text-yellow-100 border-yellow-400"
-                                : "bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-400"
+                                ? "border-yellow-400"
+                                : "border-gray-400"
                             }`}
                             style={{
                               top: `${taskTopPosition}px`,
@@ -1198,22 +1296,68 @@ export default function TrainerCalendarPage() {
                             {/* Top resize handle */}
                             <div className="resize-handle top" />
                             {/* Bottom resize handle */}
-                            <div className="resize-handle bottom" />
-
-                            <div className="relative z-20 pointer-events-none">
+                            <div className="resize-handle bottom" />{" "}
+                            <div className="relative z-20">
+                              {" "}
                               <div className="font-semibold truncate flex items-center gap-1">
-                                📋 {task.title}
-                              </div>
-                              <p className="text-xs opacity-80 truncate">
+                                {" "}
+                                {task.status === "completed" ? (
+                                  <button
+                                    className={`pointer-events-auto flex-shrink-0 transition-transform ${
+                                      updatingTasks.has(task.id)
+                                        ? "cursor-wait opacity-50 pointer-events-none"
+                                        : "cursor-pointer hover:scale-110"
+                                    }`}
+                                    onClick={(e) => {
+                                      if (!updatingTasks.has(task.id)) {
+                                        handleTaskCompletionToggle(task, e);
+                                      }
+                                    }}
+                                    disabled={updatingTasks.has(task.id)}
+                                    title={
+                                      updatingTasks.has(task.id)
+                                        ? "Updating..."
+                                        : "Mark as pending"
+                                    }
+                                  >
+                                    <CircleCheck className="text-green-400 w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    className={`pointer-events-auto flex-shrink-0 transition-transform ${
+                                      updatingTasks.has(task.id)
+                                        ? "cursor-wait opacity-50 pointer-events-none"
+                                        : "cursor-pointer hover:scale-110"
+                                    }`}
+                                    onClick={(e) => {
+                                      if (!updatingTasks.has(task.id)) {
+                                        handleTaskCompletionToggle(task, e);
+                                      }
+                                    }}
+                                    disabled={updatingTasks.has(task.id)}
+                                    title={
+                                      updatingTasks.has(task.id)
+                                        ? "Updating..."
+                                        : "Mark as completed"
+                                    }
+                                  >
+                                    <Circle className="text-zinc-400 hover:text-zinc-300 w-4 h-4" />
+                                  </button>
+                                )}
+                                <span className="pointer-events-none">
+                                  {task.title}
+                                </span>
+                              </div>{" "}
+                              <p className="text-xs opacity-80 truncate pointer-events-none">
                                 {task.category?.replace("-", " ")} •{" "}
                                 {task.priority.toUpperCase()}
                               </p>
                               {task.description && (
-                                <p className="text-xs opacity-80 truncate">
+                                <p className="text-xs opacity-80 truncate pointer-events-none">
                                   {task.description}
                                 </p>
                               )}{" "}
-                              <div className="text-xs font-medium mt-1">
+                              <div className="text-xs font-medium mt-1 pointer-events-none">
                                 {isResizingTask && task.id === resizingTask?.id
                                   ? `${dayjs(resizingTask.due_date)
                                       .subtract(
@@ -1331,11 +1475,11 @@ export default function TrainerCalendarPage() {
             ))}
           </div>
         </div> */}
-        {/* Weekly Overview */}
+        {/* Session Overview */}
         <div className="p-4 border-b border-zinc-800/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">
-              Weekly Overview
+              Sessions Overview
             </h3>
             <div className="text-xs text-zinc-500">
               {currentDate.startOf("week").format("MMM D")} -{" "}
@@ -1375,7 +1519,7 @@ export default function TrainerCalendarPage() {
           })()}{" "}
         </div>
         {/* Task Overview */}
-        <div className="p-4 border-b border-zinc-800/30">
+        {/* <div className="p-4 border-b border-zinc-800/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">Task Overview</h3>
             <div className="text-xs text-zinc-500">{tasks.length} total</div>
@@ -1388,13 +1532,8 @@ export default function TrainerCalendarPage() {
               if (!task.due_date) return false;
               const taskDate = dayjs(task.due_date);
               return taskDate.isAfter(weekStart) && taskDate.isBefore(weekEnd);
-            });
-
-            const pendingTasks = tasks.filter(
+            });            const pendingTasks = tasks.filter(
               (t) => t.status === "pending"
-            ).length;
-            const inProgressTasks = tasks.filter(
-              (t) => t.status === "in-progress"
             ).length;
             const completedTasks = tasks.filter(
               (t) => t.status === "completed"
@@ -1432,7 +1571,7 @@ export default function TrainerCalendarPage() {
               </div>
             );
           })()}
-        </div>{" "}
+        </div> */}
         {/* Status Filters */}
         <div className="p-4 border-b border-zinc-800/30">
           <h3 className="text-sm font-medium text-zinc-300 mb-3">
@@ -1505,7 +1644,7 @@ export default function TrainerCalendarPage() {
               Today
             </button>
           </div>
-          <div className="space-y-2 overflow-y-auto max-h-full">
+          <div className="space-y-2 overflow-y-auto max-h-96 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900 pr-2">
             {/* Upcoming Sessions */}
             {displaySessions
               .filter((session) => dayjs(session.start_time).isAfter(dayjs()))
@@ -1570,8 +1709,6 @@ export default function TrainerCalendarPage() {
                       className={`w-3 h-3 rounded-full ${
                         task.status === "completed"
                           ? "bg-green-400"
-                          : task.status === "in-progress"
-                          ? "bg-blue-400"
                           : task.priority === "high"
                           ? "bg-red-400"
                           : task.priority === "medium"

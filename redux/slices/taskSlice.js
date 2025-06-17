@@ -106,7 +106,6 @@ const taskSlice = createSlice({
     statistics: {
       total: 0,
       pending: 0,
-      in_progress: 0,
       completed: 0,
       overdue: 0,
       high_priority: 0,
@@ -123,30 +122,57 @@ const taskSlice = createSlice({
     clearError: (state) => {
       state.error = null;
       state.statisticsError = null;
-    },
-    // Reset tasks state
+    }, // Reset tasks state
     resetTasks: (state) => {
       state.list = [];
       state.status = "idle";
       state.error = null;
-    },    // Optimistic task update
+    },
+    // Optimistic task update
     updateTaskOptimistic: (state, action) => {
-      const { id, due_date, duration } = action.payload;
+      const { id, updates } = action.payload;
       const taskIndex = state.list.findIndex((t) => t.id === id);
       if (taskIndex !== -1) {
         state.list[taskIndex] = {
           ...state.list[taskIndex],
-          due_date,
-          ...(duration !== undefined && { duration }),
+          ...updates,
         };
       }
-    },
-    // Revert optimistic update
+    }, // Revert optimistic update
     revertTaskUpdate: (state, action) => {
       const { id, originalTask } = action.payload;
       const taskIndex = state.list.findIndex((t) => t.id === id);
       if (taskIndex !== -1 && originalTask) {
         state.list[taskIndex] = originalTask;
+      }
+    },
+    // Optimistic mark task as completed
+    markTaskCompletedOptimistic: (state, action) => {
+      const { id } = action.payload;
+      const taskIndex = state.list.findIndex((t) => t.id === id);
+      if (taskIndex !== -1) {
+        const oldStatus = state.list[taskIndex].status;
+        state.list[taskIndex].status = "completed";
+
+        // Update statistics optimistically
+        if (oldStatus !== "completed") {
+          state.statistics[oldStatus] = Math.max(
+            0,
+            state.statistics[oldStatus] - 1
+          );
+          state.statistics.completed += 1;
+        }
+      }
+    },
+    // Revert optimistic mark as completed
+    revertMarkTaskCompleted: (state, action) => {
+      const { id, originalTask, originalStats } = action.payload;
+      const taskIndex = state.list.findIndex((t) => t.id === id);
+      if (taskIndex !== -1 && originalTask) {
+        state.list[taskIndex] = originalTask;
+      }
+      if (originalStats) {
+        state.statistics = originalStats;
       }
     },
   },
@@ -271,5 +297,7 @@ export const {
   resetTasks,
   updateTaskOptimistic,
   revertTaskUpdate,
+  markTaskCompletedOptimistic,
+  revertMarkTaskCompleted,
 } = taskSlice.actions;
 export default taskSlice.reducer;

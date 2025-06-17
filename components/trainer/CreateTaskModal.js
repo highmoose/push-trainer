@@ -176,7 +176,7 @@ export default function CreateTaskModal({
                 className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
               />
             </div>{" "}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Due Date
@@ -208,9 +208,9 @@ export default function CreateTaskModal({
                   }
                   className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
-                  <option value="low">Low Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>{" "}
+                  <option value="low">Low </option>
+                  <option value="medium">Medium </option>
+                  <option value="high">High </option>{" "}
                 </select>
               </div>
 
