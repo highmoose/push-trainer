@@ -215,6 +215,23 @@ body.resizing {
   backdrop-filter: blur(12px);
 }
 
+.calendar-task.dragging {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  transition: none;
+  cursor: grabbing !important;
+  z-index: 1000;
+}
+
+.calendar-task.resizing {
+  box-shadow: 0 2px 15px rgba(202, 202, 202, 0.2);
+  transition: none;
+}
+
+.calendar-task:hover .resize-handle {
+  opacity: 1;
+}
+
 .calendar-task::before {
   content: "";
   position: absolute;

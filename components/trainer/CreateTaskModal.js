@@ -11,8 +11,7 @@ export default function CreateTaskModal({
   initialValues = {},
   mode = "create",
 }) {
-  const dispatch = useDispatch();
-  // Task form state
+  const dispatch = useDispatch(); // Task form state
   const [taskForm, setTaskForm] = useState({
     title: "",
     description: "",
@@ -22,6 +21,7 @@ export default function CreateTaskModal({
     status: "pending",
     reminder: false,
     reminderTime: "15min",
+    duration: 45, // Default 45 minutes
   });
   // Initialize form with initial values if provided
   useEffect(() => {
@@ -37,7 +37,6 @@ export default function CreateTaskModal({
         const minute = String(dueDate.getMinutes()).padStart(2, "0");
         formattedDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
       }
-
       setTaskForm({
         title: initialValues.title || "",
         description: initialValues.description || "",
@@ -47,6 +46,7 @@ export default function CreateTaskModal({
         status: initialValues.status || "pending",
         reminder: initialValues.reminder || false,
         reminderTime: initialValues.reminderTime || "15min",
+        duration: initialValues.duration || 45,
       });
     }
   }, [initialValues]);
@@ -70,7 +70,6 @@ export default function CreateTaskModal({
         formattedDueDate = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
       }
     }
-
     const payload = {
       title: taskForm.title,
       description: taskForm.description,
@@ -78,6 +77,7 @@ export default function CreateTaskModal({
       priority: taskForm.priority,
       category: taskForm.category,
       status: taskForm.status,
+      duration: taskForm.duration,
       reminder: taskForm.reminder
         ? {
             enabled: true,
@@ -210,8 +210,33 @@ export default function CreateTaskModal({
                 >
                   <option value="low">Low Priority</option>
                   <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>
+                  <option value="high">High Priority</option>{" "}
                 </select>
+              </div>
+
+              {/* Duration Field */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  Duration (minutes)
+                </label>
+                <input
+                  type="number"
+                  min="15"
+                  max="480"
+                  step="15"
+                  value={taskForm.duration}
+                  onChange={(e) =>
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      duration: parseInt(e.target.value) || 45,
+                    }))
+                  }
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder="45"
+                />
+                <p className="text-xs text-zinc-500 mt-1">
+                  How long you expect this task to take (15min increments)
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

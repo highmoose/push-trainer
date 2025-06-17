@@ -129,15 +129,15 @@ const taskSlice = createSlice({
       state.list = [];
       state.status = "idle";
       state.error = null;
-    },
-    // Optimistic task update
+    },    // Optimistic task update
     updateTaskOptimistic: (state, action) => {
-      const { id, due_date } = action.payload;
+      const { id, due_date, duration } = action.payload;
       const taskIndex = state.list.findIndex((t) => t.id === id);
       if (taskIndex !== -1) {
         state.list[taskIndex] = {
           ...state.list[taskIndex],
           due_date,
+          ...(duration !== undefined && { duration }),
         };
       }
     },

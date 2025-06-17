@@ -14,7 +14,12 @@ import {
   updateSessionTimeOptimistic,
   revertSessionTimeUpdate,
 } from "@/redux/slices/sessionSlice";
-import { fetchTasks, updateTask } from "@/redux/slices/taskSlice";
+import {
+  fetchTasks,
+  updateTask,
+  updateTaskOptimistic,
+  revertTaskUpdate,
+} from "@/redux/slices/taskSlice";
 import "@/components/trainer/calendarStyles.css";
 import { Plus } from "lucide-react";
 
@@ -310,9 +315,7 @@ export default function TrainerCalendarPage() {
           start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
           end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
         });
-      }
-
-      // Handle task dragging
+      } // Handle task dragging
       if (isDraggingTask && draggingTask) {
         const newDueDate = targetDay
           .startOf("day")
@@ -321,7 +324,7 @@ export default function TrainerCalendarPage() {
           .second(0);
 
         setDraggingTask({
-          ...draggingTask, // Preserve all existing task data
+          ...draggingTask, // Preserve all existing task data including duration
           due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
         });
       }
@@ -386,29 +389,49 @@ export default function TrainerCalendarPage() {
             );
           }
         });
-      }
-
-      // Update task time via Redux
+      } // Update task time via Redux
       if (draggingTask && draggingTask.id) {
-        if (!draggingTask.due_date) {
-          console.error("Dragging task missing due_date:", draggingTask);
+        // Store original task for potential revert
+        const originalTask = tasks.find((t) => t.id === draggingTask.id);
+
+        if (!originalTask) {
+          console.error("Original task not found for revert:", draggingTask.id);
           setDraggingTask(null);
           return;
         }
 
-        // Update task via API
+        if (!draggingTask.due_date) {
+          console.error("Dragging task missing due_date:", draggingTask);
+          setDraggingTask(null);
+          return;
+        } // 1. Immediate optimistic update
+        dispatch(
+          updateTaskOptimistic({
+            id: draggingTask.id,
+            due_date: draggingTask.due_date,
+            duration: draggingTask.duration,
+          })
+        ); // 2. API call in background
         dispatch(
           updateTask({
             id: draggingTask.id,
             data: {
               ...draggingTask,
               due_date: draggingTask.due_date,
+              duration: draggingTask.duration, // Include duration
             },
           })
         ).catch((error) => {
-          console.error("Failed to update task:", error);
-          // Refresh tasks to revert on failure
-          dispatch(fetchTasks());
+          console.error("Failed to update task, reverting:", error);
+          // Revert optimistic update on API failure
+          if (originalTask) {
+            dispatch(
+              revertTaskUpdate({
+                id: draggingTask.id,
+                originalTask,
+              })
+            );
+          }
         });
       }
       setDraggingSession(null);
@@ -507,22 +530,39 @@ export default function TrainerCalendarPage() {
           start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
           end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
         });
-      }
-
-      // Handle task resizing (tasks don't have start/end times, just due_date, so we only update due_date)
+      } // Handle task resizing - treat due_date as end time, duration defines the start
       if (isResizingTask && resizingTask) {
-        const taskDate = dayjs(resizingTask.due_date);
-        const baseDay = taskDate.startOf("day");
+        const taskDueDate = dayjs(resizingTask.due_date);
+        const currentDuration = resizingTask.duration || 45;
+        const taskStartTime = taskDueDate.subtract(currentDuration, "minute");
+        const baseDay = taskDueDate.startOf("day");
 
-        // For tasks, we just update the due_date time
-        const newDueDate = baseDay
-          .hour(actualHour)
-          .minute(actualMinute)
-          .second(0);
+        let newDueDate = taskDueDate;
+        let newDuration = currentDuration;
+
+        if (resizeType === "top") {
+          // Resize from top (move start time earlier/later, keep due_date same)
+          const newStartTime = baseDay
+            .hour(actualHour)
+            .minute(actualMinute)
+            .second(0);
+          newDuration = Math.max(15, taskDueDate.diff(newStartTime, "minute")); // Minimum 15 minutes
+          // due_date stays the same, duration changes
+        } else if (resizeType === "bottom") {
+          // Resize from bottom (move due_date earlier/later, keep start time same)
+          newDueDate = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          newDuration = Math.max(15, newDueDate.diff(taskStartTime, "minute")); // Minimum 15 minutes
+          // If new due_date is before start time, adjust start time
+          if (newDueDate.isBefore(taskStartTime.add(15, "minute"))) {
+            newDueDate = taskStartTime.add(15, "minute");
+            newDuration = 15;
+          }
+        }
 
         setResizingTask({
           ...resizingTask,
           due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
+          duration: newDuration,
         });
       }
     };
@@ -567,29 +607,49 @@ export default function TrainerCalendarPage() {
             );
           }
         });
-      }
-
-      // Update task time via Redux
+      } // Update task time via Redux
       if (resizingTask && resizingTask.id) {
-        if (!resizingTask.due_date) {
-          console.error("Resizing task missing due_date:", resizingTask);
+        // Store original task for potential revert
+        const originalTask = tasks.find((t) => t.id === resizingTask.id);
+
+        if (!originalTask) {
+          console.error("Original task not found for revert:", resizingTask.id);
           setResizingTask(null);
           return;
         }
 
-        // Update task via API
+        if (!resizingTask.due_date) {
+          console.error("Resizing task missing due_date:", resizingTask);
+          setResizingTask(null);
+          return;
+        } // 1. Immediate optimistic update
+        dispatch(
+          updateTaskOptimistic({
+            id: resizingTask.id,
+            due_date: resizingTask.due_date,
+            duration: resizingTask.duration,
+          })
+        ); // 2. API call in background
         dispatch(
           updateTask({
             id: resizingTask.id,
             data: {
               ...resizingTask,
               due_date: resizingTask.due_date,
+              duration: resizingTask.duration, // Include duration in the update
             },
           })
         ).catch((error) => {
-          console.error("Failed to update task:", error);
-          // Refresh tasks to revert on failure
-          dispatch(fetchTasks());
+          console.error("Failed to update task, reverting:", error);
+          // Revert optimistic update on API failure
+          if (originalTask) {
+            dispatch(
+              revertTaskUpdate({
+                id: resizingTask.id,
+                originalTask,
+              })
+            );
+          }
         });
       }
 
@@ -616,7 +676,7 @@ export default function TrainerCalendarPage() {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.classList.remove("resizing", "no-select");
     };
-  }, [isResizing, resizingSession, resizeType]);
+  }, [isResizing, isResizingTask, resizingSession, resizingTask, resizeType]);
 
   // Scroll to middle of day (6 AM) on initial load
   useEffect(() => {
@@ -973,10 +1033,15 @@ export default function TrainerCalendarPage() {
                             ? draggingTask
                             : task;
                         const taskDateTime = dayjs(taskToCheck.due_date);
-                        const taskHour = taskDateTime.hour();
+                        const taskDuration = taskToCheck.duration || 45;
+                        const taskStartTime = taskDateTime.subtract(
+                          taskDuration,
+                          "minute"
+                        );
+                        const taskStartHour = taskStartTime.hour();
 
                         // Only render in the hour block where the task starts
-                        return taskHour === hour;
+                        return taskStartHour === hour;
                       })
                       .filter((task) => {
                         // Apply status filters (map task statuses to session filter logic)
@@ -1005,11 +1070,39 @@ export default function TrainerCalendarPage() {
                           taskDateTime = dayjs(draggingTask.due_date);
                         } else {
                           taskDateTime = dayjs(task.due_date);
-                        }
+                        } // Calculate task start time (due_date - duration)
+                        const taskDuration =
+                          isResizingTask && task.id === resizingTask?.id
+                            ? resizingTask.duration
+                            : isDraggingTask && task.id === draggingTask?.id
+                            ? draggingTask.duration || task.duration || 45
+                            : task.duration || 45;
 
-                        const taskMinute = taskDateTime.minute();
-                        const taskTopPosition = (taskMinute / 60) * 60;
-                        const taskHeight = 45; // Increased height to match session style
+                        const taskStartTime = taskDateTime.subtract(
+                          taskDuration,
+                          "minute"
+                        );
+                        const taskStartMinute = taskStartTime.minute();
+                        const taskTopPosition = (taskStartMinute / 60) * 60;
+                        // Calculate task height based on duration during resize, priority, or default
+                        let taskHeight;
+                        if (isResizingTask && task.id === resizingTask?.id) {
+                          // Use the resizing task's duration for height
+                          taskHeight = Math.max(
+                            30,
+                            resizingTask.duration || 45
+                          );
+                        } else {
+                          // Use task's stored duration or calculate based on priority
+                          const baseDuration =
+                            task.duration ||
+                            (task.priority === "high"
+                              ? 60
+                              : task.priority === "medium"
+                              ? 45
+                              : 30); // minutes
+                          taskHeight = Math.max(30, baseDuration); // Minimum 30px height
+                        }
 
                         return (
                           <div
@@ -1119,14 +1212,40 @@ export default function TrainerCalendarPage() {
                                 <p className="text-xs opacity-80 truncate">
                                   {task.description}
                                 </p>
-                              )}
+                              )}{" "}
                               <div className="text-xs font-medium mt-1">
                                 {isResizingTask && task.id === resizingTask?.id
-                                  ? dayjs(resizingTask.due_date).format("HH:mm")
+                                  ? `${dayjs(resizingTask.due_date)
+                                      .subtract(
+                                        resizingTask.duration || 45,
+                                        "minute"
+                                      )
+                                      .format("HH:mm")} - ${dayjs(
+                                      resizingTask.due_date
+                                    ).format("HH:mm")} (${
+                                      resizingTask.duration || 45
+                                    }min)`
                                   : isDraggingTask &&
                                     task.id === draggingTask?.id
-                                  ? dayjs(draggingTask.due_date).format("HH:mm")
-                                  : taskDateTime.format("HH:mm")}
+                                  ? `${dayjs(draggingTask.due_date)
+                                      .subtract(
+                                        draggingTask.duration ||
+                                          task.duration ||
+                                          45,
+                                        "minute"
+                                      )
+                                      .format("HH:mm")} - ${dayjs(
+                                      draggingTask.due_date
+                                    ).format("HH:mm")} (${
+                                      draggingTask.duration ||
+                                      task.duration ||
+                                      45
+                                    }min)`
+                                  : `${taskStartTime.format(
+                                      "HH:mm"
+                                    )} - ${taskDateTime.format("HH:mm")} (${
+                                      task.duration || 45
+                                    }min)`}
                               </div>
                             </div>
                           </div>
