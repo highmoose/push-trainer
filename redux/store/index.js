@@ -4,6 +4,7 @@ import clientReducer from "../slices/clientSlice";
 import messagingReducer from "../slices/messagingSlice";
 import sessionReducer from "../slices/sessionSlice";
 import taskReducer from "../slices/taskSlice";
+import dietPlanReducer from "../slices/dietPlanSlice";
 
 const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ const store = configureStore({
     messaging: messagingReducer,
     sessions: sessionReducer,
     tasks: taskReducer,
+    dietPlans: dietPlanReducer,
   },
 });
 
