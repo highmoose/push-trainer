@@ -4,13 +4,14 @@ import api from "@lib/axios";
 export const register = createAsyncThunk(
   "auth/register",
   async (
-    { name, email, password, password_confirmation, role },
+    { first_name, last_name, email, password, password_confirmation, role },
     { rejectWithValue }
   ) => {
     try {
       await api.get("/sanctum/csrf-cookie");
       const res = await api.post("/api/register", {
-        name,
+        first_name,
+        last_name,
         email,
         password,
         password_confirmation,
@@ -61,6 +62,7 @@ export const logout = createAsyncThunk(
       return rejectWithValue("Logout failed");
     } finally {
       localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
     }
   }
 );
@@ -81,6 +83,8 @@ const authSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
       state.hydrated = true;
+      localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
     },
   },
   extraReducers: (builder) => {
@@ -93,6 +97,11 @@ const authSlice = createSlice({
         state.status = "succeeded";
         state.user = action.payload;
         localStorage.setItem("user", JSON.stringify(action.payload)); // ✅ store user
+
+        // Store the auth token separately for API calls
+        if (action.payload.token) {
+          localStorage.setItem("auth_token", action.payload.token);
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.status = "failed";
@@ -102,6 +111,7 @@ const authSlice = createSlice({
         state.user = null;
         state.status = "idle";
         localStorage.removeItem("user"); // ✅ remove user
+        localStorage.removeItem("auth_token"); // ✅ remove auth token
       })
       .addCase(register.pending, (state) => {
         state.status = "loading";
@@ -111,6 +121,11 @@ const authSlice = createSlice({
         state.status = "succeeded";
         state.user = action.payload;
         localStorage.setItem("user", JSON.stringify(action.payload));
+
+        // Store the auth token separately for API calls if returned
+        if (action.payload.token) {
+          localStorage.setItem("auth_token", action.payload.token);
+        }
       })
       .addCase(register.rejected, (state, action) => {
         state.status = "failed";

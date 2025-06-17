@@ -8,6 +8,7 @@ import {
   cancelSession,
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
+import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
 import { Clock, User } from "lucide-react";
 
@@ -197,6 +198,22 @@ export default function CreateSessionModal({
     }
   }, [initialValues]);
 
+  // Debug logging for client status
+  useEffect(() => {
+    console.log("CreateSessionModal - Client Status:", {
+      clientsStatus,
+      clientsCount: clients.length,
+      clientsToUseCount: clientsToUse.length,
+    });
+  }, [clientsStatus, clients.length, clientsToUse.length]);
+  // Ensure clients are loaded when modal opens
+  useEffect(() => {
+    if (clientsStatus === "idle" || clientsStatus === "failed") {
+      dispatch(clearError());
+      dispatch(fetchClients());
+    }
+  }, [dispatch, clientsStatus]);
+
   // Focus client search input when modal loads
   useEffect(() => {
     // Small delay to ensure the modal is fully rendered
@@ -375,10 +392,19 @@ export default function CreateSessionModal({
                   <div className="text-red-400 text-sm font-medium mb-1">
                     Failed to load clients
                   </div>
-                  <div className="text-red-300/80 text-xs">
+                  <div className="text-red-300/80 text-xs mb-2">
                     There was an error loading your clients. Please try
                     refreshing or use Manual Entry.
-                  </div>
+                  </div>{" "}
+                  <button
+                    onClick={() => {
+                      dispatch(clearError());
+                      dispatch(fetchClients());
+                    }}
+                    className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded hover:bg-zinc-700 transition-colors"
+                  >
+                    Retry Loading Clients
+                  </button>
                 </div>
               )}
               {/* Client Selection UI */}

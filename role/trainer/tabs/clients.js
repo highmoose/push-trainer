@@ -40,7 +40,7 @@ import {
   Download,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchClients } from "@/redux/slices/clientSlice";
+import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import React, { useState, useMemo, useEffect } from "react";
 
 // Dynamic chart imports for better performance
@@ -60,11 +60,24 @@ export default function Clients() {
   const [deleteClientModalOpen, setDeleteClientModalOpen] = useState(false);
   const [searchString, setSearchString] = useState("");
   const [activeTab, setActiveTab] = useState("progress");
-  const [timeRange, setTimeRange] = useState("30d");
-  // Fetch clients when component mounts
+  const [timeRange, setTimeRange] = useState("30d"); // Fetch clients when component mounts
   useEffect(() => {
-    dispatch(fetchClients());
-  }, [dispatch]);
+    if (status === "idle") {
+      dispatch(fetchClients());
+    }
+  }, [dispatch, status]);
+  // Retry mechanism for failed requests
+  useEffect(() => {
+    if (status === "failed") {
+      const retryTimer = setTimeout(() => {
+        console.log("Retrying failed client fetch...");
+        dispatch(clearError());
+        dispatch(fetchClients());
+      }, 2000); // Retry after 2 seconds
+
+      return () => clearTimeout(retryTimer);
+    }
+  }, [dispatch, status]);
 
   // Mock clients for development/testing
   const mockClients = useMemo(
@@ -430,9 +443,12 @@ export default function Clients() {
 
             {status === "failed" && (
               <div className="p-4 text-center text-red-400">
-                <p>Failed to load clients</p>
+                <p>Failed to load clients</p>{" "}
                 <button
-                  onClick={() => dispatch(fetchClients())}
+                  onClick={() => {
+                    dispatch(clearError());
+                    dispatch(fetchClients());
+                  }}
                   className="mt-2 text-sm bg-zinc-800 px-3 py-1 rounded hover:bg-zinc-700"
                 >
                   Retry
@@ -509,7 +525,8 @@ export default function Clients() {
         <div className="flex-1 flex flex-col">
           {selectedClient ? (
             <>
-              {" "}              {/* Client Header */}
+              {" "}
+              {/* Client Header */}
               <div className="bg-zinc-900 border-b border-zinc-800 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -548,7 +565,8 @@ export default function Clients() {
                     </button>
                   </div>
                 </div>
-              </div>              {/* Dashboard Content */}
+              </div>{" "}
+              {/* Dashboard Content */}
               <div className="flex-1 bg-zinc-950 overflow-hidden">
                 {/* Main Dashboard */}
                 <div className="h-full relative">
@@ -577,7 +595,9 @@ export default function Clients() {
                     <div className="flex items-center gap-4 text-xs text-zinc-400">
                       <span>Weekly</span>
                       <span>Monthly</span>
-                      <span className="text-emerald-400 font-medium">Quarterly</span>
+                      <span className="text-emerald-400 font-medium">
+                        Quarterly
+                      </span>
                       <span>Year</span>
                     </div>
                   </div>
@@ -587,24 +607,27 @@ export default function Clients() {
                     {/* Large Metric Display */}
                     <div className="mb-12">
                       <div className="text-7xl font-light text-white tracking-tight mb-2">
-                        165.2<span className="text-3xl text-zinc-500 ml-3">lbs</span>
+                        165.2
+                        <span className="text-3xl text-zinc-500 ml-3">lbs</span>
                       </div>
-                      <div className="text-zinc-400 text-sm font-medium">Current Weight</div>
+                      <div className="text-zinc-400 text-sm font-medium">
+                        Current Weight
+                      </div>
                     </div>
 
                     {/* Overlapping Charts Section */}
-                    <div className="relative mb-8" style={{ height: '300px' }}>
+                    <div className="relative mb-8" style={{ height: "300px" }}>
                       {/* Background Bar Chart */}
                       <div className="absolute inset-0 opacity-20">
                         <ChartClient
                           options={{
                             chart: {
-                              type: 'bar',
+                              type: "bar",
                               toolbar: { show: false },
-                              background: 'transparent',
+                              background: "transparent",
                               parentHeightOffset: 0,
                             },
-                            theme: { mode: 'dark' },
+                            theme: { mode: "dark" },
                             grid: { show: false },
                             xaxis: {
                               labels: { show: false },
@@ -612,20 +635,26 @@ export default function Clients() {
                               axisTicks: { show: false },
                             },
                             yaxis: { labels: { show: false } },
-                            colors: ['#3f3f46'],
+                            colors: ["#3f3f46"],
                             plotOptions: {
                               bar: {
-                                columnWidth: '60%',
+                                columnWidth: "60%",
                                 distributed: false,
-                              }
+                              },
                             },
                             dataLabels: { enabled: false },
                             legend: { show: false },
                           }}
-                          series={[{
-                            name: 'Volume',
-                            data: [45, 52, 38, 65, 49, 72, 58, 63, 42, 55, 67, 48, 52, 38, 65, 49, 72, 58, 63, 42, 55, 67, 48, 45, 52, 38, 65, 49, 72, 58]
-                          }]}
+                          series={[
+                            {
+                              name: "Volume",
+                              data: [
+                                45, 52, 38, 65, 49, 72, 58, 63, 42, 55, 67, 48,
+                                52, 38, 65, 49, 72, 58, 63, 42, 55, 67, 48, 45,
+                                52, 38, 65, 49, 72, 58,
+                              ],
+                            },
+                          ]}
                           type="bar"
                           height={300}
                         />
@@ -636,35 +665,45 @@ export default function Clients() {
                         <ChartClient
                           options={{
                             chart: {
-                              type: 'line',
+                              type: "line",
                               toolbar: { show: false },
-                              background: 'transparent',
+                              background: "transparent",
                               parentHeightOffset: 0,
                             },
-                            theme: { mode: 'dark' },
+                            theme: { mode: "dark" },
                             grid: {
                               show: true,
-                              borderColor: '#27272a',
+                              borderColor: "#27272a",
                               strokeDashArray: 1,
                               xaxis: { lines: { show: false } },
                               yaxis: { lines: { show: true } },
                             },
                             stroke: {
-                              curve: 'smooth',
+                              curve: "smooth",
                               width: 3,
                             },
-                            colors: ['#10b981'],
+                            colors: ["#10b981"],
                             xaxis: {
                               labels: {
-                                style: { colors: '#71717a', fontSize: '10px' },
+                                style: { colors: "#71717a", fontSize: "10px" },
                               },
                               axisBorder: { show: false },
                               axisTicks: { show: false },
-                              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
+                              categories: [
+                                "Jan",
+                                "Feb",
+                                "Mar",
+                                "Apr",
+                                "May",
+                                "Jun",
+                                "Jul",
+                                "Aug",
+                                "Sep",
+                              ],
                             },
                             yaxis: {
                               labels: {
-                                style: { colors: '#71717a', fontSize: '10px' },
+                                style: { colors: "#71717a", fontSize: "10px" },
                               },
                               min: 160,
                               max: 175,
@@ -672,14 +711,19 @@ export default function Clients() {
                             dataLabels: { enabled: false },
                             legend: { show: false },
                             tooltip: {
-                              theme: 'dark',
-                              style: { backgroundColor: '#18181b' },
+                              theme: "dark",
+                              style: { backgroundColor: "#18181b" },
                             },
                           }}
-                          series={[{
-                            name: 'Weight Progress',
-                            data: [170, 169.5, 168.8, 167.5, 166.8, 166.2, 165.8, 165.5, 165.2]
-                          }]}
+                          series={[
+                            {
+                              name: "Weight Progress",
+                              data: [
+                                170, 169.5, 168.8, 167.5, 166.8, 166.2, 165.8,
+                                165.5, 165.2,
+                              ],
+                            },
+                          ]}
                           type="line"
                           height={300}
                         />
@@ -687,7 +731,9 @@ export default function Clients() {
 
                       {/* Chart Legend/Label */}
                       <div className="absolute top-4 left-4 bg-emerald-500/20 backdrop-blur-sm rounded px-2 py-1">
-                        <span className="text-xs text-emerald-400 font-medium">$113k</span>
+                        <span className="text-xs text-emerald-400 font-medium">
+                          $113k
+                        </span>
                         <span className="text-xs text-zinc-400 ml-1">+12%</span>
                       </div>
                     </div>
@@ -697,17 +743,23 @@ export default function Clients() {
                       {/* Sales Forecast Card */}
                       <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg p-4 border border-zinc-800/50">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">Body Fat %</span>
+                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">
+                            Body Fat %
+                          </span>
                           <div className="flex items-center gap-1">
                             <ChevronRight className="h-3 w-3 text-zinc-600" />
                           </div>
                         </div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-2xl font-semibold text-white">18.2%</span>
-                          <span className="text-xs text-emerald-400">↓ 1.2%</span>
+                          <span className="text-2xl font-semibold text-white">
+                            18.2%
+                          </span>
+                          <span className="text-xs text-emerald-400">
+                            ↓ 1.2%
+                          </span>
                         </div>
                         <div className="text-xs text-zinc-500">Target: 15%</div>
-                        
+
                         {/* Mini Progress Chart */}
                         <div className="mt-3 h-12">
                           <div className="flex items-end justify-between h-full">
@@ -717,7 +769,7 @@ export default function Clients() {
                                 className="bg-zinc-700 rounded-sm"
                                 style={{
                                   height: `${height}px`,
-                                  width: '8px',
+                                  width: "8px",
                                 }}
                               />
                             ))}
@@ -728,14 +780,18 @@ export default function Clients() {
                       {/* Monthly Expenses Card */}
                       <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg p-4 border border-zinc-800/50">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">Workouts</span>
+                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">
+                            Workouts
+                          </span>
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                             <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
                           </div>
                         </div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-2xl font-semibold text-white">24</span>
+                          <span className="text-2xl font-semibold text-white">
+                            24
+                          </span>
                           <span className="text-xs text-emerald-400">+8%</span>
                         </div>
                         <div className="text-xs text-zinc-500">This month</div>
@@ -744,7 +800,10 @@ export default function Clients() {
                         <div className="mt-3 space-y-1">
                           <div className="flex gap-1">
                             <div className="h-1 bg-blue-400 rounded-full flex-1"></div>
-                            <div className="h-1 bg-orange-400 rounded-full" style={{ width: '30%' }}></div>
+                            <div
+                              className="h-1 bg-orange-400 rounded-full"
+                              style={{ width: "30%" }}
+                            ></div>
                           </div>
                           <div className="flex justify-between text-xs text-zinc-500">
                             <span>Strength</span>
@@ -756,32 +815,38 @@ export default function Clients() {
                       {/* Project Budget Card */}
                       <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg p-4 border border-zinc-800/50">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">Nutrition</span>
+                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">
+                            Nutrition
+                          </span>
                           <div className="flex items-center gap-1">
                             <ChevronRight className="h-3 w-3 text-zinc-600" />
                           </div>
                         </div>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-2xl font-semibold text-white">2,180</span>
+                          <span className="text-2xl font-semibold text-white">
+                            2,180
+                          </span>
                           <span className="text-xs text-red-400">-3%</span>
                         </div>
-                        <div className="text-xs text-zinc-500">Avg daily calories</div>
+                        <div className="text-xs text-zinc-500">
+                          Avg daily calories
+                        </div>
 
                         {/* Donut Chart */}
                         <div className="mt-3 relative">
                           <div className="w-16 h-16 mx-auto">
                             <ChartClient
                               options={{
-                                chart: { type: 'donut' },
-                                colors: ['#10b981', '#f59e0b', '#ef4444'],
+                                chart: { type: "donut" },
+                                colors: ["#10b981", "#f59e0b", "#ef4444"],
                                 dataLabels: { enabled: false },
                                 legend: { show: false },
                                 plotOptions: {
                                   pie: {
                                     donut: {
-                                      size: '70%',
-                                    }
-                                  }
+                                      size: "70%",
+                                    },
+                                  },
                                 },
                                 stroke: { width: 0 },
                               }}
@@ -796,33 +861,37 @@ export default function Clients() {
                       {/* Profit Card with Circular Progress */}
                       <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg p-4 border border-zinc-800/50">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">Goal Progress</span>
+                          <span className="text-xs text-zinc-400 uppercase tracking-wide font-medium">
+                            Goal Progress
+                          </span>
                           <button className="text-zinc-600 hover:text-zinc-400">
                             <ChevronRight className="h-3 w-3" />
                           </button>
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-2xl font-semibold text-white mb-1">85%</div>
+                            <div className="text-2xl font-semibold text-white mb-1">
+                              85%
+                            </div>
                             <div className="text-xs text-zinc-500">Overall</div>
                           </div>
                           <div className="w-12 h-12">
                             <ChartClient
                               options={{
-                                chart: { type: 'radialBar' },
-                                colors: ['#10b981'],
+                                chart: { type: "radialBar" },
+                                colors: ["#10b981"],
                                 plotOptions: {
                                   radialBar: {
-                                    hollow: { size: '60%' },
+                                    hollow: { size: "60%" },
                                     dataLabels: { show: false },
                                     track: {
-                                      background: '#3f3f46',
-                                      strokeWidth: '100%',
-                                    }
-                                  }
+                                      background: "#3f3f46",
+                                      strokeWidth: "100%",
+                                    },
+                                  },
                                 },
-                                stroke: { lineCap: 'round' },
+                                stroke: { lineCap: "round" },
                               }}
                               series={[85]}
                               type="radialBar"

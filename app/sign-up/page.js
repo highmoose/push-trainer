@@ -11,9 +11,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { error } = useSelector((state) => state.auth);
-
   const [user, setUser] = useState(false);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -23,7 +23,8 @@ export default function RegisterPage() {
     e.preventDefault();
 
     const payload = {
-      name,
+      first_name: firstName,
+      last_name: lastName,
       email,
       password,
       password_confirmation: passwordConfirm,
@@ -64,11 +65,18 @@ export default function RegisterPage() {
           onSubmit={handleSubmit}
           className="flex flex-col items-center gap-4 bg-zinc-200 p-10 rounded"
         >
+          {" "}
           <div className="flex flex-col gap-2">
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First Name"
+              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 inner-shadow min-w-[300px]"
+            />
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last Name"
               className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 inner-shadow min-w-[300px]"
             />
             <input

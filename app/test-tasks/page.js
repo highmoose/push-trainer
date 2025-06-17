@@ -17,7 +17,7 @@ export default function TaskTestPage() {
       setTestResult("Logging in...");
       await dispatch(
         login({
-          email: "trainer@test.com",
+          email: "trainer1@example.com",
           password: "password123",
         })
       ).unwrap();

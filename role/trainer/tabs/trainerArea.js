@@ -30,7 +30,7 @@ export default function trainerDashboard() {
   const authUser = useSelector((state) => state.auth.user);
   const authUserId = authUser?.user?.id;
   useEffect(() => {
-    if (user?.role === "trainer") {
+    if (user?.role === "trainer" && authUserId) {
       // Once all pages are in, pull all this data in one go instead of seperate calls
       dispatch(fetchClients());
       dispatch(fetchSessions());
@@ -39,7 +39,7 @@ export default function trainerDashboard() {
       dispatch(fetchConversations()); // ✅ fine
       dispatch(fetchAllMessages({ authUserId })); // ✅ pass id explicitly
     }
-  }, [dispatch, user]);
+  }, [dispatch, user, authUserId]);
 
   return (
     <div className="flex flex-col w-full min-h-screen ">

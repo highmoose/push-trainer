@@ -6,11 +6,14 @@ export const fetchClients = createAsyncThunk(
   "clients/fetchAll",
   async (searchString = "", { rejectWithValue }) => {
     try {
+      console.log("fetchClients: Starting API call...");
       const res = await api.get("/api/trainer/clients", {
         params: searchString ? { search: searchString } : {},
       });
+      console.log("fetchClients: Success", res.data);
       return res.data.clients;
     } catch (err) {
+      console.error("fetchClients: Error", err.response || err);
       return rejectWithValue(
         err.response?.data?.message || "Failed to fetch clients"
       );
@@ -100,7 +103,14 @@ const clientSlice = createSlice({
     status: "idle",
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+      if (state.status === "failed") {
+        state.status = "idle";
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(addTempClient.fulfilled, (state, action) => {
@@ -132,5 +142,7 @@ const clientSlice = createSlice({
       });
   },
 });
+
+export const { clearError } = clientSlice.actions;
 
 export default clientSlice.reducer;
