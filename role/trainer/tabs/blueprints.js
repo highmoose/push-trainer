@@ -184,6 +184,7 @@ export default function Blueprints() {
     setClientSearch("");
     setPlanTitle("");
   };
+
   // Generate AI prompt
   const generatePrompt = () => {
     const selectedPlanType = DIET_PLAN_TYPES.find((p) => p.id === planType);
@@ -199,22 +200,33 @@ export default function Blueprints() {
       prompt += `- Name: ${selectedClient.first_name} ${selectedClient.last_name}\n`;
       prompt += `- Email: ${selectedClient.email}\n`;
 
-      // Add client metrics if available
+      // Physical metrics
       if (selectedClient.weight)
         prompt += `- Weight: ${selectedClient.weight} kg\n`;
       if (selectedClient.height)
         prompt += `- Height: ${selectedClient.height} cm\n`;
       if (selectedClient.age) prompt += `- Age: ${selectedClient.age} years\n`;
-      if (selectedClient.activity_level)
-        prompt += `- Activity Level: ${selectedClient.activity_level}\n`;
       if (selectedClient.body_fat)
         prompt += `- Body Fat: ${selectedClient.body_fat}%\n`;
+      if (selectedClient.activity_level)
+        prompt += `- Activity Level: ${selectedClient.activity_level}\n`;
+
+      // Dietary preferences and restrictions
       if (selectedClient.allergies)
-        prompt += `- Allergies: ${selectedClient.allergies}\n`;
+        prompt += `- ALLERGIES (CRITICAL): ${selectedClient.allergies}\n`;
       if (selectedClient.food_preferences)
         prompt += `- Food Preferences: ${selectedClient.food_preferences}\n`;
+      if (selectedClient.food_dislikes)
+        prompt += `- Food Dislikes: ${selectedClient.food_dislikes}\n`;
       if (selectedClient.dietary_restrictions)
         prompt += `- Dietary Restrictions: ${selectedClient.dietary_restrictions}\n`;
+
+      // Goals and additional information
+      if (selectedClient.fitness_goals)
+        prompt += `- Fitness Goals: ${selectedClient.fitness_goals}\n`;
+      if (selectedClient.notes)
+        prompt += `- Additional Client Notes: ${selectedClient.notes}\n`;
+
       prompt += `\n`;
     }
 
@@ -231,6 +243,16 @@ export default function Blueprints() {
       prompt += `- Additional notes: ${additionalNotes}\n`;
     }
 
+    prompt += `\nIMPORTANT INSTRUCTIONS:\n`;
+    if (selectedClient?.allergies) {
+      prompt += `- AVOID ALL FOODS CONTAINING: ${selectedClient.allergies}\n`;
+    }
+    if (selectedClient?.food_dislikes) {
+      prompt += `- DO NOT INCLUDE: ${selectedClient.food_dislikes}\n`;
+    }
+    if (selectedClient?.dietary_restrictions) {
+      prompt += `- FOLLOW DIETARY RESTRICTIONS: ${selectedClient.dietary_restrictions}\n`;
+    }
     prompt += `\nPlease provide:\n`;
     prompt += `1. Detailed meal plan with specific foods and portions for each meal\n`;
     prompt += `2. Macronutrient breakdown (protein, carbs, fats) for each meal\n`;
@@ -448,6 +470,183 @@ export default function Blueprints() {
                 )}
               </div>
             </div>
+            {/* Client Preferences Display */}
+            {selectedClient && (
+              <div className="bg-zinc-800 rounded-lg p-6 border border-blue-500/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-blue-400" />
+                  <h2 className="text-xl font-semibold">
+                    Client Profile & Preferences
+                  </h2>
+                </div>
+
+                <div className="text-sm text-blue-400 mb-4">
+                  This information will be used to create a personalized diet
+                  plan
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Physical Metrics */}
+                  <div className="bg-zinc-700/50 rounded-lg p-4">
+                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-green-400" />
+                      Physical Metrics
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      {selectedClient.weight && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Weight:</span>
+                          <span className="text-white">
+                            {selectedClient.weight} kg
+                          </span>
+                        </div>
+                      )}
+                      {selectedClient.height && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Height:</span>
+                          <span className="text-white">
+                            {selectedClient.height} cm
+                          </span>
+                        </div>
+                      )}
+                      {selectedClient.age && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Age:</span>
+                          <span className="text-white">
+                            {selectedClient.age} years
+                          </span>
+                        </div>
+                      )}
+                      {selectedClient.body_fat && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Body Fat:</span>
+                          <span className="text-white">
+                            {selectedClient.body_fat}%
+                          </span>
+                        </div>
+                      )}
+                      {selectedClient.activity_level && (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Activity Level:</span>
+                          <span className="text-white capitalize">
+                            {selectedClient.activity_level}
+                          </span>
+                        </div>
+                      )}
+                      {!selectedClient.weight &&
+                        !selectedClient.height &&
+                        !selectedClient.age &&
+                        !selectedClient.body_fat &&
+                        !selectedClient.activity_level && (
+                          <div className="text-zinc-500 italic">
+                            No physical metrics available
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  {/* Dietary Information */}
+                  <div className="bg-zinc-700/50 rounded-lg p-4">
+                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                      <Heart className="w-4 h-4 text-red-400" />
+                      Dietary Information
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      {selectedClient.allergies && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">Allergies:</div>
+                          <div className="text-white bg-red-500/20 border border-red-500/30 rounded px-2 py-1">
+                            {selectedClient.allergies}
+                          </div>
+                        </div>
+                      )}
+                      {selectedClient.food_preferences && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">
+                            Food Preferences:
+                          </div>
+                          <div className="text-white bg-green-500/20 border border-green-500/30 rounded px-2 py-1">
+                            {selectedClient.food_preferences}
+                          </div>
+                        </div>
+                      )}
+                      {selectedClient.dietary_restrictions && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">
+                            Dietary Restrictions:
+                          </div>
+                          <div className="text-white bg-yellow-500/20 border border-yellow-500/30 rounded px-2 py-1">
+                            {selectedClient.dietary_restrictions}
+                          </div>
+                        </div>
+                      )}
+                      {selectedClient.food_dislikes && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">
+                            Food Dislikes:
+                          </div>
+                          <div className="text-white bg-orange-500/20 border border-orange-500/30 rounded px-2 py-1">
+                            {selectedClient.food_dislikes}
+                          </div>
+                        </div>
+                      )}
+                      {!selectedClient.allergies &&
+                        !selectedClient.food_preferences &&
+                        !selectedClient.dietary_restrictions &&
+                        !selectedClient.food_dislikes && (
+                          <div className="text-zinc-500 italic">
+                            No dietary information available
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Goals & Notes */}
+                {(selectedClient.fitness_goals || selectedClient.notes) && (
+                  <div className="mt-4 bg-zinc-700/50 rounded-lg p-4">
+                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-purple-400" />
+                      Goals & Additional Information
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      {selectedClient.fitness_goals && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">
+                            Fitness Goals:
+                          </div>
+                          <div className="text-white">
+                            {selectedClient.fitness_goals}
+                          </div>
+                        </div>
+                      )}
+                      {selectedClient.notes && (
+                        <div>
+                          <div className="text-zinc-400 mb-1">
+                            Additional Notes:
+                          </div>
+                          <div className="text-white">
+                            {selectedClient.notes}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-blue-300">
+                      <strong>AI Integration:</strong> All this information will
+                      be automatically included in the AI prompt to generate a
+                      highly personalized diet plan tailored specifically for{" "}
+                      {selectedClient.first_name}.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Plan Title */}
             <div className="bg-zinc-800 rounded-lg p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -1207,7 +1406,7 @@ export default function Blueprints() {
                           (tip, index) => (
                             <li key={index} className="flex items-start gap-2">
                               <ChefHat className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                              {tip}
+                              {tip}{" "}
                             </li>
                           )
                         )}
