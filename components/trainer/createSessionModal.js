@@ -6,13 +6,20 @@ import {
   createSession,
   updateSession,
   cancelSession,
+  reinstateSession,
   deleteSession,
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
 import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
-import { Clock, User, Trash2 } from "lucide-react";
+import { Clock, User, Trash2, CheckCircle } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
+import {
+  convertFromServerTime,
+  convertToServerTime,
+  convertForCalendar,
+  getUserTimezone,
+} from "@/lib/timezone";
 
 export default function CreateSessionModal({
   close,
@@ -90,9 +97,11 @@ export default function CreateSessionModal({
   const [clientSearch, setClientSearch] = useState("");
   const [showConflicts, setShowConflicts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state
-
   // Add confirmation modal state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showReinstateConfirm, setShowReinstateConfirm] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Ref for client search input
@@ -160,20 +169,26 @@ export default function CreateSessionModal({
     sessionForm.scheduled_at,
     sessionForm.duration
   );
-
   useEffect(() => {
     if (initialValues?.start_time) {
-      const start = new Date(initialValues.start_time);
+      const userTimezone = getUserTimezone();
+
+      // Convert server datetime to local timezone for form display
+      const serverDateTime = convertFromServerTime(
+        initialValues.start_time,
+        userTimezone
+      );
       const duration = initialValues.end_time
-        ? (new Date(initialValues.end_time) - start) / 60000
+        ? (convertFromServerTime(
+            initialValues.end_time,
+            userTimezone
+          ).valueOf() -
+            serverDateTime.valueOf()) /
+          60000
         : 60;
 
-      const year = start.getFullYear();
-      const month = String(start.getMonth() + 1).padStart(2, "0");
-      const day = String(start.getDate()).padStart(2, "0");
-      const hour = String(start.getHours()).padStart(2, "0");
-      const minute = String(start.getMinutes()).padStart(2, "0");
-      const formattedDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+      // Format for datetime-local input
+      const formattedDateTime = serverDateTime.format("YYYY-MM-DDTHH:mm");
 
       setSessionForm({
         client_id: initialValues.client_id?.toString() || "",
@@ -240,21 +255,12 @@ export default function CreateSessionModal({
     try {
       let formattedScheduledAt = null;
       if (sessionForm.scheduled_at) {
-        if (typeof sessionForm.scheduled_at === "string") {
-          formattedScheduledAt = sessionForm.scheduled_at.replace("T", " ");
-          if (formattedScheduledAt.split(":").length === 2) {
-            formattedScheduledAt += ":00";
-          }
-        } else {
-          const date = sessionForm.scheduled_at;
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const hour = String(date.getHours()).padStart(2, "0");
-          const minute = String(date.getMinutes()).padStart(2, "0");
-          const second = String(date.getSeconds()).padStart(2, "0");
-          formattedScheduledAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-        }
+        // Convert from local datetime input to server timezone format
+        const userTimezone = getUserTimezone();
+        formattedScheduledAt = convertToServerTime(
+          sessionForm.scheduled_at,
+          userTimezone
+        );
       }
 
       const payload = {
@@ -311,14 +317,108 @@ export default function CreateSessionModal({
       setIsSubmitting(false);
     }
   };
-
-  const handleCancelSession = async () => {
+  const handleCancelSession = () => {
+    setShowCancelConfirm(true);
+  };
+  const confirmCancelSession = async () => {
     if (initialValues?.id) {
       try {
         await dispatch(cancelSession(initialValues.id));
+        setShowCancelConfirm(false);
         close();
       } catch (error) {
         console.error("Error cancelling session:", error);
+      }
+    }
+  };
+
+  const handleReinstateSession = () => {
+    setShowReinstateConfirm(true);
+  };
+  const confirmReinstateSession = async () => {
+    if (initialValues?.id) {
+      try {
+        console.log("Reinstating session with data:", {
+          id: initialValues.id,
+          currentStatus: sessionForm.status,
+          newStatus: "scheduled",
+        });
+
+        // Check if any fields have changed besides status
+        const hasChanges =
+          sessionForm.first_name !== initialValues.first_name ||
+          sessionForm.last_name !== initialValues.last_name ||
+          sessionForm.email !== initialValues.email ||
+          sessionForm.phone !== initialValues.phone ||
+          sessionForm.gym !== initialValues.gym ||
+          sessionForm.rate !== initialValues.rate ||
+          sessionForm.scheduled_at !== initialValues.start_time ||
+          sessionForm.duration !== initialValues.duration;
+        if (hasChanges) {
+          console.log("Session has changes, using full update");
+          // Use full update if there are changes
+          const updatedSessionData = {
+            status: "scheduled",
+          };
+
+          // Only include fields that have actually changed
+          if (sessionForm.first_name !== initialValues.first_name) {
+            updatedSessionData.first_name = sessionForm.first_name;
+          }
+          if (sessionForm.last_name !== initialValues.last_name) {
+            updatedSessionData.last_name = sessionForm.last_name;
+          }
+          if (sessionForm.email !== initialValues.email) {
+            updatedSessionData.email = sessionForm.email;
+          }
+          if (sessionForm.phone !== initialValues.phone) {
+            updatedSessionData.phone = sessionForm.phone;
+          }
+          if (sessionForm.gym !== initialValues.gym) {
+            updatedSessionData.gym = sessionForm.gym;
+          }
+          if (sessionForm.rate !== initialValues.rate) {
+            updatedSessionData.rate = sessionForm.rate;
+          }
+          // Handle datetime changes carefully
+          if (sessionForm.scheduled_at !== initialValues.start_time) {
+            updatedSessionData.scheduled_at = sessionForm.scheduled_at;
+            updatedSessionData.duration = sessionForm.duration;
+          }
+
+          console.log("Sending full update with data:", updatedSessionData);
+          const result = await dispatch(
+            updateSession({
+              id: initialValues.id,
+              ...updatedSessionData,
+            })
+          ).unwrap();
+          console.log("Full update result:", result);
+        } else {
+          console.log("No changes detected, using simple reinstate");
+          console.log("Original start_time:", initialValues.start_time);
+          // Use simple reinstate if only status is changing
+          const result = await dispatch(
+            reinstateSession(initialValues.id)
+          ).unwrap();
+          console.log("Simple reinstate result:", result);
+          console.log("Returned start_time:", result.start_time);
+        }
+
+        // Update local form state to reflect the change
+        setSessionForm((prev) => ({
+          ...prev,
+          status: "scheduled",
+        }));
+
+        // Refresh sessions list to ensure we have the latest data
+        await dispatch(fetchSessions());
+
+        console.log("Session successfully reinstated");
+        setShowReinstateConfirm(false);
+        close();
+      } catch (error) {
+        console.error("Error reinstating session:", error);
       }
     }
   };
@@ -334,6 +434,46 @@ export default function CreateSessionModal({
       console.error("Error deleting session:", error);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleMarkComplete = () => {
+    setShowCompleteConfirm(true);
+  };
+
+  const confirmMarkComplete = async () => {
+    if (initialValues?.id) {
+      try {
+        console.log("Marking session complete:", {
+          id: initialValues.id,
+          currentStatus: sessionForm.status,
+          newStatus: "completed",
+        });
+
+        // Use simple status update to avoid datetime issues
+        const result = await dispatch(
+          updateSession({
+            id: initialValues.id,
+            status: "completed",
+          })
+        ).unwrap();
+        console.log("Mark complete result:", result);
+
+        // Update local form state to reflect the change
+        setSessionForm((prev) => ({
+          ...prev,
+          status: "completed",
+        }));
+
+        // Refresh sessions list to ensure we have the latest data
+        await dispatch(fetchSessions());
+
+        console.log("Session successfully marked complete");
+        setShowCompleteConfirm(false);
+        close();
+      } catch (error) {
+        console.error("Error marking session complete:", error);
+      }
     }
   };
 
@@ -793,38 +933,103 @@ export default function CreateSessionModal({
           </div>{" "}
           <div className="flex items-center gap-3">
             {" "}
-            <button
-              onClick={close}
-              className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-            >
-              Cancel
-            </button>{" "}
-            <button
-              onClick={handleSessionSubmit}
-              disabled={
-                !sessionForm.first_name ||
-                !sessionForm.last_name ||
-                !sessionForm.scheduled_at ||
-                isSubmitting
-              }
-              className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  {mode === "edit" ? "Updating..." : "Creating..."}
-                </>
+            {mode === "edit" ? (
+              sessionForm.status === "cancelled" ? (
+                // Show only close button for cancelled sessions
+                <button
+                  onClick={close}
+                  className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                >
+                  Close
+                </button>
               ) : (
-                <>
-                  <User className="w-4 h-4" />
-                  {mode === "edit" ? "Update Session" : "Create Session"}
-                </>
-              )}
-            </button>{" "}
+                // Show cancel session button for active sessions
+                <button
+                  onClick={handleCancelSession}
+                  className="px-6 py-2 text-red-400 hover:text-white hover:bg-red-800 rounded transition-colors"
+                >
+                  Cancel Session
+                </button>
+              )
+            ) : (
+              <button
+                onClick={close}
+                className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+              >
+                Cancel
+              </button>
+            )}{" "}
+            {mode === "edit" && sessionForm.status === "cancelled" ? (
+              // Show reinstate button for cancelled sessions
+              <button
+                onClick={handleReinstateSession}
+                className="px-4 py-2 bg-green-800 hover:bg-green-700 text-white rounded transition-colors flex items-center gap-2"
+              >
+                <User className="w-4 h-4" />
+                Reinstate Session
+              </button>
+            ) : mode === "edit" && sessionForm.status === "scheduled" ? (
+              // Show both Mark Complete and Update buttons for scheduled sessions
+              <div className="flex gap-2">
+                <button
+                  onClick={handleMarkComplete}
+                  className="px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-2"
+                >
+                  {" "}
+                  <CheckCircle className="w-4 h-4" />
+                  Mark Complete
+                </button>
+                <button
+                  onClick={handleSessionSubmit}
+                  disabled={
+                    !sessionForm.first_name ||
+                    !sessionForm.last_name ||
+                    !sessionForm.scheduled_at ||
+                    isSubmitting
+                  }
+                  className="px-4 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-4 h-4" />
+                      Update Session
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              // Show normal create/update button for other sessions
+              <button
+                onClick={handleSessionSubmit}
+                disabled={
+                  !sessionForm.first_name ||
+                  !sessionForm.last_name ||
+                  !sessionForm.scheduled_at ||
+                  isSubmitting
+                }
+                className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    {mode === "edit" ? "Updating..." : "Creating..."}
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4" />
+                    {mode === "edit" ? "Update Session" : "Create Session"}
+                  </>
+                )}
+              </button>
+            )}{" "}
           </div>
         </div>
-      </div>
-
+      </div>{" "}
       {/* Custom Confirmation Modal */}
       <ConfirmationModal
         isOpen={showDeleteConfirm}
@@ -835,6 +1040,36 @@ export default function CreateSessionModal({
         confirmText="Delete Session"
         variant="danger"
         isLoading={isDeleting}
+      />{" "}
+      {/* Cancel Session Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={confirmCancelSession}
+        title="Cancel Session"
+        message={`Are you sure you want to cancel this session with ${sessionForm.first_name} ${sessionForm.last_name}? This will mark the session as cancelled.`}
+        confirmText="Cancel Session"
+        variant="danger"
+      />
+      {/* Reinstate Session Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showReinstateConfirm}
+        onClose={() => setShowReinstateConfirm(false)}
+        onConfirm={confirmReinstateSession}
+        title="Reinstate Session"
+        message={`Are you sure you want to reinstate this session with ${sessionForm.first_name} ${sessionForm.last_name}? The session will be reactivated as scheduled with any updates you've made to the session details.`}
+        confirmText="Reinstate Session"
+        variant="success"
+      />
+      {/* Complete Session Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showCompleteConfirm}
+        onClose={() => setShowCompleteConfirm(false)}
+        onConfirm={confirmMarkComplete}
+        title="Complete Session"
+        message={`Are you sure you want to mark this session with ${sessionForm.first_name} ${sessionForm.last_name} as complete?`}
+        confirmText="Mark as Complete"
+        variant="success"
       />
     </div>
   );

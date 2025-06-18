@@ -112,6 +112,31 @@ export const cancelSession = createAsyncThunk(
   }
 );
 
+// Reinstate a session (via PUT) - only sends status
+export const reinstateSession = createAsyncThunk(
+  "sessions/reinstate",
+  async (id, { rejectWithValue }) => {
+    try {
+      // Use status-only endpoint to avoid datetime conversion issues
+      await api.put(`/api/sessions/${id}/status`, { status: "scheduled" });
+
+      // Then fetch the updated session to get fresh data
+      const res = await api.get(`/api/sessions`);
+      const updatedSession = res.data.find((s) => s.id === id);
+
+      if (!updatedSession) {
+        throw new Error("Session not found after update");
+      }
+
+      return updatedSession;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to reinstate session"
+      );
+    }
+  }
+);
+
 // Delete a session
 export const deleteSession = createAsyncThunk(
   "sessions/delete",
@@ -180,9 +205,22 @@ const sessionSlice = createSlice({
         state.list.push(action.payload);
       })
       .addCase(updateSession.fulfilled, (state, action) => {
+        console.log(
+          "updateSession.fulfilled - Received payload:",
+          action.payload
+        );
         const index = state.list.findIndex((s) => s.id === action.payload.id);
+        console.log("updateSession.fulfilled - Found session at index:", index);
         if (index !== -1) {
+          console.log(
+            "updateSession.fulfilled - Old session:",
+            state.list[index]
+          );
           state.list[index] = action.payload;
+          console.log(
+            "updateSession.fulfilled - Updated session:",
+            state.list[index]
+          );
         }
       })
       .addCase(updateSessionTime.pending, (state, action) => {
@@ -231,6 +269,12 @@ const sessionSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(cancelSession.fulfilled, (state, action) => {
+        const index = state.list.findIndex((s) => s.id === action.payload.id);
+        if (index !== -1) {
+          state.list[index] = action.payload;
+        }
+      })
+      .addCase(reinstateSession.fulfilled, (state, action) => {
         const index = state.list.findIndex((s) => s.id === action.payload.id);
         if (index !== -1) {
           state.list[index] = action.payload;

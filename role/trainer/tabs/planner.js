@@ -31,6 +31,12 @@ import {
   ClipboardCheck,
   Plus,
 } from "lucide-react";
+import {
+  convertFromServerTime,
+  convertForCalendar,
+  getUserTimezone,
+  formatWithTimezone,
+} from "@/lib/timezone";
 
 // Configure dayjs to start week on Monday
 dayjs.extend(weekday);
@@ -50,11 +56,39 @@ export default function TrainerCalendarPage() {
   const calendarRef = useRef(null);
   const calendarContainerRef = useRef(null);
   const hoverLineRef = useRef(null);
+  const userTimezone = getUserTimezone();
+
   const { list: sessions = [] } = useSelector((state) => state.sessions);
   const { list: clients = [], status } = useSelector((state) => state.clients);
   const { list: tasks = [], statistics } = useSelector((state) => state.tasks);
-  // Use real sessions from Redux store
-  const displaySessions = sessions;
+
+  // Process sessions with timezone-aware datetime conversion
+  const processedSessions = sessions.map((session) => ({
+    ...session,
+    start_time_local: convertFromServerTime(session.start_time, userTimezone),
+    end_time_local: convertFromServerTime(session.end_time, userTimezone),
+    // Keep original for server communication
+    start_time_original: session.start_time,
+    end_time_original: session.end_time,
+  }));
+
+  // Debug: Log session changes
+  useEffect(() => {
+    console.log(
+      "Planner - Sessions updated:",
+      processedSessions.map((s) => ({
+        id: s.id,
+        status: s.status,
+        name: `${s.first_name} ${s.last_name}`,
+        original_time: s.start_time_original,
+        local_time: s.start_time_local?.format("YYYY-MM-DD HH:mm"),
+        timezone: userTimezone,
+      }))
+    );
+  }, [sessions, userTimezone]);
+
+  // Use processed sessions for display
+  const displaySessions = processedSessions;
   const [selectedSession, setSelectedSession] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -268,7 +302,8 @@ export default function TrainerCalendarPage() {
           originalTask,
         })
       );
-    } finally {      // Remove task from updating set with a minimal delay to prevent rapid re-clicks
+    } finally {
+      // Remove task from updating set with a minimal delay to prevent rapid re-clicks
       setTimeout(() => {
         setUpdatingTasks((prev) => {
           const newSet = new Set(prev);
@@ -896,18 +931,18 @@ export default function TrainerCalendarPage() {
                         />
                       );
                     })}{" "}
-                    {/* Existing sessions - Only render in starting hour to avoid duplicates */}
+                    {/* Existing sessions - Only render in starting hour to avoid duplicates */}{" "}
                     {displaySessions
                       .filter((s) => {
                         // For dragging sessions, show them in the column they're being dragged to
                         if (isDragging && s.id === draggingSession?.id) {
-                          return dayjs(draggingSession.start_time).isSame(
+                          return draggingSession.start_time_local?.isSame(
                             day,
                             "day"
                           );
                         }
                         // For normal sessions, show them in their original day
-                        return dayjs(s.start_time).isSame(day, "day");
+                        return s.start_time_local?.isSame(day, "day");
                       })
                       .filter((s) => {
                         // Only show session in its starting hour block to avoid duplicates
@@ -917,7 +952,9 @@ export default function TrainerCalendarPage() {
                             : isDragging && s.id === draggingSession?.id
                             ? draggingSession
                             : s;
-                        const sessionStart = dayjs(sessionToCheck.start_time);
+                        const sessionStart =
+                          sessionToCheck.start_time_local ||
+                          dayjs(sessionToCheck.start_time);
                         const sessionHour = sessionStart.hour();
 
                         // Only render in the hour block where the session starts
@@ -988,7 +1025,7 @@ export default function TrainerCalendarPage() {
                               s.status === "scheduled" &&
                               "bg-zinc-200 hover:bg-zinc-100 text-black"
                             } ${
-                              s.status === "pending" &&
+                              s.status === "requested" &&
                               "bg-zinc-950 hover:bg-zinc-900 text-white border-2 border-zinc-400 diagonal-stripes overflow-hiddens"
                             } ${
                               s.status === "completed" &&
@@ -1276,7 +1313,8 @@ export default function TrainerCalendarPage() {
                             <div className="relative z-20">
                               {" "}
                               <div className="font-semibold truncate flex items-center gap-1">
-                                {" "}                                <button
+                                {" "}
+                                <button
                                   className={`pointer-events-auto flex-shrink-0 transition-transform ${
                                     updatingTasks.has(task.id)
                                       ? "cursor-wait pointer-events-none"
@@ -1594,10 +1632,8 @@ export default function TrainerCalendarPage() {
               </span>
             </label>
           </div>
-          <div className="text-xs text-zinc-500 mt-2">
-            Applies to both sessions and tasks
-          </div>
-        </div>{" "}        {/* Upcoming Sessions & Tasks */}
+        </div>{" "}
+        {/* Upcoming Sessions & Tasks */}
         <div className="flex-1 p-4 overflow-hidden flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">

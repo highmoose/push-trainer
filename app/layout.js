@@ -39,9 +39,7 @@ export default function RootLayout({ children }) {
               theme={mantineTheme}
             >
               <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
-                <div className="h-full">
-                  {children}
-                </div>
+                <div className="h-full">{children}</div>
               </DatesProvider>
             </MantineProvider>
           </AuthGuard>

@@ -127,7 +127,7 @@ const taskSlice = createSlice({
       state.list = [];
       state.status = "idle";
       state.error = null;
-    },    // Optimistic task update
+    }, // Optimistic task update
     updateTaskOptimistic: (state, action) => {
       const { id, updates } = action.payload;
       const taskIndex = state.list.findIndex((t) => t.id === id);
@@ -137,7 +137,7 @@ const taskSlice = createSlice({
           ...oldTask,
           ...updates,
         };
-        
+
         state.list[taskIndex] = newTask;
 
         // Update statistics if status changed
@@ -146,25 +146,27 @@ const taskSlice = createSlice({
             0,
             state.statistics[oldTask.status] - 1
           );
-          state.statistics[updates.status] = (state.statistics[updates.status] || 0) + 1;
+          state.statistics[updates.status] =
+            (state.statistics[updates.status] || 0) + 1;
         }
       }
-    },    // Revert optimistic update
+    }, // Revert optimistic update
     revertTaskUpdate: (state, action) => {
       const { id, originalTask } = action.payload;
       const taskIndex = state.list.findIndex((t) => t.id === id);
       if (taskIndex !== -1 && originalTask) {
         const currentTask = state.list[taskIndex];
-        
+
         // Revert statistics if status was changed
         if (currentTask.status !== originalTask.status) {
           state.statistics[currentTask.status] = Math.max(
             0,
             state.statistics[currentTask.status] - 1
           );
-          state.statistics[originalTask.status] = (state.statistics[originalTask.status] || 0) + 1;
+          state.statistics[originalTask.status] =
+            (state.statistics[originalTask.status] || 0) + 1;
         }
-        
+
         state.list[taskIndex] = originalTask;
       }
     },
@@ -229,21 +231,23 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.rejected, (state, action) => {
         state.error = action.payload;
-      })      // Update task
+      }) // Update task
       .addCase(updateTask.fulfilled, (state, action) => {
         // For status updates (like completion toggle), don't automatically update state
         // Let optimistic updates handle the UI to prevent double-toggle
         const index = state.list.findIndex((t) => t.id === action.payload.id);
         if (index !== -1) {
           const oldTask = state.list[index];
-          
+
           // Only update if this is NOT a status change (to avoid double toggle)
           if (oldTask.status === action.payload.status) {
             // Same status - this is likely a different field update, safe to apply
             state.list[index] = action.payload;
           } else {
             // Status change - skip to prevent double toggle
-            console.log("updateTask.fulfilled - skipping status change to prevent double toggle");
+            console.log(
+              "updateTask.fulfilled - skipping status change to prevent double toggle"
+            );
           }
         }
       })
@@ -274,11 +278,13 @@ const taskSlice = createSlice({
       })
       .addCase(deleteTask.rejected, (state, action) => {
         state.error = action.payload;
-      })      // Mark task completed
+      }) // Mark task completed
       .addCase(markTaskCompleted.fulfilled, (state, action) => {
         // Don't automatically update state - let optimistic updates handle the UI
         // This prevents the double-toggle issue completely
-        console.log("markTaskCompleted.fulfilled - skipping state update to prevent double toggle");
+        console.log(
+          "markTaskCompleted.fulfilled - skipping state update to prevent double toggle"
+        );
       })
       .addCase(markTaskCompleted.rejected, (state, action) => {
         state.error = action.payload;
