@@ -12,6 +12,7 @@ import {
 import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
 import { Clock, User, Trash2 } from "lucide-react";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 
 export default function CreateSessionModal({
   close,
@@ -88,6 +89,11 @@ export default function CreateSessionModal({
   const [manualEntry, setManualEntry] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [showConflicts, setShowConflicts] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state
+
+  // Add confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Ref for client search input
   const clientSearchRef = useRef(null);
@@ -226,44 +232,47 @@ export default function CreateSessionModal({
 
     return () => clearTimeout(timer);
   }, [manualEntry]);
-
   const handleSessionSubmit = async () => {
-    let formattedScheduledAt = null;
-    if (sessionForm.scheduled_at) {
-      if (typeof sessionForm.scheduled_at === "string") {
-        formattedScheduledAt = sessionForm.scheduled_at.replace("T", " ");
-        if (formattedScheduledAt.split(":").length === 2) {
-          formattedScheduledAt += ":00";
-        }
-      } else {
-        const date = sessionForm.scheduled_at;
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const hour = String(date.getHours()).padStart(2, "0");
-        const minute = String(date.getMinutes()).padStart(2, "0");
-        const second = String(date.getSeconds()).padStart(2, "0");
-        formattedScheduledAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-      }
-    }
+    if (isSubmitting) return; // Prevent double submission
 
-    const payload = {
-      client_id: sessionForm.client_id || null,
-      first_name: sessionForm.first_name,
-      last_name: sessionForm.last_name,
-      scheduled_at: formattedScheduledAt,
-      duration: parseInt(sessionForm.duration, 10),
-      notes: sessionForm.notes,
-      status: sessionForm.status,
-      session_type: sessionForm.session_type,
-      location: sessionForm.location,
-      rate: parseFloat(sessionForm.rate) || 0,
-      equipment_needed: sessionForm.equipment_needed,
-      preparation_notes: sessionForm.preparation_notes,
-      goals: sessionForm.goals,
-    };
+    setIsSubmitting(true);
 
     try {
+      let formattedScheduledAt = null;
+      if (sessionForm.scheduled_at) {
+        if (typeof sessionForm.scheduled_at === "string") {
+          formattedScheduledAt = sessionForm.scheduled_at.replace("T", " ");
+          if (formattedScheduledAt.split(":").length === 2) {
+            formattedScheduledAt += ":00";
+          }
+        } else {
+          const date = sessionForm.scheduled_at;
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const hour = String(date.getHours()).padStart(2, "0");
+          const minute = String(date.getMinutes()).padStart(2, "0");
+          const second = String(date.getSeconds()).padStart(2, "0");
+          formattedScheduledAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+        }
+      }
+
+      const payload = {
+        client_id: sessionForm.client_id || null,
+        first_name: sessionForm.first_name,
+        last_name: sessionForm.last_name,
+        scheduled_at: formattedScheduledAt,
+        duration: parseInt(sessionForm.duration, 10),
+        notes: sessionForm.notes,
+        status: sessionForm.status,
+        session_type: sessionForm.session_type,
+        location: sessionForm.location,
+        rate: parseFloat(sessionForm.rate) || 0,
+        equipment_needed: sessionForm.equipment_needed,
+        preparation_notes: sessionForm.preparation_notes,
+        goals: sessionForm.goals,
+      };
+
       if (mode === "edit") {
         await dispatch(updateSession({ id: initialValues.id, ...payload }));
       } else {
@@ -298,6 +307,8 @@ export default function CreateSessionModal({
       close();
     } catch (error) {
       console.error("Error saving session:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -314,13 +325,15 @@ export default function CreateSessionModal({
   const handleSessionDelete = async () => {
     if (!initialValues?.id || mode !== "edit") return;
 
-    if (window.confirm("Are you sure you want to delete this session?")) {
-      try {
-        await dispatch(deleteSession(initialValues.id)).unwrap();
-        close();
-      } catch (error) {
-        console.error("Error deleting session:", error);
-      }
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteSession(initialValues.id)).unwrap();
+      setShowDeleteConfirm(false);
+      close();
+    } catch (error) {
+      console.error("Error deleting session:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -767,10 +780,10 @@ export default function CreateSessionModal({
                 </svg>
                 {conflicts.length} conflict(s) detected
               </div>
-            )}
+            )}{" "}
             {mode === "edit" && initialValues?.id && (
               <button
-                onClick={handleSessionDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -785,22 +798,44 @@ export default function CreateSessionModal({
               className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
             >
               Cancel
-            </button>
+            </button>{" "}
             <button
               onClick={handleSessionSubmit}
               disabled={
                 !sessionForm.first_name ||
                 !sessionForm.last_name ||
-                !sessionForm.scheduled_at
+                !sessionForm.scheduled_at ||
+                isSubmitting
               }
               className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
             >
-              <User className="w-4 h-4" />
-              {mode === "edit" ? "Update Session" : "Create Session"}
-            </button>
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  {mode === "edit" ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>
+                  <User className="w-4 h-4" />
+                  {mode === "edit" ? "Update Session" : "Create Session"}
+                </>
+              )}
+            </button>{" "}
           </div>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleSessionDelete}
+        title="Delete Session"
+        message={`Are you sure you want to delete this session with ${sessionForm.first_name} ${sessionForm.last_name}? This action cannot be undone.`}
+        confirmText="Delete Session"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

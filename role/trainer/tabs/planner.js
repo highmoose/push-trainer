@@ -1217,13 +1217,13 @@ export default function TrainerCalendarPage() {
                                 ? "resizing"
                                 : ""
                             } ${
-                              task.status === "completed"
-                                ? "border-green-400"
-                                : task.priority === "high"
+                              task.priority === "high"
                                 ? "border-red-400"
                                 : task.priority === "medium"
+                                ? "border-orange-400"
+                                : task.priority === "low"
                                 ? "border-yellow-400"
-                                : "border-gray-400"
+                                : "border-gray-500" // none priority - mid grey
                             }`}
                             style={{
                               top: `${taskTopPosition}px`,

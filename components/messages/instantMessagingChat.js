@@ -149,7 +149,7 @@ export default function InstantMessagingChat({
                       {/* Message status indicator inside the message bubble for sender */}
                       {isMe && (
                         <div className="inline-flex items-center justify-center ml-2 gap-1">
-                          <span className="text-[11px] opacity-70 text-black">
+                          <span className="text-[11px] opacity-30 text-black">
                             {new Date(msg.created_at).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",

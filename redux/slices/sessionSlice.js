@@ -176,6 +176,7 @@ const sessionSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(createSession.fulfilled, (state, action) => {
+        // Backend now returns all necessary fields
         state.list.push(action.payload);
       })
       .addCase(updateSession.fulfilled, (state, action) => {

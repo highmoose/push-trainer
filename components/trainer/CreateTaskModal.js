@@ -5,18 +5,27 @@ import { useSelector, useDispatch } from "react-redux";
 import { createTask, updateTask, deleteTask } from "@/redux/slices/taskSlice";
 import dayjs from "dayjs";
 import { ClipboardCheck, Trash2 } from "lucide-react";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 
 export default function CreateTaskModal({
   close,
   initialValues = {},
   mode = "create",
 }) {
-  const dispatch = useDispatch(); // Task form state
+  const dispatch = useDispatch();
+  // Add loading state to prevent duplicate submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Task form state
   const [taskForm, setTaskForm] = useState({
     title: "",
     description: "",
     due_date: null,
-    priority: "medium",
+    priority: "none",
     category: "general",
     status: "pending",
     reminder: false,
@@ -41,7 +50,7 @@ export default function CreateTaskModal({
         title: initialValues.title || "",
         description: initialValues.description || "",
         due_date: formattedDateTime,
-        priority: initialValues.priority || "medium",
+        priority: initialValues.priority || "none",
         category: initialValues.category || "general",
         status: initialValues.status || "pending",
         reminder: initialValues.reminder || false,
@@ -51,42 +60,46 @@ export default function CreateTaskModal({
     }
   }, [initialValues]);
   const handleTaskSubmit = async () => {
-    // Format due_date for task
-    let formattedDueDate = null;
-    if (taskForm.due_date) {
-      if (typeof taskForm.due_date === "string") {
-        formattedDueDate = taskForm.due_date.replace("T", " ");
-        if (formattedDueDate.split(":").length === 2) {
-          formattedDueDate += ":00";
-        }
-      } else {
-        const date = taskForm.due_date;
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const hour = String(date.getHours()).padStart(2, "0");
-        const minute = String(date.getMinutes()).padStart(2, "0");
-        const second = String(date.getSeconds()).padStart(2, "0");
-        formattedDueDate = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-      }
-    }
-    const payload = {
-      title: taskForm.title,
-      description: taskForm.description,
-      due_date: formattedDueDate,
-      priority: taskForm.priority,
-      category: taskForm.category,
-      status: taskForm.status,
-      duration: taskForm.duration,
-      reminder: taskForm.reminder
-        ? {
-            enabled: true,
-            time: taskForm.reminderTime,
-          }
-        : null,
-    };
+    if (isSubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
 
     try {
+      // Format due_date for task
+      let formattedDueDate = null;
+      if (taskForm.due_date) {
+        if (typeof taskForm.due_date === "string") {
+          formattedDueDate = taskForm.due_date.replace("T", " ");
+          if (formattedDueDate.split(":").length === 2) {
+            formattedDueDate += ":00";
+          }
+        } else {
+          const date = taskForm.due_date;
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const hour = String(date.getHours()).padStart(2, "0");
+          const minute = String(date.getMinutes()).padStart(2, "0");
+          const second = String(date.getSeconds()).padStart(2, "0");
+          formattedDueDate = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+        }
+      }
+      const payload = {
+        title: taskForm.title,
+        description: taskForm.description,
+        due_date: formattedDueDate,
+        priority: taskForm.priority,
+        category: taskForm.category,
+        status: taskForm.status,
+        duration: taskForm.duration,
+        reminder: taskForm.reminder
+          ? {
+              enabled: true,
+              time: taskForm.reminderTime,
+            }
+          : null,
+      };
+
       if (mode === "edit" && initialValues?.id) {
         // Update existing task
         await dispatch(
@@ -102,19 +115,22 @@ export default function CreateTaskModal({
       close();
     } catch (error) {
       console.error("Error saving task:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
   const handleTaskDelete = async () => {
     if (!initialValues?.id || mode !== "edit") return;
 
-    if (window.confirm("Are you sure you want to delete this task?")) {
-      try {
-        await dispatch(deleteTask(initialValues.id)).unwrap();
-        close();
-      } catch (error) {
-        console.error("Error deleting task:", error);
-      }
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteTask(initialValues.id)).unwrap();
+      setShowDeleteConfirm(false);
+      close();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -222,6 +238,7 @@ export default function CreateTaskModal({
                   }
                   className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 >
+                  <option value="none">None</option>
                   <option value="low">Low </option>
                   <option value="medium">Medium </option>
                   <option value="high">High </option>{" "}
@@ -291,7 +308,6 @@ export default function CreateTaskModal({
                 >
                   {" "}
                   <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
@@ -344,9 +360,10 @@ export default function CreateTaskModal({
         {/* Footer */}
         <div className="flex justify-between items-center gap-3 pb-6 pt-4 px-8 border-t border-zinc-800/30 bg-zinc-900 ">
           <div>
+            {" "}
             {mode === "edit" && initialValues?.id && (
               <button
-                onClick={handleTaskDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -360,18 +377,39 @@ export default function CreateTaskModal({
               className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded transition-colors"
             >
               Cancel
-            </button>
+            </button>{" "}
             <button
               onClick={handleTaskSubmit}
-              disabled={!taskForm.title.trim()}
-              className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white  hover:border-white rounded transition-colors flex items-center gap-2"
+              disabled={!taskForm.title.trim() || isSubmitting}
+              className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
             >
-              <ClipboardCheck className="w-4 h-4" />
-              {mode === "edit" ? "Update Task" : "Create Task"}
-            </button>
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  {mode === "edit" ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>
+                  <ClipboardCheck className="w-4 h-4" />
+                  {mode === "edit" ? "Update Task" : "Create Task"}
+                </>
+              )}
+            </button>{" "}
           </div>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleTaskDelete}
+        title="Delete Task"
+        message={`Are you sure you want to delete the task "${taskForm.title}"? This action cannot be undone.`}
+        confirmText="Delete Task"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }
