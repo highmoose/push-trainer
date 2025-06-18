@@ -79,57 +79,10 @@ export default function Clients() {
     }
   }, [dispatch, status]);
 
-  // Mock clients for development/testing
-  const mockClients = useMemo(
-    () => [
-      {
-        id: 1,
-        first_name: "John",
-        last_name: "Doe",
-        email: "john.doe@example.com",
-        role: "client",
-        is_temp: false,
-        created_at: "2024-01-15T10:00:00Z",
-      },
-      {
-        id: 2,
-        first_name: "Sarah",
-        last_name: "Johnson",
-        email: "sarah.johnson@example.com",
-        role: "client",
-        is_temp: false,
-        created_at: "2024-02-20T14:30:00Z",
-      },
-      {
-        id: 3,
-        first_name: "Mike",
-        last_name: "Wilson",
-        email: "mike.wilson@example.com",
-        role: "client",
-        is_temp: true,
-        created_at: "2024-03-10T09:15:00Z",
-      },
-      {
-        id: 4,
-        first_name: "Emma",
-        last_name: "Davis",
-        email: "emma.davis@example.com",
-        role: "client",
-        is_temp: false,
-        created_at: "2024-03-25T16:45:00Z",
-      },
-    ],
-    []
-  );
-
-  // Use mock data if no clients are loaded from API
-  const clientsToUse = clients.length > 0 ? clients : mockClients;
-
   // Update selectedClient when clients are loaded
   useEffect(() => {
-    const availableClients = clients.length > 0 ? clients : mockClients;
-    if (availableClients.length > 0 && !selectedClient) {
-      const firstClient = availableClients[0];
+    if (clients.length > 0 && !selectedClient) {
+      const firstClient = clients[0];
       const clientWithName = {
         ...firstClient,
         name: `${firstClient.first_name || ""} ${
@@ -138,7 +91,7 @@ export default function Clients() {
       };
       setSelectedClient(clientWithName);
     }
-  }, [clients, selectedClient, mockClients]);
+  }, [clients, selectedClient]);
 
   // Mock fitness data for demonstration
   const fitnessData = useMemo(
@@ -256,7 +209,7 @@ export default function Clients() {
       },
     },
   };
-  const filteredClients = clientsToUse
+  const filteredClients = clients
     .filter((client) => {
       const search = (searchString ?? "").toLowerCase();
       const fullName = `${client.first_name ?? ""} ${
@@ -278,11 +231,9 @@ export default function Clients() {
   // Debug logging
   console.log("Clients Debug:", {
     clients,
-    clientsToUse,
     filteredClients,
     status,
     clientsLength: clients.length,
-    mockClientsLength: mockClients.length,
   });
 
   const handleEditClient = (client) => {

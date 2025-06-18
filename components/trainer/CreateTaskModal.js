@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { createTask, updateTask } from "@/redux/slices/taskSlice";
+import { createTask, updateTask, deleteTask } from "@/redux/slices/taskSlice";
 import dayjs from "dayjs";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Trash2 } from "lucide-react";
 
 export default function CreateTaskModal({
   close,
@@ -104,6 +104,20 @@ export default function CreateTaskModal({
       console.error("Error saving task:", error);
     }
   };
+
+  const handleTaskDelete = async () => {
+    if (!initialValues?.id || mode !== "edit") return;
+
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      try {
+        await dispatch(deleteTask(initialValues.id)).unwrap();
+        close();
+      } catch (error) {
+        console.error("Error deleting task:", error);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
       <div className="bg-zinc-950 border border-zinc-900 rounded  max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -326,23 +340,36 @@ export default function CreateTaskModal({
               )}
             </div>
           </div>
-        </div>
+        </div>{" "}
         {/* Footer */}
-        <div className="flex justify-end gap-3 pb-6 pt-4 px-8 border-t border-zinc-800/30 bg-zinc-900 ">
-          <button
-            onClick={close}
-            className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleTaskSubmit}
-            disabled={!taskForm.title.trim()}
-            className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white  hover:border-white rounded transition-colors flex items-center gap-2"
-          >
-            <ClipboardCheck className="w-4 h-4" />
-            {mode === "edit" ? "Update Task" : "Create Task"}
-          </button>
+        <div className="flex justify-between items-center gap-3 pb-6 pt-4 px-8 border-t border-zinc-800/30 bg-zinc-900 ">
+          <div>
+            {mode === "edit" && initialValues?.id && (
+              <button
+                onClick={handleTaskDelete}
+                className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Task
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={close}
+              className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleTaskSubmit}
+              disabled={!taskForm.title.trim()}
+              className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white  hover:border-white rounded transition-colors flex items-center gap-2"
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              {mode === "edit" ? "Update Task" : "Create Task"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

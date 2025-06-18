@@ -218,7 +218,8 @@ export default function TrainerCalendarPage() {
     setSelectedTask(null);
     // Refresh tasks after modal closes to show updated tasks
     dispatch(fetchTasks());
-  };  const handleTaskCompletionToggle = async (task, event) => {
+  };
+  const handleTaskCompletionToggle = async (task, event) => {
     // Prevent event from bubbling up to parent elements
     event.stopPropagation();
     event.preventDefault();
@@ -243,10 +244,10 @@ export default function TrainerCalendarPage() {
 
         // API call to mark as completed - don't use .unwrap() to avoid double state updates
         const result = await dispatch(markTaskCompleted(task.id));
-        
+
         // Only check for actual failures, don't let the fulfilled case update state again
         if (markTaskCompleted.rejected.match(result)) {
-          throw new Error(result.payload || 'Failed to update task');
+          throw new Error(result.payload || "Failed to update task");
         }
       } else if (originalStatus === "completed") {
         // Mark as pending optimistically
@@ -264,10 +265,10 @@ export default function TrainerCalendarPage() {
             data: { status: "pending" },
           })
         );
-        
+
         // Only check for actual failures
         if (updateTask.rejected.match(result)) {
-          throw new Error(result.payload || 'Failed to update task');
+          throw new Error(result.payload || "Failed to update task");
         }
       }
     } catch (error) {
@@ -1644,7 +1645,7 @@ export default function TrainerCalendarPage() {
               Today
             </button>
           </div>
-          <div className="space-y-2 overflow-y-auto max-h-96 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900 pr-2">
+          <div className="space-y-2 overflow-y-auto max-h-96 scrollbar-thin scrollbar-dark pr-2">
             {/* Upcoming Sessions */}
             {displaySessions
               .filter((session) => dayjs(session.start_time).isAfter(dayjs()))

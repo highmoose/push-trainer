@@ -85,9 +85,9 @@ export const updateSessionTime = createAsyncThunk(
 // Update an existing session
 export const updateSession = createAsyncThunk(
   "sessions/update",
-  async ({ id, data }, { rejectWithValue }) => {
+  async ({ id, ...payload }, { rejectWithValue }) => {
     try {
-      const res = await api.put(`/api/sessions/${id}`, data);
+      const res = await api.put(`/api/sessions/${id}`, payload);
       return res.data;
     } catch (err) {
       return rejectWithValue(
@@ -107,6 +107,21 @@ export const cancelSession = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Failed to cancel session"
+      );
+    }
+  }
+);
+
+// Delete a session
+export const deleteSession = createAsyncThunk(
+  "sessions/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/sessions/${id}`);
+      return id; // Return id for removing from state
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to delete session"
       );
     }
   }
@@ -219,6 +234,10 @@ const sessionSlice = createSlice({
         if (index !== -1) {
           state.list[index] = action.payload;
         }
+      })
+      .addCase(deleteSession.fulfilled, (state, action) => {
+        // Remove the deleted session from the list
+        state.list = state.list.filter((s) => s.id !== action.payload);
       });
   },
 });

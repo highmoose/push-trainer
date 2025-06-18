@@ -6,11 +6,12 @@ import {
   createSession,
   updateSession,
   cancelSession,
+  deleteSession,
   fetchSessions,
 } from "@/redux/slices/sessionSlice";
 import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
-import { Clock, User } from "lucide-react";
+import { Clock, User, Trash2 } from "lucide-react";
 
 export default function CreateSessionModal({
   close,
@@ -310,6 +311,19 @@ export default function CreateSessionModal({
       }
     }
   };
+  const handleSessionDelete = async () => {
+    if (!initialValues?.id || mode !== "edit") return;
+
+    if (window.confirm("Are you sure you want to delete this session?")) {
+      try {
+        await dispatch(deleteSession(initialValues.id)).unwrap();
+        close();
+      } catch (error) {
+        console.error("Error deleting session:", error);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
       <div className="bg-zinc-950 border border-zinc-900 rounded max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -741,7 +755,7 @@ export default function CreateSessionModal({
         </div>{" "}
         {/* Footer */}
         <div className="flex items-center justify-between pb-6 pt-4 px-8 border-t border-zinc-800 bg-zinc-900">
-          <div>
+          <div className="flex items-center gap-4">
             {conflicts.length > 0 && (
               <div className="flex items-center gap-2 text-red-400 text-sm">
                 <svg
@@ -753,6 +767,15 @@ export default function CreateSessionModal({
                 </svg>
                 {conflicts.length} conflict(s) detected
               </div>
+            )}
+            {mode === "edit" && initialValues?.id && (
+              <button
+                onClick={handleSessionDelete}
+                className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Session
+              </button>
             )}
           </div>{" "}
           <div className="flex items-center gap-3">
