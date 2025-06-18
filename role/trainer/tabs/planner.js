@@ -232,74 +232,50 @@ export default function TrainerCalendarPage() {
     // Add task to updating set immediately
     setUpdatingTasks((prev) => new Set(prev).add(task.id));
 
-    // Store original task and statistics for potential revert
+    // Store original task for potential revert
     const originalTask = { ...task };
-    const originalStats = { ...statistics };
-    const originalStatus = task.status;
+    const newStatus = task.status === "completed" ? "pending" : "completed";
 
     try {
-      if (originalStatus === "pending") {
-        // Mark as completed optimistically
-        dispatch(markTaskCompletedOptimistic({ id: task.id }));
+      // Single optimistic update based on current status
+      dispatch(
+        updateTaskOptimistic({
+          id: task.id,
+          updates: { status: newStatus },
+        })
+      );
 
-        // API call to mark as completed - don't use .unwrap() to avoid double state updates
-        const result = await dispatch(markTaskCompleted(task.id));
-
-        // Only check for actual failures, don't let the fulfilled case update state again
-        if (markTaskCompleted.rejected.match(result)) {
-          throw new Error(result.payload || "Failed to update task");
-        }
-      } else if (originalStatus === "completed") {
-        // Mark as pending optimistically
-        dispatch(
-          updateTaskOptimistic({
-            id: task.id,
-            updates: { status: "pending" },
-          })
-        );
-
-        // API call to update status back to pending - don't use .unwrap()
-        const result = await dispatch(
+      // Make API call but don't let it update the state automatically
+      if (newStatus === "completed") {
+        await dispatch(markTaskCompleted(task.id));
+      } else {
+        await dispatch(
           updateTask({
             id: task.id,
             data: { status: "pending" },
           })
         );
-
-        // Only check for actual failures
-        if (updateTask.rejected.match(result)) {
-          throw new Error(result.payload || "Failed to update task");
-        }
       }
+
+      // Success - keep the optimistic update
     } catch (error) {
       console.error("Failed to update task status:", error);
 
-      // Revert the optimistic update on error using original status
-      if (originalStatus === "pending") {
-        dispatch(
-          revertMarkTaskCompleted({
-            id: task.id,
-            originalTask,
-            originalStats,
-          })
-        );
-      } else if (originalStatus === "completed") {
-        dispatch(
-          revertTaskUpdate({
-            id: task.id,
-            originalTask,
-          })
-        );
-      }
-    } finally {
-      // Remove task from updating set with a slight delay to prevent rapid re-clicks
+      // Revert the optimistic update on error
+      dispatch(
+        revertTaskUpdate({
+          id: task.id,
+          originalTask,
+        })
+      );
+    } finally {      // Remove task from updating set with a minimal delay to prevent rapid re-clicks
       setTimeout(() => {
         setUpdatingTasks((prev) => {
           const newSet = new Set(prev);
           newSet.delete(task.id);
           return newSet;
         });
-      }, 150);
+      }, 50);
     }
   };
 
@@ -1301,50 +1277,41 @@ export default function TrainerCalendarPage() {
                             <div className="relative z-20">
                               {" "}
                               <div className="font-semibold truncate flex items-center gap-1">
-                                {" "}
-                                {task.status === "completed" ? (
-                                  <button
-                                    className={`pointer-events-auto flex-shrink-0 transition-transform ${
-                                      updatingTasks.has(task.id)
-                                        ? "cursor-wait opacity-50 pointer-events-none"
-                                        : "cursor-pointer hover:scale-110"
-                                    }`}
-                                    onClick={(e) => {
-                                      if (!updatingTasks.has(task.id)) {
-                                        handleTaskCompletionToggle(task, e);
-                                      }
-                                    }}
-                                    disabled={updatingTasks.has(task.id)}
-                                    title={
-                                      updatingTasks.has(task.id)
-                                        ? "Updating..."
-                                        : "Mark as pending"
+                                {" "}                                <button
+                                  className={`pointer-events-auto flex-shrink-0 transition-transform ${
+                                    updatingTasks.has(task.id)
+                                      ? "cursor-wait pointer-events-none"
+                                      : "cursor-pointer hover:scale-110"
+                                  }`}
+                                  onClick={(e) => {
+                                    if (!updatingTasks.has(task.id)) {
+                                      handleTaskCompletionToggle(task, e);
                                     }
-                                  >
-                                    <CircleCheck className="text-green-400 w-4 h-4" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    className={`pointer-events-auto flex-shrink-0 transition-transform ${
-                                      updatingTasks.has(task.id)
-                                        ? "cursor-wait opacity-50 pointer-events-none"
-                                        : "cursor-pointer hover:scale-110"
-                                    }`}
-                                    onClick={(e) => {
-                                      if (!updatingTasks.has(task.id)) {
-                                        handleTaskCompletionToggle(task, e);
-                                      }
-                                    }}
-                                    disabled={updatingTasks.has(task.id)}
-                                    title={
-                                      updatingTasks.has(task.id)
-                                        ? "Updating..."
-                                        : "Mark as completed"
-                                    }
-                                  >
-                                    <Circle className="text-zinc-400 hover:text-zinc-300 w-4 h-4" />
-                                  </button>
-                                )}
+                                  }}
+                                  disabled={updatingTasks.has(task.id)}
+                                  title={
+                                    updatingTasks.has(task.id)
+                                      ? "Updating..."
+                                      : task.status === "completed"
+                                      ? "Mark as pending"
+                                      : "Mark as completed"
+                                  }
+                                >
+                                  {" "}
+                                  {task.status === "completed" ? (
+                                    <CircleCheck
+                                      key={`${task.id}-completed`}
+                                      className="w-4 h-4 task-toggle-icon"
+                                      style={{ color: "#4ade80" }}
+                                    />
+                                  ) : (
+                                    <Circle
+                                      key={`${task.id}-pending`}
+                                      className="w-4 h-4 task-toggle-icon hover:!text-zinc-300"
+                                      style={{ color: "#a1a1aa" }}
+                                    />
+                                  )}
+                                </button>
                                 <span className="pointer-events-none">
                                   {task.title}
                                 </span>

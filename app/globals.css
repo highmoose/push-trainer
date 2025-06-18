@@ -113,3 +113,14 @@ input:-webkit-autofill {
   );
   opacity: 0.5;
 }
+
+/* Prevent any transitions or color changes on task toggle icons */
+.task-toggle-icon {
+  transition: none !important;
+  animation: none !important;
+}
+
+.task-toggle-icon * {
+  transition: none !important;
+  animation: none !important;
+}
