@@ -10,6 +10,7 @@ import {
   fetchPlanDetails,
   duplicateDietPlan,
   linkDietPlanToClients,
+  deleteDietPlan,
 } from "@/redux/slices/dietPlanSlice";
 import {
   User,
@@ -32,7 +33,11 @@ import {
   Save,
   Eye,
   Users,
+  Trash2,
+  Edit3,
+  Calendar,
 } from "lucide-react";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 
 // Diet plan types with descriptions
 const DIET_PLAN_TYPES = [
@@ -135,15 +140,19 @@ export default function Blueprints() {
   const [useCustomCalories, setUseCustomCalories] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [planTitle, setPlanTitle] = useState("");
-  const [aiProvider, setAiProvider] = useState("openai");
-  // UI state
+  const [aiProvider, setAiProvider] = useState("openai"); // UI state
   const [showPlansList, setShowPlansList] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [showPlanDetailModal, setShowPlanDetailModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [selectedPlanForAction, setSelectedPlanForAction] = useState(null);
   const [selectedClientsForAction, setSelectedClientsForAction] = useState([]);
   const [planDetails, setPlanDetails] = useState(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Available AI providers (can be managed in admin area later)
   const AI_PROVIDERS = [
@@ -301,6 +310,49 @@ export default function Blueprints() {
       console.error("Failed to generate plan:", error);
     }
   };
+  // Handle assign plan to clients
+  const handleAssignPlan = async () => {
+    if (!selectedPlanForAction || selectedClientsForAction.length === 0) {
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      await dispatch(
+        linkDietPlanToClients({
+          id: selectedPlanForAction.id,
+          clientIds: selectedClientsForAction,
+        })
+      );
+      setShowAssignModal(false);
+      setSelectedPlanForAction(null);
+      setSelectedClientsForAction([]);
+      // Refresh plans to show updated assignments
+      dispatch(fetchDietPlans());
+    } catch (error) {
+      console.error("Failed to assign plan:", error);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  // Handle delete plan
+  const handleDeletePlan = async () => {
+    if (!selectedPlanForAction) return;
+
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteDietPlan(selectedPlanForAction.id));
+      setShowDeleteConfirmModal(false);
+      setSelectedPlanForAction(null);
+      // Refresh plans after deletion
+      dispatch(fetchDietPlans());
+    } catch (error) {
+      console.error("Failed to delete plan:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle duplicate plan
   const handleDuplicatePlan = async () => {
@@ -308,6 +360,7 @@ export default function Blueprints() {
       return;
     }
 
+    setIsDuplicating(true);
     try {
       await dispatch(
         duplicateDietPlan({
@@ -318,29 +371,12 @@ export default function Blueprints() {
       setShowDuplicateModal(false);
       setSelectedPlanForAction(null);
       setSelectedClientsForAction([]);
+      // Refresh plans to show new duplicated plans
+      dispatch(fetchDietPlans());
     } catch (error) {
       console.error("Failed to duplicate plan:", error);
-    }
-  };
-
-  // Handle link plan to clients
-  const handleLinkPlan = async () => {
-    if (!selectedPlanForAction || selectedClientsForAction.length === 0) {
-      return;
-    }
-
-    try {
-      await dispatch(
-        linkDietPlanToClients({
-          id: selectedPlanForAction.id,
-          clientIds: selectedClientsForAction,
-        })
-      );
-      setShowLinkModal(false);
-      setSelectedPlanForAction(null);
-      setSelectedClientsForAction([]);
-    } catch (error) {
-      console.error("Failed to link plan:", error);
+    } finally {
+      setIsDuplicating(false);
     }
   };
   // Handle view plan details
@@ -370,22 +406,158 @@ export default function Blueprints() {
   };
 
   return (
-    <div className="w-full h-full bg-zinc-900 text-gray-100 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
+      {/* Professional Blueprints Sidebar */}
+      <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
+        {/* Quick Actions */}
+        <div className="flex flex-col w-full p-4 space-y-3">
+          <button
+            onClick={handleReset}
+            className="cursor-pointer flex items-center justify-center gap-2 p-2 border border-zinc-700 hover:bg-zinc-900 hover:border-white text-white rounded"
+          >
+            <Sparkles size={18} />
+            <p className="font-semibold">Create New Plan</p>
+          </button>
+          <button
+            onClick={() => setShowPlansList(true)}
+            className="cursor-pointer flex items-center justify-center gap-2 p-2 bg-zinc-800 hover:bg-zinc-900 text-white rounded"
+          >
+            <Eye size={18} />
+            <p className="font-semibold">View All Plans</p>
+          </button>
+        </div>
+
+        {/* AI Provider Selection */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+            AI Provider
+          </h3>
+          <div className="space-y-2">
+            {AI_PROVIDERS.filter((provider) => provider.enabled).map(
+              (provider) => (
+                <label
+                  key={provider.id}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  <input
+                    type="radio"
+                    name="aiProvider"
+                    value={provider.id}
+                    checked={aiProvider === provider.id}
+                    onChange={(e) => setAiProvider(e.target.value)}
+                    className="text-blue-500"
+                  />
+                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
+                    {provider.name}
+                  </span>
+                </label>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Plan Overview */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-300">Plan Overview</h3>
+            <div className="text-xs text-zinc-500">
+              {dietPlans.length} total
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div className="bg-zinc-900/50 p-3 rounded-lg">
+              <div className="text-lg font-bold text-zinc-300">
+                {dietPlans.filter((p) => p.status === "active").length}
+              </div>
+              <div className="text-xs text-zinc-500">Active Plans</div>
+            </div>
+            <div className="bg-zinc-900/50 p-3 rounded-lg">
+              <div className="text-lg font-bold text-zinc-300">
+                {clients.length}
+              </div>
+              <div className="text-xs text-zinc-500">Clients</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Templates */}
+        <div className="p-4 border-b border-zinc-800/30">
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+            Quick Templates
+          </h3>
+          <div className="space-y-2">
+            {DIET_PLAN_TYPES.slice(0, 4).map((type) => {
+              const IconComponent = type.icon;
+              return (
+                <div
+                  key={type.id}
+                  className={`flex items-center justify-between p-3 rounded-lg bg-zinc-900/30 hover:bg-zinc-900/50 cursor-pointer group transition-all border-l-4 border-${type.color}-500`}
+                  onClick={() => setPlanType(type.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <IconComponent className="w-4 h-4 text-zinc-400" />
+                    <div className="text-xs font-medium text-zinc-300">
+                      {type.name}
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-500 group-hover:text-zinc-300">
+                    +
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Recent Plans */}
+        <div className="flex-1 p-4 overflow-hidden flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-300">Recent Plans</h3>
+            <button
+              onClick={() => setShowPlansList(true)}
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              View All
+            </button>
+          </div>{" "}
+          <div className="flex-1 space-y-2 overflow-y-auto scrollbar-thin scrollbar-dark pr-2 min-h-0">
+            {dietPlans.slice(0, 10).map((plan) => (
+              <div
+                key={plan.id}
+                className="p-3 bg-zinc-900/30 rounded-lg hover:bg-zinc-900/50 cursor-pointer transition-all"
+                onClick={() => handleViewPlanDetails(plan)}
+              >
+                <div className="font-medium text-zinc-300 text-sm truncate">
+                  {plan.title}
+                </div>
+                <div className="text-xs text-zinc-400 mb-1">
+                  {plan.client_name || "Generic Plan"}
+                </div>
+                <div className="text-xs text-zinc-500">
+                  {new Date(plan.created_at).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="mb-8">
+        <div className="p-6 border-b border-zinc-800/50">
           <div className="flex items-center gap-3 mb-3">
             <ChefHat className="w-8 h-8 text-blue-400" />
             <h1 className="text-3xl font-bold">AI Diet Plan Generator</h1>
           </div>
-          <p className="text-gray-400">
+          <p className="text-zinc-400">
             Create personalized nutrition plans for your clients using AI
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Configuration Panel */}
-          <div className="lg:col-span-2 space-y-6">
+        {/* Content Area (scrolls) */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-dark">
+          <div className="p-6 space-y-6 max-w-4xl">
             {" "}
             {/* Client Selection */}
             <div className="bg-zinc-800 rounded-lg p-6">
@@ -401,7 +573,7 @@ export default function Blueprints() {
                 create a generic plan
               </div>
 
-              {/* Client Selection */}
+              {/* Client Selection UI */}
               <div className="space-y-3">
                 {selectedClient ? (
                   /* Selected Client Display */
@@ -470,184 +642,7 @@ export default function Blueprints() {
                 )}
               </div>
             </div>
-            {/* Client Preferences Display */}
-            {selectedClient && (
-              <div className="bg-zinc-800 rounded-lg p-6 border border-blue-500/30">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="w-5 h-5 text-blue-400" />
-                  <h2 className="text-xl font-semibold">
-                    Client Profile & Preferences
-                  </h2>
-                </div>
-
-                <div className="text-sm text-blue-400 mb-4">
-                  This information will be used to create a personalized diet
-                  plan
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Physical Metrics */}
-                  <div className="bg-zinc-700/50 rounded-lg p-4">
-                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                      <Scale className="w-4 h-4 text-green-400" />
-                      Physical Metrics
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                      {selectedClient.weight && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Weight:</span>
-                          <span className="text-white">
-                            {selectedClient.weight} kg
-                          </span>
-                        </div>
-                      )}
-                      {selectedClient.height && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Height:</span>
-                          <span className="text-white">
-                            {selectedClient.height} cm
-                          </span>
-                        </div>
-                      )}
-                      {selectedClient.age && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Age:</span>
-                          <span className="text-white">
-                            {selectedClient.age} years
-                          </span>
-                        </div>
-                      )}
-                      {selectedClient.body_fat && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Body Fat:</span>
-                          <span className="text-white">
-                            {selectedClient.body_fat}%
-                          </span>
-                        </div>
-                      )}
-                      {selectedClient.activity_level && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Activity Level:</span>
-                          <span className="text-white capitalize">
-                            {selectedClient.activity_level}
-                          </span>
-                        </div>
-                      )}
-                      {!selectedClient.weight &&
-                        !selectedClient.height &&
-                        !selectedClient.age &&
-                        !selectedClient.body_fat &&
-                        !selectedClient.activity_level && (
-                          <div className="text-zinc-500 italic">
-                            No physical metrics available
-                          </div>
-                        )}
-                    </div>
-                  </div>
-
-                  {/* Dietary Information */}
-                  <div className="bg-zinc-700/50 rounded-lg p-4">
-                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                      <Heart className="w-4 h-4 text-red-400" />
-                      Dietary Information
-                    </h3>
-                    <div className="space-y-3 text-sm">
-                      {selectedClient.allergies && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">Allergies:</div>
-                          <div className="text-white bg-red-500/20 border border-red-500/30 rounded px-2 py-1">
-                            {selectedClient.allergies}
-                          </div>
-                        </div>
-                      )}
-                      {selectedClient.food_preferences && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">
-                            Food Preferences:
-                          </div>
-                          <div className="text-white bg-green-500/20 border border-green-500/30 rounded px-2 py-1">
-                            {selectedClient.food_preferences}
-                          </div>
-                        </div>
-                      )}
-                      {selectedClient.dietary_restrictions && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">
-                            Dietary Restrictions:
-                          </div>
-                          <div className="text-white bg-yellow-500/20 border border-yellow-500/30 rounded px-2 py-1">
-                            {selectedClient.dietary_restrictions}
-                          </div>
-                        </div>
-                      )}
-                      {selectedClient.food_dislikes && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">
-                            Food Dislikes:
-                          </div>
-                          <div className="text-white bg-orange-500/20 border border-orange-500/30 rounded px-2 py-1">
-                            {selectedClient.food_dislikes}
-                          </div>
-                        </div>
-                      )}
-                      {!selectedClient.allergies &&
-                        !selectedClient.food_preferences &&
-                        !selectedClient.dietary_restrictions &&
-                        !selectedClient.food_dislikes && (
-                          <div className="text-zinc-500 italic">
-                            No dietary information available
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Goals & Notes */}
-                {(selectedClient.fitness_goals || selectedClient.notes) && (
-                  <div className="mt-4 bg-zinc-700/50 rounded-lg p-4">
-                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-purple-400" />
-                      Goals & Additional Information
-                    </h3>
-                    <div className="space-y-3 text-sm">
-                      {selectedClient.fitness_goals && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">
-                            Fitness Goals:
-                          </div>
-                          <div className="text-white">
-                            {selectedClient.fitness_goals}
-                          </div>
-                        </div>
-                      )}
-                      {selectedClient.notes && (
-                        <div>
-                          <div className="text-zinc-400 mb-1">
-                            Additional Notes:
-                          </div>
-                          <div className="text-white">
-                            {selectedClient.notes}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                    <div className="text-xs text-blue-300">
-                      <strong>AI Integration:</strong> All this information will
-                      be automatically included in the AI prompt to generate a
-                      highly personalized diet plan tailored specifically for{" "}
-                      {selectedClient.first_name}.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Plan Title */}
+            {/* Plan Details */}
             <div className="bg-zinc-800 rounded-lg p-6">
               <div className="flex items-center gap-2 mb-4">
                 <ChefHat className="w-5 h-5 text-blue-400" />
@@ -666,26 +661,6 @@ export default function Blueprints() {
                     onChange={(e) => setPlanTitle(e.target.value)}
                     className="w-full p-3 bg-zinc-700 border border-zinc-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                </div>
-
-                {/* AI Provider Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    AI Provider
-                  </label>
-                  <select
-                    value={aiProvider}
-                    onChange={(e) => setAiProvider(e.target.value)}
-                    className="w-full p-3 bg-zinc-700 border border-zinc-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {AI_PROVIDERS.filter((provider) => provider.enabled).map(
-                      (provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      )
-                    )}
-                  </select>
                 </div>
               </div>
             </div>
@@ -771,63 +746,11 @@ export default function Blueprints() {
                 </div>
               </div>
             </div>
-            {/* Meal Complexity */}
-            <div className="bg-zinc-800 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-5 h-5 text-blue-400" />
-                <h2 className="text-xl font-semibold">Meal Complexity</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {MEAL_COMPLEXITY.map((complexity) => {
-                  const IconComponent = complexity.icon;
-                  return (
-                    <button
-                      key={complexity.id}
-                      onClick={() => setMealComplexity(complexity.id)}
-                      className={`p-4 rounded-lg border-2 transition-all text-left ${
-                        mealComplexity === complexity.id
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-zinc-600 hover:border-zinc-500"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <IconComponent className="w-5 h-5 text-blue-400" />
-                        <span className="font-medium">{complexity.name}</span>
-                      </div>
-                      <p className="text-sm text-gray-400">
-                        {complexity.description}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Additional Notes */}
-            <div className="bg-zinc-800 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertCircle className="w-5 h-5 text-blue-400" />
-                <h2 className="text-xl font-semibold">Additional Notes</h2>
-              </div>
-
-              <textarea
-                placeholder="Any specific requirements, preferences, or notes for the AI to consider..."
-                value={additionalNotes}
-                onChange={(e) => setAdditionalNotes(e.target.value)}
-                rows={4}
-                className="w-full p-3 bg-zinc-700 border border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </div>
-          </div>
-
-          {/* Action Panel */}
-          <div className="space-y-6">
             {/* Generation Controls */}
             <div className="bg-zinc-800 rounded-lg p-6">
               <h3 className="text-lg font-semibold mb-4">Generate Plan</h3>
 
               <div className="space-y-4">
-                {" "}
                 <button
                   onClick={handleGeneratePlan}
                   disabled={!planType || !planTitle.trim() || generating}
@@ -853,202 +776,213 @@ export default function Blueprints() {
                 </button>
               </div>
             </div>
-            {/* Configuration Summary */}
-            <div className="bg-zinc-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Configuration Summary
-              </h3>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Client:</span>{" "}
-                  <span className="text-right">
-                    {selectedClient
-                      ? `${selectedClient.first_name} ${selectedClient.last_name}`
-                      : "Generic Plan"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Goal:</span>
-                  <span className="text-right">
-                    {planType
-                      ? DIET_PLAN_TYPES.find((p) => p.id === planType)?.name
-                      : "Not selected"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Meals:</span>
-                  <span>{mealsPerDay} per day</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Complexity:</span>
-                  <span className="capitalize">{mealComplexity}</span>
-                </div>
-
-                {useCustomCalories && customCalories && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Calories:</span>
-                    <span>{customCalories} kcal</span>
-                  </div>
-                )}
-              </div>
-            </div>{" "}
-            {/* Generated Plan Preview */}
-            {currentPlan && (
-              <div className="bg-green-900/20 border border-green-600 rounded-lg p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  <h3 className="text-lg font-semibold text-green-400">
-                    Plan Generated!
-                  </h3>
-                </div>
-                <p className="text-sm text-gray-300 mb-4">
-                  {currentPlan.title} has been successfully generated
-                  {currentPlan.client_name && ` for ${currentPlan.client_name}`}
-                </p>{" "}
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleViewPlanDetails(currentPlan)}
-                    className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors text-sm"
-                  >
-                    View Full Plan
-                  </button>
-                  <button className="w-full py-2 px-4 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors text-sm">
-                    Save & Assign
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-
-        {/* Plan Management Section */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Eye className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold">Existing Diet Plans</h2>
+      </div>{" "}
+      {/* All existing modals remain the same */}
+      {/* View All Plans Modal */}
+      {showPlansList && (
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-white">
+                All Diet Plans
+              </h2>
+              <button
+                onClick={() => setShowPlansList(false)}
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={() => setShowPlansList(!showPlansList)}
-              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors"
-            >
-              {showPlansList ? "Hide Plans" : "Show Plans"}
-            </button>
-          </div>
 
-          {showPlansList && (
-            <div className="bg-zinc-800 rounded-lg p-6">
+            <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-dark">
               {dietPlans.length === 0 ? (
                 <div className="text-center py-8">
                   <ChefHat className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
                   <p className="text-zinc-400">No diet plans created yet</p>
-                  <p className="text-sm text-zinc-500 mt-2">
-                    Create your first AI-generated diet plan above
-                  </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {dietPlans.map((plan) => (
                     <div
                       key={plan.id}
-                      className="bg-zinc-700 rounded-lg p-4 border border-zinc-600"
+                      className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700 hover:border-zinc-600 transition-all"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-white mb-1">
+                          <h3 className="font-semibold text-white text-sm truncate">
                             {plan.title}
                           </h3>
-                          {plan.client_name && (
-                            <p className="text-sm text-green-400 mb-1">
-                              For: {plan.client_name}
-                            </p>
-                          )}
-                          <p className="text-xs text-zinc-400">
-                            {plan.plan_type &&
-                              DIET_PLAN_TYPES.find(
-                                (t) => t.id === plan.plan_type
-                              )?.name}
+                          <p className="text-xs text-zinc-400 mt-1">
+                            {plan.client_name || "Generic Plan"}
+                          </p>
+                          <p className="text-xs text-zinc-500 mt-1">
+                            Created:{" "}
+                            {new Date(plan.created_at).toLocaleDateString()}
                           </p>
                         </div>
+
+                        <div className="flex items-center gap-1 ml-3">
+                          <button
+                            onClick={() => handleViewPlanDetails(plan)}
+                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-blue-400 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedPlanForAction(plan);
+                              setShowAssignModal(true);
+                            }}
+                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-green-400 transition-colors"
+                            title="Assign to Clients"
+                          >
+                            <Users className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedPlanForAction(plan);
+                              setShowDuplicateModal(true);
+                            }}
+                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-yellow-400 transition-colors"
+                            title="Duplicate to Clients"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedPlanForAction(plan);
+                              setShowDeleteConfirmModal(true);
+                            }}
+                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
+                            title="Delete Plan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-4">
-                        <span>{plan.meals_per_day} meals/day</span>
-                        <span className="capitalize">
-                          {plan.meal_complexity}
+
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="px-2 py-1 bg-zinc-700 rounded text-zinc-300">
+                          {plan.plan_type?.replace("_", " ") || "Unknown Type"}
                         </span>
-                      </div>{" "}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewPlanDetails(plan)}
-                          className="flex-1 px-3 py-2 bg-zinc-600 hover:bg-zinc-500 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
-                          title="View full plan details"
-                        >
-                          <Eye className="w-3 h-3" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedPlanForAction(plan);
-                            setShowDuplicateModal(true);
-                          }}
-                          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
-                          title="Duplicate this plan"
-                        >
-                          <Copy className="w-3 h-3" />
-                          Duplicate
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedPlanForAction(plan);
-                            setShowLinkModal(true);
-                          }}
-                          className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
-                          title="Link to clients"
-                        >
-                          <Link className="w-3 h-3" />
-                          Link
-                        </button>
+                        <span className="px-2 py-1 bg-zinc-700 rounded text-zinc-300">
+                          {plan.meals_per_day} meals/day
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
+      )}
+      {/* Plan Details Modal */}
+      {showPlanDetailModal && planDetails && (
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-white">
+                {planDetails.title}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowPlanDetailModal(false);
+                  setPlanDetails(null);
+                }}
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        {/* Duplicate Plan Modal */}
-        {showDuplicateModal && selectedPlanForAction && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-zinc-800 rounded-lg p-6 w-full max-w-md mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Duplicate Plan</h3>
-                <button
-                  onClick={() => {
-                    setShowDuplicateModal(false);
-                    setSelectedPlanForAction(null);
-                    setSelectedClientsForAction([]);
-                  }}
-                  className="text-zinc-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+            <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-dark">
+              <div className="space-y-6">
+                {/* Plan Info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-xs text-zinc-500">Client</span>
+                    <p className="text-sm font-medium text-zinc-300">
+                      {planDetails.client_name || "Generic Plan"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-zinc-500">Plan Type</span>
+                    <p className="text-sm font-medium text-zinc-300">
+                      {planDetails.plan_type?.replace("_", " ") || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-zinc-500">Meals/Day</span>
+                    <p className="text-sm font-medium text-zinc-300">
+                      {planDetails.meals_per_day}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-zinc-500">Created</span>
+                    <p className="text-sm font-medium text-zinc-300">
+                      {new Date(planDetails.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Plan Content */}
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-300 mb-3">
+                    Diet Plan Content
+                  </h3>
+                  <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
+                    <div
+                      className="text-sm text-zinc-300 whitespace-pre-wrap max-h-96 overflow-y-auto scrollbar-thin scrollbar-dark"
+                      dangerouslySetInnerHTML={{
+                        __html: planDetails.content || "No content available",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Assign Plan Modal */}
+      {showAssignModal && selectedPlanForAction && (
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-white">
+                Assign Plan to Clients
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setSelectedPlanForAction(null);
+                  setSelectedClientsForAction([]);
+                }}
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                  Plan: {selectedPlanForAction.title}
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Select clients to assign this plan to
+                </p>
               </div>
 
-              <p className="text-sm text-zinc-400 mb-4">
-                Select clients to create copies of "
-                {selectedPlanForAction.title}" for:
-              </p>
-
-              <div className="max-h-64 overflow-y-auto mb-4">
+              <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-dark border border-zinc-700 rounded-lg">
                 {clients.map((client) => (
                   <label
                     key={client.id}
-                    className="flex items-center gap-3 p-3 hover:bg-zinc-700 rounded cursor-pointer"
+                    className="flex items-center gap-3 p-3 hover:bg-zinc-800 cursor-pointer border-b border-zinc-700 last:border-b-0"
                   >
                     <input
                       type="checkbox"
@@ -1067,13 +1001,13 @@ export default function Blueprints() {
                           );
                         }
                       }}
-                      className="w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 rounded focus:ring-blue-500"
+                      className="rounded border-zinc-600 text-blue-500 focus:ring-blue-500"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-white">
+                      <div className="font-medium text-zinc-300">
                         {client.first_name} {client.last_name}
                       </div>
-                      <div className="text-xs text-zinc-400">
+                      <div className="text-sm text-zinc-400">
                         {client.email}
                       </div>
                     </div>
@@ -1081,344 +1015,158 @@ export default function Blueprints() {
                 ))}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowAssignModal(false);
+                    setSelectedPlanForAction(null);
+                    setSelectedClientsForAction([]);
+                  }}
+                  className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignPlan}
+                  disabled={
+                    selectedClientsForAction.length === 0 || isAssigning
+                  }
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-zinc-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-white flex items-center gap-2"
+                >
+                  {isAssigning ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="w-4 h-4" />
+                      Assign Plan ({selectedClientsForAction.length})
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Duplicate Plan Modal */}
+      {showDuplicateModal && selectedPlanForAction && (
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-white">
+                Duplicate Plan to Clients
+              </h2>
+              <button
+                onClick={() => {
+                  setShowDuplicateModal(false);
+                  setSelectedPlanForAction(null);
+                  setSelectedClientsForAction([]);
+                }}
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                  Plan: {selectedPlanForAction.title}
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Create separate copies of this plan for selected clients
+                </p>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-dark border border-zinc-700 rounded-lg">
+                {clients.map((client) => (
+                  <label
+                    key={client.id}
+                    className="flex items-center gap-3 p-3 hover:bg-zinc-800 cursor-pointer border-b border-zinc-700 last:border-b-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedClientsForAction.includes(client.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedClientsForAction([
+                            ...selectedClientsForAction,
+                            client.id,
+                          ]);
+                        } else {
+                          setSelectedClientsForAction(
+                            selectedClientsForAction.filter(
+                              (id) => id !== client.id
+                            )
+                          );
+                        }
+                      }}
+                      className="rounded border-zinc-600 text-blue-500 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-zinc-300">
+                        {client.first_name} {client.last_name}
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        {client.email}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => {
                     setShowDuplicateModal(false);
                     setSelectedPlanForAction(null);
                     setSelectedClientsForAction([]);
                   }}
-                  className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors text-white"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDuplicatePlan}
-                  disabled={selectedClientsForAction.length === 0}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+                  disabled={
+                    selectedClientsForAction.length === 0 || isDuplicating
+                  }
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-white flex items-center gap-2"
                 >
-                  Duplicate
+                  {isDuplicating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      Duplicating...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Duplicate Plan ({selectedClientsForAction.length})
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Link Plan Modal */}
-        {showLinkModal && selectedPlanForAction && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-zinc-800 rounded-lg p-6 w-full max-w-md mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Link Plan to Clients</h3>
-                <button
-                  onClick={() => {
-                    setShowLinkModal(false);
-                    setSelectedPlanForAction(null);
-                    setSelectedClientsForAction([]);
-                  }}
-                  className="text-zinc-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <p className="text-sm text-zinc-400 mb-4">
-                Select clients to link "{selectedPlanForAction.title}" to:
-              </p>
-
-              <div className="max-h-64 overflow-y-auto mb-4">
-                {clients.map((client) => (
-                  <label
-                    key={client.id}
-                    className="flex items-center gap-3 p-3 hover:bg-zinc-700 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedClientsForAction.includes(client.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedClientsForAction([
-                            ...selectedClientsForAction,
-                            client.id,
-                          ]);
-                        } else {
-                          setSelectedClientsForAction(
-                            selectedClientsForAction.filter(
-                              (id) => id !== client.id
-                            )
-                          );
-                        }
-                      }}
-                      className="w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 rounded focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">
-                        {client.first_name} {client.last_name}
-                      </div>
-                      <div className="text-xs text-zinc-400">
-                        {client.email}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowLinkModal(false);
-                    setSelectedPlanForAction(null);
-                    setSelectedClientsForAction([]);
-                  }}
-                  className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleLinkPlan}
-                  disabled={selectedClientsForAction.length === 0}
-                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-zinc-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
-                >
-                  Link
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Plan Details Modal */}
-        {showPlanDetailModal && planDetails && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-zinc-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-zinc-800 border-b border-zinc-700 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">
-                      {planDetails.title}
-                    </h3>
-                    {planDetails.client_name && (
-                      <p className="text-sm text-green-400">
-                        For: {planDetails.client_name}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowPlanDetailModal(false);
-                      setPlanDetails(null);
-                    }}
-                    className="text-zinc-400 hover:text-white"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {/* Plan Overview */}
-                {planDetails.ai_input && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Plan Overview
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div className="bg-zinc-700 rounded-lg p-3">
-                        <div className="text-zinc-400">Goal</div>
-                        <div className="text-white font-medium">
-                          {DIET_PLAN_TYPES.find(
-                            (t) => t.id === planDetails.ai_input.plan_type
-                          )?.name || planDetails.ai_input.plan_type}
-                        </div>
-                      </div>
-                      <div className="bg-zinc-700 rounded-lg p-3">
-                        <div className="text-zinc-400">Meals/Day</div>
-                        <div className="text-white font-medium">
-                          {planDetails.ai_input.meals_per_day}
-                        </div>
-                      </div>
-                      <div className="bg-zinc-700 rounded-lg p-3">
-                        <div className="text-zinc-400">Complexity</div>
-                        <div className="text-white font-medium capitalize">
-                          {planDetails.ai_input.meal_complexity}
-                        </div>
-                      </div>
-                      {planDetails.ai_input.custom_calories && (
-                        <div className="bg-zinc-700 rounded-lg p-3">
-                          <div className="text-zinc-400">Target Calories</div>
-                          <div className="text-white font-medium">
-                            {planDetails.ai_input.custom_calories} kcal
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily Totals */}
-                {planDetails.ai_content?.daily_totals && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Daily Nutrition Summary
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-3">
-                        <div className="text-blue-400">Calories</div>
-                        <div className="text-white font-medium text-lg">
-                          {planDetails.ai_content.daily_totals.calories}
-                        </div>
-                      </div>
-                      <div className="bg-green-900/20 border border-green-600 rounded-lg p-3">
-                        <div className="text-green-400">Protein</div>
-                        <div className="text-white font-medium text-lg">
-                          {planDetails.ai_content.daily_totals.protein}g
-                        </div>
-                      </div>
-                      <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-3">
-                        <div className="text-yellow-400">Carbs</div>
-                        <div className="text-white font-medium text-lg">
-                          {planDetails.ai_content.daily_totals.carbs}g
-                        </div>
-                      </div>
-                      <div className="bg-purple-900/20 border border-purple-600 rounded-lg p-3">
-                        <div className="text-purple-400">Fats</div>
-                        <div className="text-white font-medium text-lg">
-                          {planDetails.ai_content.daily_totals.fats}g
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Meals */}
-                {planDetails.ai_content?.meals && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Meal Plan
-                    </h4>
-                    <div className="space-y-4">
-                      {planDetails.ai_content.meals.map((meal, index) => (
-                        <div key={index} className="bg-zinc-700 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <h5 className="font-semibold text-white">
-                              Meal {meal.meal_number}: {meal.name}
-                            </h5>
-                            <div className="text-sm text-zinc-400">
-                              {meal.preparation_time}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 text-sm">
-                            <div className="text-blue-400">
-                              {meal.calories} cal
-                            </div>
-                            <div className="text-green-400">
-                              {meal.protein}g protein
-                            </div>
-                            <div className="text-yellow-400">
-                              {meal.carbs}g carbs
-                            </div>
-                            <div className="text-purple-400">
-                              {meal.fats}g fats
-                            </div>
-                          </div>
-
-                          <div className="mb-2">
-                            <div className="text-sm text-zinc-400 mb-1">
-                              Ingredients:
-                            </div>
-                            <div className="text-sm text-white">
-                              {meal.ingredients.join(", ")}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-zinc-400 mb-1">
-                              Instructions:
-                            </div>
-                            <div className="text-sm text-white">
-                              {meal.instructions}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Shopping List */}
-                {planDetails.ai_content?.shopping_list && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Shopping List
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(planDetails.ai_content.shopping_list).map(
-                        ([category, items]) => (
-                          <div
-                            key={category}
-                            className="bg-zinc-700 rounded-lg p-4"
-                          >
-                            <h5 className="font-semibold text-white mb-2">
-                              {category}
-                            </h5>
-                            <ul className="text-sm text-zinc-300 space-y-1">
-                              {items.map((item, index) => (
-                                <li key={index}>• {item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Meal Timing */}
-                {planDetails.ai_content?.meal_timing && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Recommended Meal Timing
-                    </h4>
-                    <div className="bg-zinc-700 rounded-lg p-4">
-                      <ul className="text-sm text-zinc-300 space-y-2">
-                        {planDetails.ai_content.meal_timing.map(
-                          (timing, index) => (
-                            <li key={index} className="flex items-center gap-2">
-                              <Clock className="w-4 h-4 text-blue-400" />
-                              {timing}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Preparation Tips */}
-                {planDetails.ai_content?.preparation_tips && (
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-3">
-                      Preparation Tips
-                    </h4>
-                    <div className="bg-zinc-700 rounded-lg p-4">
-                      <ul className="text-sm text-zinc-300 space-y-2">
-                        {planDetails.ai_content.preparation_tips.map(
-                          (tip, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <ChefHat className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                              {tip}{" "}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmModal}
+        onClose={() => {
+          setShowDeleteConfirmModal(false);
+          setSelectedPlanForAction(null);
+        }}
+        onConfirm={handleDeletePlan}
+        title="Delete Diet Plan"
+        message={`Are you sure you want to delete "${selectedPlanForAction?.title}"? This action cannot be undone.`}
+        confirmText="Delete Plan"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }
