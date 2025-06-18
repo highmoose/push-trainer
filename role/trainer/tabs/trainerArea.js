@@ -26,9 +26,11 @@ export default function trainerDashboard() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [showTab, setShowTab] = useState("dashboard");
-
   const authUser = useSelector((state) => state.auth.user);
-  const authUserId = authUser?.user?.id;
+  const authUserId = authUser?.id; // Fixed: removed .user
+
+  console.log("TrainerArea - authUser:", authUser);
+  console.log("TrainerArea - authUserId:", authUserId);
   useEffect(() => {
     if (user?.role === "trainer" && authUserId) {
       // Once all pages are in, pull all this data in one go instead of seperate calls

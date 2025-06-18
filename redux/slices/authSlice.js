@@ -1,6 +1,31 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "@lib/axios";
 
+// Verify current session with server
+export const verifyAuth = createAsyncThunk(
+  "auth/verify",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get("/api/user");
+      console.log("Server verification successful:", res.data);
+      return res.data;
+    } catch (err) {
+      console.log(
+        "Server verification failed:",
+        err.response?.status,
+        err.response?.data
+      );
+
+      // Clear invalid session data
+      localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("lastActivity");
+
+      return rejectWithValue(err.response?.data?.message || "Session invalid");
+    }
+  }
+);
+
 export const register = createAsyncThunk(
   "auth/register",
   async (
@@ -17,6 +42,10 @@ export const register = createAsyncThunk(
         password_confirmation,
         role,
       });
+
+      // Set activity timestamp
+      localStorage.setItem("lastActivity", Date.now().toString());
+
       return res.data;
     } catch (err) {
       const error = err.response?.data?.errors;
@@ -41,8 +70,15 @@ export const login = createAsyncThunk(
         email,
         password,
       });
+
+      console.log("Login successful:", res.data);
+
+      // Set activity timestamp
+      localStorage.setItem("lastActivity", Date.now().toString());
+
       return res.data; // should be the user object
     } catch (err) {
+      console.error("Login error:", err.response?.data);
       return rejectWithValue(err.response?.data?.message || "Login failed");
     }
   }
@@ -63,6 +99,7 @@ export const logout = createAsyncThunk(
     } finally {
       localStorage.removeItem("user");
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("lastActivity");
     }
   }
 );
@@ -71,47 +108,113 @@ const authSlice = createSlice({
   name: "auth",
   initialState: {
     user: null,
-    status: "idle",
+    status: "idle", // idle, loading, succeeded, failed
     error: null,
     hydrated: false,
+    isAuthenticated: false,
+    sessionExpired: false,
   },
   reducers: {
     setUser: (state, action) => {
       state.user = action.payload;
+      state.isAuthenticated = !!action.payload;
       state.hydrated = true;
+      state.sessionExpired = false;
+
+      // Update activity timestamp
+      if (action.payload) {
+        localStorage.setItem("lastActivity", Date.now().toString());
+      }
     },
     clearUser: (state) => {
       state.user = null;
+      state.isAuthenticated = false;
       state.hydrated = true;
+      state.sessionExpired = false;
       localStorage.removeItem("user");
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("lastActivity");
+    },
+    updateActivity: (state) => {
+      if (state.isAuthenticated) {
+        localStorage.setItem("lastActivity", Date.now().toString());
+      }
+    },
+    setSessionExpired: (state) => {
+      state.sessionExpired = true;
+      state.user = null;
+      state.isAuthenticated = false;
+      localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("lastActivity");
+    },
+    resetAuthStatus: (state) => {
+      state.status = "idle";
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
+      .addCase(verifyAuth.pending, (state) => {
+        state.status = "loading";
+        // Don't clear user while verifying
+      })
+      .addCase(verifyAuth.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.hydrated = true;
+        state.sessionExpired = false;
+        localStorage.setItem("user", JSON.stringify(action.payload));
+        localStorage.setItem("lastActivity", Date.now().toString());
+      })
+      .addCase(verifyAuth.rejected, (state, action) => {
+        state.status = "failed";
+        state.user = null;
+        state.isAuthenticated = false;
+        state.hydrated = true;
+        state.sessionExpired = false; // Don't automatically set sessionExpired here
+        state.error = action.payload;
+        // localStorage is already cleared in the thunk
+      })
       .addCase(login.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.user = action.payload;
-        localStorage.setItem("user", JSON.stringify(action.payload)); // ✅ store user
+        state.user = action.payload.user || action.payload; // Handle both formats
+        state.isAuthenticated = true;
+        state.sessionExpired = false;
+        state.error = null;
+
+        const userData = action.payload.user || action.payload;
+        localStorage.setItem("user", JSON.stringify(userData));
 
         // Store the auth token separately for API calls
         if (action.payload.token) {
           localStorage.setItem("auth_token", action.payload.token);
+          console.log(
+            "Auth token stored:",
+            action.payload.token.substring(0, 20) + "..."
+          );
         }
+
+        localStorage.setItem("lastActivity", Date.now().toString());
       })
       .addCase(login.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+        state.isAuthenticated = false;
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.status = "idle";
-        localStorage.removeItem("user"); // ✅ remove user
-        localStorage.removeItem("auth_token"); // ✅ remove auth token
+        state.isAuthenticated = false;
+        state.sessionExpired = false;
+        localStorage.removeItem("user");
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("lastActivity");
       })
       .addCase(register.pending, (state) => {
         state.status = "loading";
@@ -120,19 +223,30 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.user = action.payload;
+        state.isAuthenticated = true;
+        state.sessionExpired = false;
         localStorage.setItem("user", JSON.stringify(action.payload));
 
         // Store the auth token separately for API calls if returned
         if (action.payload.token) {
           localStorage.setItem("auth_token", action.payload.token);
         }
+
+        localStorage.setItem("lastActivity", Date.now().toString());
       })
       .addCase(register.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+        state.isAuthenticated = false;
       });
   },
 });
 
-export const { setUser, clearUser } = authSlice.actions;
+export const {
+  setUser,
+  clearUser,
+  updateActivity,
+  setSessionExpired,
+  resetAuthStatus,
+} = authSlice.actions;
 export default authSlice.reducer;

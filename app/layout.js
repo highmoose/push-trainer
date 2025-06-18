@@ -6,6 +6,7 @@ import { MantineProvider } from "@mantine/core";
 import { DatesProvider } from "@mantine/dates";
 import store from "@redux/store";
 import AuthHydration from "@redux/store/AuthHydration";
+import AuthGuard from "@/components/auth/AuthGuard";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import "./globals.css";
@@ -31,15 +32,17 @@ export default function RootLayout({ children }) {
 
         <ReduxProvider store={store}>
           <AuthHydration />
-          <MantineProvider
-            withGlobalStyles
-            withNormalizeCSS
-            theme={mantineTheme}
-          >
-            <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
-              {children}
-            </DatesProvider>
-          </MantineProvider>
+          <AuthGuard>
+            <MantineProvider
+              withGlobalStyles
+              withNormalizeCSS
+              theme={mantineTheme}
+            >
+              <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
+                {children}
+              </DatesProvider>
+            </MantineProvider>
+          </AuthGuard>
         </ReduxProvider>
       </body>
     </html>

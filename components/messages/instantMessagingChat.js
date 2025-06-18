@@ -30,6 +30,9 @@ export default function InstantMessagingChat({
 }) {
   const textAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
+  console.log("InstantMessagingChat - Received messages:", messages);
+  console.log("InstantMessagingChat - User:", user);
+  console.log("InstantMessagingChat - authUserId:", authUserId);
 
   // const [chartHovered, setChartHovered] = useState(false);
 
@@ -106,35 +109,46 @@ export default function InstantMessagingChat({
                 <IconButton icon={<NotebookPen size={20} />} />
               </div>
             </div>
-          </div>
-
+          </div>{" "}
           {/* Messages */}
           <div className="flex flex-col gap-2 flex-1 max-h-[510px]">
             <div
               ref={messagesEndRef}
               className="flex-1 w-full mb-1 overflow-y-scroll"
             >
+              {messages.length === 0 && (
+                <div className="p-4 text-center text-zinc-400">
+                  No messages yet. Start the conversation!
+                </div>
+              )}{" "}
               {messages.map((msg, index) => {
-                const isMe = msg.sender_id === authUserId;
+                // Convert both to strings for comparison to handle type mismatches
+                const msgSenderId = String(msg.sender_id);
+                const currentUserId = String(authUserId);
+                const isMe = msgSenderId === currentUserId;
 
                 return (
                   <div
-                    key={index}
-                    className={`flex ${isMe ? "flex-row-reverse" : ""} p-2`}
+                    key={msg.id || index}
+                    className={`flex w-full mb-2 ${
+                      isMe ? "justify-end" : "justify-start"
+                    }`}
                   >
                     <div
                       className={`${
                         isMe
-                          ? "bg-zinc-100 text-zinc-800 ml-auto"
-                          : "bg-zinc-300 text-black mr-auto"
-                      } px-4 py-2 rounded-lg max-w-xs text-[15px] leading-tight`}
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-800"
+                      } px-4 py-2 rounded-lg max-w-[70%] text-sm leading-relaxed ${
+                        isMe ? "rounded-br-sm" : "rounded-bl-sm"
+                      }`}
                     >
                       {msg.content}
-                      {/* {msg.pending && (
-                        <span className="text-xs text-zinc-500 ml-2">
+                      {msg.pending && (
+                        <span className="text-xs opacity-70 ml-2">
                           (sending...)
                         </span>
-                      )} */}
+                      )}
                     </div>
                   </div>
                 );

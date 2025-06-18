@@ -62,10 +62,31 @@ const messagingSlice = createSlice({
   name: "messaging",
   initialState,
   reducers: {
+    setAuthUserId(state, action) {
+      state.authUserId = action.payload;
+    },
     addMessage(state, action) {
       const msg = action.payload;
+      console.log("🔄 addMessage reducer - msg:", msg);
+      console.log(
+        "🔄 addMessage reducer - current authUserId:",
+        state.authUserId
+      );
+      console.log("🔄 addMessage reducer - msg.pending:", msg.pending);
+      console.log("🔄 addMessage reducer - msg.sender_id:", msg.sender_id);
+
+      // For pending messages (optimistic updates), only show to the sender
+      if (msg.pending && msg.sender_id != state.authUserId) {
+        console.log(
+          "⏭️ addMessage reducer - skipping pending message for non-sender"
+        );
+        return;
+      }
+
       const otherUserId =
-        msg.sender_id === state.authUserId ? msg.receiver_id : msg.sender_id;
+        msg.sender_id == state.authUserId ? msg.receiver_id : msg.sender_id; // Using == instead of === for loose comparison
+
+      console.log("👤 addMessage reducer - otherUserId:", otherUserId);
 
       if (!state.messagesByUser[otherUserId]) {
         state.messagesByUser[otherUserId] = [];
@@ -77,6 +98,30 @@ const messagingSlice = createSlice({
       );
       if (!exists) {
         state.messagesByUser[otherUserId].push(msg);
+        console.log(
+          "✅ addMessage reducer - added message to user:",
+          otherUserId
+        );
+        console.log(
+          "📊 addMessage reducer - messagesByUser after add:",
+          state.messagesByUser
+        );
+      } else {
+        // If message exists and this is a non-pending version, replace the pending one
+        if (!msg.pending) {
+          const index = state.messagesByUser[otherUserId].findIndex(
+            (m) => m.id === msg.id
+          );
+          if (index !== -1) {
+            state.messagesByUser[otherUserId][index] = msg;
+            console.log("🔄 addMessage reducer - replaced pending message");
+          }
+        } else {
+          console.log(
+            "⚠️ addMessage reducer - message already exists:",
+            msg.id
+          );
+        }
       }
     },
   },
@@ -87,7 +132,17 @@ const messagingSlice = createSlice({
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
         const { userId, messages } = action.payload;
+        console.log(
+          "fetchMessages.fulfilled - userId:",
+          userId,
+          "messages:",
+          messages
+        );
         state.messagesByUser[userId] = messages;
+        console.log(
+          "fetchMessages.fulfilled - messagesByUser updated:",
+          state.messagesByUser
+        );
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         const msg = action.payload;
@@ -113,11 +168,14 @@ const messagingSlice = createSlice({
           state.messagesByUser[otherUserId].push(msg);
         }
       })
-
       .addCase(fetchAllMessages.fulfilled, (state, action) => {
         const payload = action.payload || {};
         const messages = payload.messages || [];
         const authUserId = payload.authUserId || null;
+
+        console.log("fetchAllMessages.fulfilled - payload:", payload);
+        console.log("fetchAllMessages.fulfilled - messages:", messages);
+        console.log("fetchAllMessages.fulfilled - authUserId:", authUserId);
 
         const grouped = {};
 
@@ -128,11 +186,14 @@ const messagingSlice = createSlice({
           if (!grouped[otherUserId]) grouped[otherUserId] = [];
           grouped[otherUserId].push(msg);
         });
+
+        console.log("fetchAllMessages.fulfilled - grouped messages:", grouped);
+
         state.messagesByUser = grouped;
         state.authUserId = authUserId;
       });
   },
 });
 
-export const { addMessage } = messagingSlice.actions;
+export const { addMessage, setAuthUserId } = messagingSlice.actions;
 export default messagingSlice.reducer;

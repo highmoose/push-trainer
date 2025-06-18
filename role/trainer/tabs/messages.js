@@ -6,9 +6,21 @@ import {
   sendMessage,
   addMessage,
   fetchAllMessages,
+  fetchMessages,
+  setAuthUserId,
 } from "@/redux/slices/messagingSlice";
+import { fetchClients } from "@/redux/slices/clientSlice";
 import { nanoid } from "@reduxjs/toolkit";
-import { Columns2, Columns3, Columns4, Square } from "lucide-react";
+import {
+  Columns2,
+  Columns3,
+  Columns4,
+  Square,
+  MessageCircle,
+  Users,
+  Search,
+  Plus,
+} from "lucide-react";
 import api from "@/lib/axios";
 import { initSocket } from "@/lib/socket";
 
@@ -20,10 +32,42 @@ export default function Messages({ authUserId }) {
     (state) => state.messaging
   );
 
-  console.log("conversations", conversations);
+  const { list: clients = [], status: clientsStatus } = useSelector(
+    (state) => state.clients
+  );
 
   const [newMessages, setNewMessages] = useState({});
   const [timeframe, setTimeframe] = useState("24h");
+  const [showClientList, setShowClientList] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClientForNewChat, setSelectedClientForNewChat] =
+    useState(null);
+
+  // Debug logs after state declarations
+  console.log("conversations", conversations);
+  console.log("messagesByUser", messagesByUser);
+  console.log("selectedClientForNewChat", selectedClientForNewChat);
+  if (selectedClientForNewChat) {
+    console.log(
+      "Messages for selected client:",
+      messagesByUser[selectedClientForNewChat.id]
+    );
+  }
+  // Fetch clients when component mounts
+  useEffect(() => {
+    if (clientsStatus === "idle") {
+      dispatch(fetchClients());
+    }
+  }, [dispatch, clientsStatus]); // Fetch conversations and set up messaging when component mounts
+  useEffect(() => {
+    if (authUserId) {
+      // Set the authUserId in the messaging slice first
+      dispatch(setAuthUserId(authUserId));
+      dispatch(fetchConversations());
+      // Fetch all messages to populate the messagesByUser state
+      dispatch(fetchAllMessages({ authUserId }));
+    }
+  }, [dispatch, authUserId]);
 
   useEffect(() => {
     if (!authUserId) return;
@@ -31,23 +75,38 @@ export default function Messages({ authUserId }) {
     const socket = initSocket(authUserId);
     socket.connect();
     socketRef.current = socket;
-
     socket.on("receive-message", (message) => {
+      console.log("🔔 Trainer received WebSocket message:", message);
       dispatch(addMessage(message));
     });
-
     return () => {
       socket.disconnect();
     };
   }, [authUserId]);
 
+  // Fetch messages for selected client when it changes
+  useEffect(() => {
+    if (selectedClientForNewChat && authUserId) {
+      console.log(
+        "🔄 Selected client changed, fetching messages for:",
+        selectedClientForNewChat.id
+      );
+      dispatch(fetchMessages(selectedClientForNewChat.id));
+    }
+  }, [selectedClientForNewChat, authUserId, dispatch]);
   const handleInputChange = (userId, value) => {
     setNewMessages((prev) => ({ ...prev, [userId]: value }));
   };
-
   const handleSendMessage = async (userId) => {
     const content = newMessages[userId]?.trim();
     if (!content) return;
+
+    console.log(
+      "🚀 handleSendMessage called with userId:",
+      userId,
+      "content:",
+      content
+    );
 
     const tempId = nanoid();
     const optimisticMessage = {
@@ -59,24 +118,81 @@ export default function Messages({ authUserId }) {
       pending: true,
     };
 
+    console.log("📝 Dispatching optimistic message:", optimisticMessage);
     dispatch(addMessage(optimisticMessage));
     setNewMessages((prev) => ({ ...prev, [userId]: "" }));
 
     try {
-      // ✅ Emit via WebSocket once
-      socketRef.current?.emit("send-message", optimisticMessage);
+      // ✅ Emit via WebSocket once (without pending flag)
+      const websocketMessage = {
+        id: tempId,
+        sender_id: authUserId,
+        receiver_id: userId,
+        content,
+        created_at: optimisticMessage.created_at,
+        // Don't include pending: true for WebSocket
+      };
+      console.log("📡 Trainer sending WebSocket message:", websocketMessage);
+      socketRef.current?.emit("send-message", websocketMessage);
 
       // ✅ Persist to API
-      await api.post("/api/messages", {
+      const response = await api.post("/api/messages", {
         sender_id: authUserId,
         receiver_id: userId,
         content,
         created_at: optimisticMessage.created_at,
       });
+
+      console.log("✅ API response:", response.data);
+
+      // Replace the optimistic message with the real one from the API
+      const realMessage = response.data;
+      dispatch(addMessage(realMessage));
+
+      // Also refresh the conversation to make sure we have the latest data
+      dispatch(fetchMessages(userId));
     } catch (err) {
       console.error("❌ Failed to send message via API:", err);
     }
+  }; // Handle starting a new conversation with a client
+  const handleStartChatWithClient = (client) => {
+    setSelectedClientForNewChat(client);
+    // Don't close the client list - keep it open for easy navigation
+
+    // Initialize message state for this client if not exists
+    if (!newMessages[client.id]) {
+      setNewMessages((prev) => ({ ...prev, [client.id]: "" }));
+    }
+
+    // Always fetch messages for this specific client to get the latest conversation history
+    console.log("🔄 Fetching messages for client:", client.id);
+    dispatch(fetchMessages(client.id));
   };
+
+  // Filter clients based on search query
+  const filteredClients = clients.filter((client) => {
+    const fullName = `${client.first_name || ""} ${
+      client.last_name || ""
+    }`.toLowerCase();
+    const email = (client.email || "").toLowerCase();
+    const search = searchQuery.toLowerCase();
+    return fullName.includes(search) || email.includes(search);
+  });
+
+  // Get clients that don't have existing conversations
+  const availableClients = filteredClients.filter((client) => {
+    return !conversations.some((conv) => conv.user.id === client.id);
+  });
+  // Create a temporary conversation object for the selected client
+  const getClientAsConversation = (client) => ({
+    user: {
+      id: client.id,
+      first_name: client.first_name,
+      last_name: client.last_name,
+      email: client.email,
+      gym: client.gym || "Unknown Gym",
+    },
+  });
 
   function calculateEngagementLast24Hours(messages, authUserId, clientUserId) {
     const now = new Date();
@@ -190,67 +306,236 @@ export default function Messages({ authUserId }) {
       { name: "Client", data: movingAverage(client, 3) },
     ];
   }
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Chat Area */}
-      <div className="flex justify-between">
-        <div className="flex mb-4">
-          <div className=" flex items-center justify-center h-9 w-9 bg-zinc-900">
-            <Square size={24} />
+    <div className="flex h-full">
+      {/* Client List Sidebar */}
+      {showClientList && (
+        <div className="w-80 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-zinc-800">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Clients
+              </h2>
+              <button
+                onClick={() => setShowClientList(false)}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search clients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-400 focus:border-zinc-600 focus:outline-none"
+              />
+            </div>
           </div>
-          <div className=" flex items-center justify-center h-9 w-9 bg-zinc-900">
-            <Columns2 size={24} />
-          </div>
-          <div className=" flex items-center justify-center h-9 w-9 bg-zinc-900">
-            <Columns3 size={24} />
-          </div>
-          <div className=" flex items-center justify-center h-9 w-9 bg-zinc-900">
-            <Columns4 size={24} />
+
+          {/* Client List */}
+          <div className="flex-1 overflow-y-auto">
+            {" "}
+            {clientsStatus === "loading" && (
+              <div className="p-4 text-center text-zinc-400">
+                Loading clients...
+              </div>
+            )}
+            {clientsStatus === "failed" && (
+              <div className="p-4 text-center text-red-400">
+                Failed to load clients
+              </div>
+            )}
+            {filteredClients.length === 0 && searchQuery && (
+              <div className="p-4 text-center text-zinc-400">
+                No clients found
+              </div>
+            )}
+            {filteredClients.length === 0 &&
+              !searchQuery &&
+              clientsStatus === "succeeded" && (
+                <div className="p-4 text-center text-zinc-400">
+                  No clients assigned
+                </div>
+              )}
+            {filteredClients.map((client) => {
+              const hasConversation = conversations.some(
+                (conv) => conv.user.id === client.id
+              );
+              return (
+                <div
+                  key={client.id}
+                  onClick={() => handleStartChatWithClient(client)}
+                  className={`p-4 border-b border-zinc-800 hover:bg-zinc-800 cursor-pointer transition-colors group ${
+                    selectedClientForNewChat?.id === client.id
+                      ? "bg-zinc-800"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center relative">
+                      <span className="text-white font-medium">
+                        {(client.first_name?.[0] || "").toUpperCase()}
+                        {(client.last_name?.[0] || "").toUpperCase()}
+                      </span>
+                      {hasConversation && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-white">
+                        {client.first_name} {client.last_name}
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        {client.email}
+                        {hasConversation && (
+                          <span className="ml-2 text-green-400">
+                            • Active conversation
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <MessageCircle className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <select
-          value={timeframe}
-          onChange={(e) => setTimeframe(e.target.value)}
-          className="mb-2 rounded border px-4 py-1 text-sm text-white "
-        >
-          <option value="1h">Last 1 Hour</option>
-          <option value="24h">Last 24 Hours</option>
-          <option value="1w">Last Week</option>
-          <option value="1m">Last Month</option>
-          <option value="all">All Time</option>
-        </select>
-      </div>
-      <div className="flex overflow-x-scroll gap-x-2">
-        {(conversations || []).map((conv) => {
-          const userId = conv.user.id;
+      )}
 
-          const user = {
-            name: `${conv.user.first_name} ${conv.user.last_name}`,
-            gym: conv.user.gym || "",
-            lastActive: "Last active 12m ago",
-            avatar: "/images/placeholder/profile-placeholder.png",
-          };
+      {/* Messages Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-zinc-800">
+          <div className="flex items-center gap-4">
+            {!showClientList && (
+              <button
+                onClick={() => setShowClientList(true)}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                <Users className="w-5 h-5" />
+              </button>
+            )}
 
-          const messages = messagesByUser[userId] || [];
+            <div className="flex">
+              <div className="flex items-center justify-center h-9 w-9 bg-zinc-900">
+                <Square size={24} />
+              </div>
+              <div className="flex items-center justify-center h-9 w-9 bg-zinc-900">
+                <Columns2 size={24} />
+              </div>
+              <div className="flex items-center justify-center h-9 w-9 bg-zinc-900">
+                <Columns3 size={24} />
+              </div>
+              <div className="flex items-center justify-center h-9 w-9 bg-zinc-900">
+                <Columns4 size={24} />
+              </div>
+            </div>
+          </div>
 
-          return (
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="rounded border px-4 py-1 text-sm text-white bg-zinc-800"
+          >
+            <option value="1h">Last 1 Hour</option>
+            <option value="24h">Last 24 Hours</option>
+            <option value="1w">Last Week</option>
+            <option value="1m">Last Month</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex overflow-x-scroll gap-x-2 p-4">
+          {" "}
+          {/* Show new client chat if selected */}
+          {selectedClientForNewChat && (
             <InstantMessagingChat
-              key={userId}
-              user={user}
-              messages={messages}
+              key={selectedClientForNewChat.id}
+              user={{
+                name: `${selectedClientForNewChat.first_name} ${selectedClientForNewChat.last_name}`,
+                gym: selectedClientForNewChat.gym || "Unknown Gym",
+                lastActive: "Start new conversation",
+                avatar: "/images/placeholder/profile-placeholder.png",
+              }}
+              messages={(() => {
+                const messages =
+                  messagesByUser[selectedClientForNewChat.id] || [];
+                console.log(
+                  `📨 Messages for client ${selectedClientForNewChat.id}:`,
+                  messages
+                );
+                return messages;
+              })()}
               authUserId={authUserId}
               engagement={calculateEngagementDataAverages(
-                messages,
+                messagesByUser[selectedClientForNewChat.id] || [],
                 authUserId,
-                userId
+                selectedClientForNewChat.id
               )}
-              message={newMessages[userId] || ""}
-              onChange={(e) => handleInputChange(userId, e.target.value)}
-              onSend={() => handleSendMessage(userId)}
+              message={newMessages[selectedClientForNewChat.id] || ""}
+              onChange={(e) =>
+                handleInputChange(selectedClientForNewChat.id, e.target.value)
+              }
+              onSend={() => handleSendMessage(selectedClientForNewChat.id)}
             />
-          );
-        })}
+          )}
+          {/* Show existing conversations */}
+          {(conversations || []).map((conv) => {
+            const userId = conv.user.id;
+
+            const user = {
+              name: `${conv.user.first_name} ${conv.user.last_name}`,
+              gym: conv.user.gym || "",
+              lastActive: "Last active 12m ago",
+              avatar: "/images/placeholder/profile-placeholder.png",
+            };
+
+            const messages = messagesByUser[userId] || [];
+
+            return (
+              <InstantMessagingChat
+                key={userId}
+                user={user}
+                messages={messages}
+                authUserId={authUserId}
+                engagement={calculateEngagementDataAverages(
+                  messages,
+                  authUserId,
+                  userId
+                )}
+                message={newMessages[userId] || ""}
+                onChange={(e) => handleInputChange(userId, e.target.value)}
+                onSend={() => handleSendMessage(userId)}
+              />
+            );
+          })}
+          {/* Empty state when no conversations */}
+          {!selectedClientForNewChat &&
+            (!conversations || conversations.length === 0) && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center text-zinc-400">
+                  <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">
+                    No conversations yet
+                  </h3>
+                  <p className="text-sm">
+                    {showClientList
+                      ? "Select a client to start messaging"
+                      : "Click the users icon to view clients"}
+                  </p>
+                </div>
+              </div>
+            )}
+        </div>
       </div>
     </div>
   );
