@@ -758,13 +758,12 @@ export default function TrainerCalendarPage() {
       document.body.classList.remove("resizing", "no-select");
     };
   }, [isResizing, isResizingTask, resizingSession, resizingTask, resizeType]);
-
-  // Scroll to middle of day (6 AM) on initial load
+  // Scroll to middle of day (8 AM) on initial load
   useEffect(() => {
     if (calendarContainerRef.current) {
       // Each hour is 60px tall, header is 40px
-      // 6 AM is hour index 6, so scroll to 6 * 60 = 360px
-      const scrollToPosition = 6 * 60; // 6 AM position
+      // 8 AM is hour index 8, so scroll to 8 * 60 = 480px
+      const scrollToPosition = 8 * 60; // 8 AM position
       calendarContainerRef.current.scrollTop = scrollToPosition;
     }
   }, []);
@@ -1598,9 +1597,8 @@ export default function TrainerCalendarPage() {
           <div className="text-xs text-zinc-500 mt-2">
             Applies to both sessions and tasks
           </div>
-        </div>{" "}
-        {/* Upcoming Sessions & Tasks */}
-        <div className="flex-1 p-4 overflow-hidden">
+        </div>{" "}        {/* Upcoming Sessions & Tasks */}
+        <div className="flex-1 p-4 overflow-hidden flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">
               Upcoming Items
@@ -1612,7 +1610,7 @@ export default function TrainerCalendarPage() {
               Today
             </button>
           </div>
-          <div className="space-y-2 overflow-y-auto max-h-96 scrollbar-thin scrollbar-dark pr-2">
+          <div className="flex-1 space-y-2 overflow-y-auto scrollbar-thin scrollbar-dark pr-2 min-h-0">
             {/* Upcoming Sessions */}
             {displaySessions
               .filter((session) => dayjs(session.start_time).isAfter(dayjs()))

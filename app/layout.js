@@ -24,9 +24,9 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
       >
         <div id="mantine-portal" />
 
@@ -39,7 +39,9 @@ export default function RootLayout({ children }) {
               theme={mantineTheme}
             >
               <DatesProvider settings={{ locale: "en", firstDayOfWeek: 1 }}>
-                {children}
+                <div className="h-full">
+                  {children}
+                </div>
               </DatesProvider>
             </MantineProvider>
           </AuthGuard>

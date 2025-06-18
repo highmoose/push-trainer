@@ -42,11 +42,10 @@ export default function trainerDashboard() {
       dispatch(fetchAllMessages({ authUserId })); // ✅ pass id explicitly
     }
   }, [dispatch, user, authUserId]);
-
   return (
-    <div className="flex flex-col w-full min-h-screen ">
+    <div className="flex flex-col w-full h-full overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
-      <div className="flex-1 w-full px-8 pb-8">
+      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">
         {/* Menu Tabs  */}
         {showTab === "dashboard" && <Dashboard />}
         {showTab === "messages" && <Messages authUserId={authUserId} />}
