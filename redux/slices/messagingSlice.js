@@ -90,12 +90,29 @@ const messagingSlice = createSlice({
 
       if (!state.messagesByUser[otherUserId]) {
         state.messagesByUser[otherUserId] = [];
-      }
-
-      // prevent duplicates by ID
+      } // prevent duplicates by ID
       const exists = state.messagesByUser[otherUserId].some(
         (m) => m.id === msg.id
       );
+
+      // Handle replacement of optimistic messages
+      if (msg.replaceOptimistic) {
+        const optimisticIndex = state.messagesByUser[otherUserId].findIndex(
+          (m) => m.id === msg.replaceOptimistic
+        );
+        if (optimisticIndex !== -1) {
+          // Replace the optimistic message
+          state.messagesByUser[otherUserId][optimisticIndex] = {
+            ...msg,
+            replaceOptimistic: undefined, // Remove the flag
+          };
+          console.log(
+            "🔄 addMessage reducer - replaced optimistic message with real message"
+          );
+          return;
+        }
+      }
+
       if (!exists) {
         state.messagesByUser[otherUserId].push(msg);
         console.log(

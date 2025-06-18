@@ -9,6 +9,8 @@ import {
   Dumbbell,
   NotebookPen,
   SendHorizonal,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 
@@ -27,6 +29,7 @@ export default function InstantMessagingChat({
   message,
   onChange,
   onSend,
+  onMarkAsRead, // New prop to mark client as read
 }) {
   const textAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -126,7 +129,6 @@ export default function InstantMessagingChat({
                 const msgSenderId = String(msg.sender_id);
                 const currentUserId = String(authUserId);
                 const isMe = msgSenderId === currentUserId;
-
                 return (
                   <div
                     key={msg.id || index}
@@ -137,17 +139,28 @@ export default function InstantMessagingChat({
                     <div
                       className={`${
                         isMe
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-800"
+                          ? "bg-zinc-300 text-gray-800"
+                          : "bg-zinc-100 text-gray-800"
                       } px-4 py-2 rounded-lg max-w-[70%] text-sm leading-relaxed ${
                         isMe ? "rounded-br-sm" : "rounded-bl-sm"
-                      }`}
+                      } ${isMe ? "relative" : ""}`}
                     >
                       {msg.content}
-                      {msg.pending && (
-                        <span className="text-xs opacity-70 ml-2">
-                          (sending...)
-                        </span>
+                      {/* Message status indicator inside the message bubble for sender */}
+                      {isMe && (
+                        <div className="inline-flex items-center justify-center ml-2 gap-1">
+                          <span className="text-[11px] opacity-70 text-black">
+                            {new Date(msg.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {msg.pending ? (
+                            <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />
+                          ) : (
+                            <Check className="w-3 h-3 text-zinc-500" />
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -155,28 +168,40 @@ export default function InstantMessagingChat({
               })}
             </div>
             <div className="relative">
+              {" "}
               <textarea
                 ref={textAreaRef}
                 value={message}
                 onChange={handleInputChange}
+                onFocus={() => {
+                  // Mark as read when user focuses on the input
+                  onMarkAsRead && onMarkAsRead();
+                }}
+                onClick={() => {
+                  // Mark as read when user clicks on the input
+                  onMarkAsRead && onMarkAsRead();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     console.log("🟢 Enter key pressed. Sending:", message);
                     onSend();
+                    // Mark as read when sending a message
+                    onMarkAsRead && onMarkAsRead();
                   }
                 }}
                 rows={1}
                 className="max-h-40 w-full overflow-hidden border-t border-zinc-300 resize-none p-2 text-black placeholder:text-black/30 placeholder:text-sm text-sm focus:outline-none"
                 placeholder="Type a message..."
-              />
-
+              />{" "}
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   if (message.trim()) {
                     console.log("🟢 Send clicked with:", message);
                     onSend();
+                    // Mark as read when sending a message
+                    onMarkAsRead && onMarkAsRead();
                   }
                 }}
                 type="button"

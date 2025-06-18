@@ -153,15 +153,18 @@ export default function Messages() {
         content,
         created_at: optimisticMessage.created_at,
       });
-
       console.log("✅ API response:", response.data);
 
       // Replace the optimistic message with the real one from the API
       const realMessage = response.data;
-      dispatch(addMessage(realMessage));
 
-      // Also refresh the conversation to make sure we have the latest data
-      dispatch(fetchMessages(userId));
+      // Mark the real message to replace the optimistic one
+      const messageWithReplacementFlag = {
+        ...realMessage,
+        replaceOptimistic: tempId, // Tell Redux to replace the optimistic message with this ID
+      };
+
+      dispatch(addMessage(messageWithReplacementFlag));
     } catch (err) {
       console.error("❌ Failed to send message via API:", err);
     }
@@ -327,6 +330,7 @@ export default function Messages() {
         <div className="flex-1 overflow-hidden">
           {selectedTrainerForNewChat ? (
             <div className="h-full">
+              {" "}
               <InstantMessagingChat
                 user={{
                   name: `${selectedTrainerForNewChat.first_name} ${selectedTrainerForNewChat.last_name}`,
@@ -349,6 +353,7 @@ export default function Messages() {
                   )
                 }
                 onSend={() => handleSendMessage(selectedTrainerForNewChat.id)}
+                onMarkAsRead={() => {}} // No-op for client side
               />
             </div>
           ) : (

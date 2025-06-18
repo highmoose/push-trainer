@@ -35,13 +35,34 @@ export default function Messages({ authUserId }) {
   const { list: clients = [], status: clientsStatus } = useSelector(
     (state) => state.clients
   );
-
   const [newMessages, setNewMessages] = useState({});
   const [timeframe, setTimeframe] = useState("24h");
   const [showClientList, setShowClientList] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClientForNewChat, setSelectedClientForNewChat] =
     useState(null);
+
+  // Initialize clickedClients from localStorage
+  const [clickedClients, setClickedClients] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`clickedClients_${authUserId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    }
+    return new Set();
+  });
+
+  // Save clickedClients to localStorage whenever it changes
+  const markClientAsClicked = (clientId) => {
+    const newClickedClients = new Set([...clickedClients, clientId]);
+    setClickedClients(newClickedClients);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        `clickedClients_${authUserId}`,
+        JSON.stringify([...newClickedClients])
+      );
+    }
+  };
 
   // Debug logs after state declarations
   console.log("conversations", conversations);
@@ -68,7 +89,6 @@ export default function Messages({ authUserId }) {
       dispatch(fetchAllMessages({ authUserId }));
     }
   }, [dispatch, authUserId]);
-
   useEffect(() => {
     if (!authUserId) return;
 
@@ -78,6 +98,26 @@ export default function Messages({ authUserId }) {
     socket.on("receive-message", (message) => {
       console.log("🔔 Trainer received WebSocket message:", message);
       dispatch(addMessage(message));
+
+      // If we receive a message from a client, remove them from clicked clients
+      // so the green dot reappears (indicating new unread message)
+      if (message.sender_id !== authUserId) {
+        const senderId = message.sender_id;
+        setClickedClients((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(senderId);
+
+          // Update localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              `clickedClients_${authUserId}`,
+              JSON.stringify([...newSet])
+            );
+          }
+
+          return newSet;
+        });
+      }
     });
     return () => {
       socket.disconnect();
@@ -142,21 +182,28 @@ export default function Messages({ authUserId }) {
         content,
         created_at: optimisticMessage.created_at,
       });
-
       console.log("✅ API response:", response.data);
 
       // Replace the optimistic message with the real one from the API
       const realMessage = response.data;
-      dispatch(addMessage(realMessage));
 
-      // Also refresh the conversation to make sure we have the latest data
-      dispatch(fetchMessages(userId));
+      // Mark the real message to replace the optimistic one
+      const messageWithReplacementFlag = {
+        ...realMessage,
+        replaceOptimistic: tempId, // Tell Redux to replace the optimistic message with this ID
+      };
+
+      dispatch(addMessage(messageWithReplacementFlag));
     } catch (err) {
       console.error("❌ Failed to send message via API:", err);
     }
   }; // Handle starting a new conversation with a client
   const handleStartChatWithClient = (client) => {
     setSelectedClientForNewChat(client);
+
+    // Mark this client as clicked (read) using the persistent function
+    markClientAsClicked(client.id);
+
     // Don't close the client list - keep it open for easy navigation
 
     // Initialize message state for this client if not exists
@@ -168,7 +215,6 @@ export default function Messages({ authUserId }) {
     console.log("🔄 Fetching messages for client:", client.id);
     dispatch(fetchMessages(client.id));
   };
-
   // Filter clients based on search query
   const filteredClients = clients.filter((client) => {
     const fullName = `${client.first_name || ""} ${
@@ -177,6 +223,45 @@ export default function Messages({ authUserId }) {
     const email = (client.email || "").toLowerCase();
     const search = searchQuery.toLowerCase();
     return fullName.includes(search) || email.includes(search);
+  });
+
+  // Helper function to get the most recent message timestamp for a client
+  const getMostRecentMessageTime = (clientId) => {
+    const messages = messagesByUser[clientId] || [];
+    if (messages.length === 0) return 0;
+
+    const mostRecent = messages[messages.length - 1];
+    return new Date(mostRecent.created_at).getTime();
+  };
+
+  // Helper function to check if client has unread messages
+  const hasUnreadMessages = (clientId) => {
+    const messages = messagesByUser[clientId] || [];
+    const hasMessages = messages.length > 0;
+    const hasBeenClicked = clickedClients.has(clientId);
+
+    // Has unread messages if there are messages and the client hasn't been clicked
+    return hasMessages && !hasBeenClicked;
+  };
+
+  // Sort clients by most recent message time (most recent first)
+  const sortedClients = [...filteredClients].sort((a, b) => {
+    const aTime = getMostRecentMessageTime(a.id);
+    const bTime = getMostRecentMessageTime(b.id);
+
+    // If both have messages, sort by most recent
+    if (aTime && bTime) {
+      return bTime - aTime; // Most recent first
+    }
+
+    // If only one has messages, put that one first
+    if (aTime && !bTime) return -1;
+    if (!aTime && bTime) return 1;
+
+    // If neither has messages, sort alphabetically
+    const aName = `${a.first_name || ""} ${a.last_name || ""}`;
+    const bName = `${b.first_name || ""} ${b.last_name || ""}`;
+    return aName.localeCompare(bName);
   });
 
   // Get clients that don't have existing conversations
@@ -351,23 +436,25 @@ export default function Messages({ authUserId }) {
               <div className="p-4 text-center text-red-400">
                 Failed to load clients
               </div>
-            )}
-            {filteredClients.length === 0 && searchQuery && (
+            )}{" "}
+            {sortedClients.length === 0 && searchQuery && (
               <div className="p-4 text-center text-zinc-400">
                 No clients found
               </div>
             )}
-            {filteredClients.length === 0 &&
+            {sortedClients.length === 0 &&
               !searchQuery &&
               clientsStatus === "succeeded" && (
                 <div className="p-4 text-center text-zinc-400">
                   No clients assigned
                 </div>
               )}
-            {filteredClients.map((client) => {
+            {sortedClients.map((client) => {
               const hasConversation = conversations.some(
                 (conv) => conv.user.id === client.id
               );
+              const clientHasUnreadMessages = hasUnreadMessages(client.id);
+
               return (
                 <div
                   key={client.id}
@@ -384,7 +471,7 @@ export default function Messages({ authUserId }) {
                         {(client.first_name?.[0] || "").toUpperCase()}
                         {(client.last_name?.[0] || "").toUpperCase()}
                       </span>
-                      {hasConversation && (
+                      {clientHasUnreadMessages && (
                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900"></div>
                       )}
                     </div>
@@ -394,11 +481,16 @@ export default function Messages({ authUserId }) {
                       </div>
                       <div className="text-sm text-zinc-400">
                         {client.email}
-                        {hasConversation && (
+                        {/* {clientHasUnreadMessages && (
                           <span className="ml-2 text-green-400">
-                            • Active conversation
+                            • Unread messages
                           </span>
                         )}
+                        {hasConversation && !clientHasUnreadMessages && (
+                          <span className="ml-2 text-zinc-500">
+                            • Recent chat
+                          </span>
+                        )} */}
                       </div>
                     </div>
                     <MessageCircle className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
@@ -486,6 +578,9 @@ export default function Messages({ authUserId }) {
                 handleInputChange(selectedClientForNewChat.id, e.target.value)
               }
               onSend={() => handleSendMessage(selectedClientForNewChat.id)}
+              onMarkAsRead={() =>
+                markClientAsClicked(selectedClientForNewChat.id)
+              }
             />
           )}
           {/* Show existing conversations */}
@@ -515,6 +610,7 @@ export default function Messages({ authUserId }) {
                 message={newMessages[userId] || ""}
                 onChange={(e) => handleInputChange(userId, e.target.value)}
                 onSend={() => handleSendMessage(userId)}
+                onMarkAsRead={() => markClientAsClicked(userId)}
               />
             );
           })}
