@@ -1512,10 +1512,9 @@ export default function TrainerCalendarPage() {
                     {stats.clients}
                   </div>
                   <div className="text-xs text-zinc-500">Active Clients</div>
-                </div>
-                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                </div>                <div className="bg-zinc-900/50 p-3 rounded-lg">
                   <div className="text-lg font-bold text-zinc-300">
-                    £{stats.revenue}
+                    £{parseFloat(stats.revenue).toFixed(2)}
                   </div>
                   <div className="text-xs text-zinc-500">Revenue</div>
                 </div>
