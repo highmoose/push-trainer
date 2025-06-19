@@ -164,7 +164,7 @@ const MealPlanDisplay = ({ aiResponse }) => {
           </h4>
 
           {debugInfo && (
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3 text-sm">
               <div>
                 <div className="text-zinc-400 mb-1">Parse Steps:</div>
                 <ul className="list-disc list-inside space-y-1 text-zinc-500">
@@ -248,49 +248,48 @@ const MealPlanDisplay = ({ aiResponse }) => {
         return "text-zinc-400 border-zinc-400/30 bg-zinc-400/10";
     }
   };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Daily Totals Summary */}
       {mealData.daily_totals && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-blue-400 mb-3 flex items-center">
-            <Target className="w-5 h-5 mr-2" />
+        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded p-3">
+          <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center">
+            <Target className="w-4 h-4 mr-1" />
             Daily Nutritional Goals
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-2">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">
+              <div className="text-lg font-bold text-white">
                 {mealData.daily_totals.calories}
               </div>
-              <div className="text-xs text-zinc-400">Calories</div>
+              <div className="text-sm text-zinc-400">Calories</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">
+              <div className="text-lg font-bold text-green-400">
                 {mealData.daily_totals.protein}g
               </div>
-              <div className="text-xs text-zinc-400">Protein</div>
+              <div className="text-sm text-zinc-400">Protein</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400">
+              <div className="text-lg font-bold text-yellow-400">
                 {mealData.daily_totals.carbs}g
               </div>
-              <div className="text-xs text-zinc-400">Carbs</div>
+              <div className="text-sm text-zinc-400">Carbs</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">
+              <div className="text-lg font-bold text-purple-400">
                 {mealData.daily_totals.fats}g
               </div>
-              <div className="text-xs text-zinc-400">Fats</div>
+              <div className="text-sm text-zinc-400">Fats</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Meals */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-zinc-300 flex items-center">
-          <ChefHat className="w-5 h-5 mr-2" />
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-zinc-300 flex items-center">
+          <ChefHat className="w-4 h-4 mr-1" />
           Meal Plan
         </h3>
 
@@ -299,16 +298,18 @@ const MealPlanDisplay = ({ aiResponse }) => {
           .map((meal, index) => (
             <div
               key={index}
-              className={`border rounded-lg p-4 ${getMealTypeColor(meal.type)}`}
+              className={`border rounded p-3 ${getMealTypeColor(meal.type)}`}
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center">
-                  <span className="text-lg mr-2">
+                  <span className="text-sm mr-2">
                     {getMealTypeIcon(meal.type)}
                   </span>
                   <div>
-                    <h4 className="font-semibold text-white">{meal.name}</h4>
-                    <span className="text-xs text-zinc-400 capitalize">
+                    <h4 className="font-semibold text-white text-sm">
+                      {meal.name}
+                    </h4>
+                    <span className="text-sm text-zinc-400 capitalize">
                       {meal.type}
                     </span>
                   </div>
@@ -317,22 +318,21 @@ const MealPlanDisplay = ({ aiResponse }) => {
                   <div className="text-sm font-medium text-white">
                     {meal.calories} cal
                   </div>
-                  <div className="text-xs text-zinc-400">
-                    Protein: {meal.protein}g • Carbs: {meal.carbs}g • Fats:{" "}
-                    {meal.fats}g
+                  <div className="text-sm text-zinc-400">
+                    P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fats}g
                   </div>
                 </div>
               </div>
 
-              <div className="mb-3">
-                <h5 className="text-sm font-medium text-zinc-300 mb-2">
+              <div className="mb-2">
+                <h5 className="text-sm font-medium text-zinc-300 mb-1">
                   Ingredients:
                 </h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-1">
                   {meal.ingredients.map((ingredient, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-3 py-2 bg-zinc-800/60 rounded-md text-xs"
+                      className="flex items-center justify-between px-2 py-1 bg-zinc-800/60 rounded text-sm"
                     >
                       <span className="text-zinc-300">
                         {typeof ingredient === "object"
@@ -350,7 +350,7 @@ const MealPlanDisplay = ({ aiResponse }) => {
               </div>
 
               <div>
-                <h5 className="text-sm font-medium text-zinc-300 mb-2">
+                <h5 className="text-sm font-medium text-zinc-300 mb-1">
                   Instructions:
                 </h5>
                 <p className="text-sm text-zinc-400 leading-relaxed">
@@ -528,10 +528,8 @@ export default function Blueprints() {
           plan.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           plan.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    // Sort plans
-    plans.sort((a, b) => {
+    } // Sort plans (create a copy to avoid mutating read-only array)
+    plans = [...plans].sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
 
@@ -608,12 +606,15 @@ export default function Blueprints() {
       return;
     }
 
+    // Use the selected client from the sidebar if no specific client is selected for the form
+    const clientId = selectedClientForForm?.id || selectedClient?.id || null;
+
     try {
       const result = await dispatch(
         generateDietPlan({
           prompt: "Generate a diet plan",
           aiProvider,
-          clientId: selectedClientForForm?.id || null,
+          clientId,
           title: planTitle.trim(),
           planType,
           mealsPerDay,
@@ -630,71 +631,78 @@ export default function Blueprints() {
         setPlanType("");
         setSelectedClientForForm(null);
         setAdditionalNotes("");
-        dispatch(fetchDietPlans()); // Refresh plans
+        // Refresh plans
+        dispatch(fetchDietPlans());
       }
     } catch (error) {
       console.error("Error generating plan:", error);
+      alert("Failed to generate diet plan. Please try again.");
     }
   };
 
   return (
     <>
-      <div className="h-screen flex bg-zinc-950">
-        {/* Client Sidebar (25% width) */}
-        <div className="w-1/4 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+      {" "}
+      <div className="h-screen flex bg-zinc-900 text-white overflow-hidden rounded">
+        {/* Professional Trainer Sidebar */}
+        <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
+          {" "}
           {/* Sidebar Header */}
-          <div className="p-6 border-b border-zinc-800">
-            <h1 className="text-xl font-bold text-white flex items-center gap-3">
-              <BookOpen className="w-6 h-6 text-blue-500" />
+          <div className="p-3 border-b border-zinc-800/30">
+            <h1 className="text-base font-bold text-zinc-300 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-400" />
               Diet Plan Blueprints
             </h1>
-            <p className="text-zinc-400 text-sm mt-1">
+            <p className="text-zinc-500 text-sm mt-1">
               Manage client diet plans
             </p>
-          </div>
-
+          </div>{" "}
           {/* View Toggle */}
-          <div className="p-4 border-b border-zinc-800">
-            <div className="flex gap-2">
+          <div className="p-3 border-b border-zinc-800/30">
+            <h3 className="text-sm font-medium text-zinc-300 mb-2">
+              View Options
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setShowAllPlans(false)}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
                   !showAllPlans
                     ? "bg-blue-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    : "bg-zinc-900/50 text-zinc-400 hover:text-white"
                 }`}
               >
                 By Client
               </button>
               <button
                 onClick={() => setShowAllPlans(true)}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
                   showAllPlans
                     ? "bg-blue-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    : "bg-zinc-900/50 text-zinc-400 hover:text-white"
                 }`}
               >
                 All Plans
               </button>
             </div>
-          </div>
-
+          </div>{" "}
           {/* Client Search */}
           {!showAllPlans && (
-            <div className="p-4 border-b border-zinc-800">
+            <div className="p-3 border-b border-zinc-800/30">
+              <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                Search Clients
+              </h3>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
                 <input
                   type="text"
                   placeholder="Search clients..."
                   value={clientSearchTerm}
                   onChange={(e) => setClientSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 bg-zinc-900/50 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none text-sm placeholder:text-sm"
                 />
               </div>
             </div>
           )}
-
           {/* Client List */}
           <div className="flex-1 overflow-y-auto">
             {!showAllPlans ? (
@@ -705,7 +713,6 @@ export default function Blueprints() {
                     <p>Loading clients...</p>
                   </div>
                 )}
-
                 {clientsStatus === "failed" && (
                   <div className="p-4 text-center text-zinc-400">
                     <p>Failed to load clients</p>
@@ -716,42 +723,38 @@ export default function Blueprints() {
                       Retry
                     </button>
                   </div>
-                )}
-
+                )}{" "}
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}
                     onClick={() => setSelectedClient(client)}
-                    className={`p-4 border-b border-zinc-800/50 cursor-pointer transition-all hover:bg-zinc-800/50 ${
+                    className={`p-2 border-b border-zinc-800/30 cursor-pointer transition-all hover:bg-zinc-900/30 ${
                       selectedClient?.id === client.id
-                        ? "bg-zinc-800 border-l-4 border-l-blue-500"
+                        ? "bg-zinc-900/50 border-l-4 border-l-blue-500"
                         : ""
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {(client.first_name || "U").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-white text-sm">
-                            {client.first_name} {client.last_name}
-                          </h3>
-                          <p className="text-xs text-zinc-400">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {(client.first_name || "U").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-zinc-300 text-sm">
+                          {client.first_name} {client.last_name}
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-zinc-500 truncate mr-2">
                             {client.email}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex items-center gap-1">
-                              <BookOpen className="h-3 w-3 text-blue-400" />
-                              <span className="text-xs text-zinc-400">
-                                {
-                                  activeDietPlans.filter(
-                                    (p) => p.client_id === client.id
-                                  ).length
-                                }{" "}
-                                plans
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <BookOpen className="h-2 w-2 text-blue-400" />
+                            <span className="text-sm text-zinc-500">
+                              {
+                                activeDietPlans.filter(
+                                  (p) => p.client_id === client.id
+                                ).length
+                              }
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -763,7 +766,7 @@ export default function Blueprints() {
               <div className="p-4 text-center text-zinc-400">
                 <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Showing all diet plans</p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-sm text-zinc-500 mt-1">
                   {activeDietPlans.length} total plans
                 </p>
               </div>
@@ -773,22 +776,23 @@ export default function Blueprints() {
 
         {/* Main Content Area (75% width) */}
         <div className="flex-1 flex flex-col">
+          {" "}
           {/* Header with Client Info and Actions */}
-          <div className="bg-zinc-900 border-b border-zinc-800 p-6">
+          <div className="bg-zinc-900 border-b border-zinc-800 p-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {!showAllPlans && selectedClient ? (
                   <>
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                       {(selectedClient.first_name || "U")
                         .charAt(0)
                         .toUpperCase()}
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-white">
+                      <h2 className="text-lg font-bold text-white">
                         {selectedClient.first_name} {selectedClient.last_name}
                       </h2>
-                      <p className="text-zinc-400">
+                      <p className="text-zinc-400 text-sm">
                         {displayPlans.length} diet plan
                         {displayPlans.length !== 1 ? "s" : ""}
                       </p>
@@ -796,10 +800,10 @@ export default function Blueprints() {
                   </>
                 ) : (
                   <div>
-                    <h2 className="text-xl font-bold text-white">
+                    <h2 className="text-lg font-bold text-white">
                       All Diet Plans
                     </h2>
-                    <p className="text-zinc-400">
+                    <p className="text-zinc-400 text-sm">
                       {displayPlans.length} total plan
                       {displayPlans.length !== 1 ? "s" : ""}
                     </p>
@@ -807,29 +811,28 @@ export default function Blueprints() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg font-medium text-white transition-all flex items-center gap-2 shadow-lg"
+                  className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded font-medium text-white transition-all flex items-center gap-2 shadow-lg text-sm"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   Create Plan
                 </button>
               </div>
             </div>
-          </div>
-
+          </div>{" "}
           {/* Search and Sort Controls */}
-          <div className="bg-zinc-900/50 border-b border-zinc-800 p-4">
-            <div className="flex items-center gap-4">
+          <div className="bg-zinc-900/50 border-b border-zinc-800 p-3">
+            <div className="flex items-center gap-3">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
                 <input
                   type="text"
                   placeholder="Search diet plans..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none text-sm"
                 />
               </div>
 
@@ -837,7 +840,7 @@ export default function Blueprints() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                  className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
                 >
                   <option value="created_at">Created Date</option>
                   <option value="updated_at">Updated Date</option>
@@ -848,20 +851,19 @@ export default function Blueprints() {
                   onClick={() =>
                     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
                   }
-                  className="p-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 hover:text-white"
+                  className="p-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400 hover:text-white"
                 >
                   {sortOrder === "asc" ? (
-                    <SortAsc className="w-4 h-4" />
+                    <SortAsc className="w-3 h-3" />
                   ) : (
-                    <SortDesc className="w-4 h-4" />
+                    <SortDesc className="w-3 h-3" />
                   )}
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Diet Plans Grid */}
-          <div className="flex-1 overflow-y-auto p-6">
+          </div>{" "}
+          {/* Diet Plans List */}
+          <div className="flex-1 overflow-y-auto p-3">
             {displayPlans.length === 0 ? (
               <div className="text-center text-zinc-400 py-12">
                 <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -879,61 +881,67 @@ export default function Blueprints() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-4">
                 {displayPlans.map((plan) => (
                   <div
                     key={plan.id}
-                    className="bg-zinc-800/50 rounded-xl p-6 border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200"
+                    className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
                         <div className="p-2 rounded-lg bg-blue-500/10">
                           <ChefHat className="h-5 w-5 text-blue-400" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-white">
-                            {plan.title}
-                          </h3>
-                          <p className="text-sm text-zinc-400">
-                            {plan.client_name || "Generic Plan"}
-                          </p>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold text-white text-lg">
+                                {plan.title}
+                              </h3>
+                              <p className="text-sm text-zinc-400">
+                                {plan.client_name || "Generic Plan"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-6 text-sm">
+                              <div className="text-center">
+                                <span className="text-zinc-400">Plan Type</span>
+                                <p className="text-white capitalize font-medium">
+                                  {plan.plan_type?.replace("_", " ")}
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-zinc-400">Meals/Day</span>
+                                <p className="text-white font-medium">
+                                  {plan.meals_per_day}
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-zinc-400">Created</span>
+                                <p className="text-white font-medium">
+                                  {new Date(
+                                    plan.created_at
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleViewPlanDetails(plan)}
-                        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-400">Plan Type:</span>
-                        <span className="text-white capitalize">
-                          {plan.plan_type?.replace("_", " ")}
-                        </span>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleViewPlanDetails(plan)}
+                          className="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm font-medium"
+                        >
+                          View Plan
+                        </button>
+                        <button
+                          onClick={() => handleViewPlanDetails(plan)}
+                          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-400">Meals/Day:</span>
-                        <span className="text-white">{plan.meals_per_day}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-400">Created:</span>
-                        <span className="text-white">
-                          {new Date(plan.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleViewPlanDetails(plan)}
-                        className="flex-1 px-3 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm font-medium"
-                      >
-                        View Plan
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -942,7 +950,6 @@ export default function Blueprints() {
           </div>
         </div>
       </div>
-
       {/* Create Plan Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
@@ -961,6 +968,7 @@ export default function Blueprints() {
 
             <div className="p-6 overflow-y-auto max-h-[70vh]">
               <div className="space-y-6">
+                {" "}
                 {/* Plan Title */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -974,7 +982,44 @@ export default function Blueprints() {
                     className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
-
+                {/* Client Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Client (Optional)
+                  </label>
+                  <select
+                    value={
+                      selectedClientForForm?.id || selectedClient?.id || ""
+                    }
+                    onChange={(e) => {
+                      const clientId = e.target.value;
+                      if (clientId) {
+                        const client = clients.find(
+                          (c) => c.id === parseInt(clientId)
+                        );
+                        setSelectedClientForForm(client);
+                      } else {
+                        setSelectedClientForForm(null);
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">
+                      Select a client (or leave empty for generic plan)
+                    </option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.first_name} {client.last_name} - {client.email}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedClient && !selectedClientForForm && (
+                    <p className="text-sm text-blue-400 mt-1">
+                      Currently creating for: {selectedClient.first_name}{" "}
+                      {selectedClient.last_name}
+                    </p>
+                  )}
+                </div>
                 {/* Plan Type Selection */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-3">
@@ -1002,7 +1047,6 @@ export default function Blueprints() {
                     ))}
                   </div>
                 </div>
-
                 {/* Meals Per Day */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -1016,14 +1060,13 @@ export default function Blueprints() {
                     onChange={(e) => setMealsPerDay(parseInt(e.target.value))}
                     className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer slider"
                   />
-                  <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                  <div className="flex justify-between text-sm text-zinc-500 mt-1">
                     <span>3</span>
                     <span>4</span>
                     <span>5</span>
                     <span>6</span>
                   </div>
                 </div>
-
                 {/* Additional Notes */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -1070,11 +1113,10 @@ export default function Blueprints() {
           </div>
         </div>
       )}
-
       {/* Plan Details Modal */}
       {showPlanDetailModal && planDetails && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-zinc-800">
               <h2 className="text-xl font-semibold text-white">
                 {planDetails.title}
@@ -1088,32 +1130,31 @@ export default function Blueprints() {
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-dark">
-              <div className="space-y-6">
+            </div>{" "}
+            <div className="p-4 overflow-y-auto max-h-[70vh] scrollbar-thin scrollbar-dark">
+              <div className="space-y-3">
                 {/* Plan Info */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-3">
                   <div>
-                    <span className="text-xs text-zinc-500">Client</span>
+                    <span className="text-sm text-zinc-500">Client</span>
                     <p className="text-sm font-medium text-zinc-300">
                       {planDetails.client_name || "Generic Plan"}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-zinc-500">Plan Type</span>
+                    <span className="text-sm text-zinc-500">Plan Type</span>
                     <p className="text-sm font-medium text-zinc-300">
                       {planDetails.plan_type?.replace("_", " ") || "N/A"}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-zinc-500">Meals/Day</span>
+                    <span className="text-sm text-zinc-500">Meals/Day</span>
                     <p className="text-sm font-medium text-zinc-300">
                       {planDetails.meals_per_day}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-zinc-500">Created</span>
+                    <span className="text-sm text-zinc-500">Created</span>
                     <p className="text-sm font-medium text-zinc-300">
                       {new Date(planDetails.created_at).toLocaleDateString()}
                     </p>
@@ -1122,11 +1163,11 @@ export default function Blueprints() {
 
                 {/* Plan Content */}
                 <div>
-                  <h3 className="text-lg font-semibold text-zinc-300 mb-3">
+                  <h3 className="text-sm font-semibold text-zinc-300 mb-2">
                     Diet Plan Content
                   </h3>
-                  <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-                    <div className="text-sm text-zinc-300 max-h-96 overflow-y-auto scrollbar-thin scrollbar-dark">
+                  <div className="bg-zinc-800/50 rounded p-3 border border-zinc-700">
+                    <div className="text-sm text-zinc-300 max-h-80 overflow-y-auto scrollbar-thin scrollbar-dark">
                       <MealPlanDisplay aiResponse={planDetails.ai_response} />
                     </div>
                   </div>
