@@ -20,14 +20,13 @@ export default function Header({ setShowTab }) {
       console.error("Logout failed:", err);
     }
   };
-
   const trainerMenu = [
     { label: "Dashboard" },
     { label: "Messages" },
     { label: "Planner" },
     { label: "Clients" },
     { label: "Metrics" },
-    { label: "Blueprints" },
+    { label: "Nutrition" },
   ];
 
   const clientMenu = [

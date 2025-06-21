@@ -33,6 +33,7 @@ import {
   List,
   Utensils,
   Loader,
+  Trash2,
 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 
@@ -502,7 +503,7 @@ const MEAL_COMPLEXITY = [
   },
 ];
 
-export default function Blueprints() {
+export default function Nutrition() {
   const dispatch = useDispatch();
   const { list: clients = [], status: clientsStatus } = useSelector(
     (state) => state.clients
@@ -566,11 +567,12 @@ export default function Blueprints() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
-
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPlanDetailModal, setShowPlanDetailModal] = useState(false);
   const [planDetails, setPlanDetails] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
 
   // Form states
   const [selectedClientForForm, setSelectedClientForForm] = useState(null);
@@ -836,6 +838,38 @@ export default function Blueprints() {
     }
   };
 
+  // Handle delete plan confirmation
+  const handleDeletePlan = (plan) => {
+    setPlanToDelete(plan);
+    setShowDeleteModal(true);
+  };
+
+  // Handle confirmed deletion
+  const handleConfirmDelete = async () => {
+    if (!planToDelete) return;
+
+    try {
+      await dispatch(deleteDietPlan(planToDelete.id));
+      console.log("Diet plan deleted successfully:", planToDelete.id);
+      
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setPlanToDelete(null);
+      
+      // Optionally refresh the plans list
+      dispatch(fetchDietPlans());
+    } catch (error) {
+      console.error("Error deleting diet plan:", error);
+      // Handle error appropriately - maybe show a toast notification
+    }
+  };
+
+  // Handle cancel deletion
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setPlanToDelete(null);
+  };
+
   return (
     <>
       {" "}
@@ -843,14 +877,13 @@ export default function Blueprints() {
         {/* Professional Trainer Sidebar */}
         <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
           {" "}
-          {/* Sidebar Header */}
-          <div className="p-3 border-b border-zinc-800/30">
+          {/* Sidebar Header */}          <div className="p-3 border-b border-zinc-800/30">
             <h1 className="text-base font-bold text-zinc-300 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-blue-400" />
-              Diet Plan Blueprints
+              Nutrition Plans
             </h1>
             <p className="text-zinc-500 text-sm mt-1">
-              Manage client diet plans
+              Manage client nutrition plans
             </p>
           </div>{" "}
           {/* View Toggle */}
@@ -1147,9 +1180,7 @@ export default function Blueprints() {
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 ml-4">
+                      </div>                      <div className="flex items-center gap-2 ml-4">
                         {!plan.isGenerating && (
                           <>
                             <button
@@ -1161,8 +1192,16 @@ export default function Blueprints() {
                             <button
                               onClick={() => handleViewPlanDetails(plan)}
                               className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                              title="View Details"
                             >
                               <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlan(plan)}
+                              className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Delete Plan"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </>
                         )}
@@ -1511,6 +1550,18 @@ export default function Blueprints() {
             </div>
           </div>
         </div>
+      )}      {/* Delete Confirmation Modal */}
+      {showDeleteModal && planToDelete && (
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+          title="Delete Diet Plan"
+          message={`Are you sure you want to delete the diet plan "${planToDelete.title}"? This action cannot be undone.`}
+          confirmText="Delete Plan"
+          cancelText="Cancel"
+          variant="danger"
+        />
       )}
     </>
   );

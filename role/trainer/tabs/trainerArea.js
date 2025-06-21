@@ -6,7 +6,7 @@ import Messages from "@role/trainer/tabs/messages";
 import Planner from "@role/trainer/tabs/planner";
 import Settings from "@role/trainer/tabs/settings";
 import Metrics from "@role/trainer/tabs/metrics";
-import Blueprints from "@role/trainer/tabs/blueprints";
+import Nutrition from "@role/trainer/tabs/nutrition";
 import Footer from "@/components/layout/footer";
 
 import { fetchClients } from "@/redux/slices/clientSlice";
@@ -45,14 +45,13 @@ export default function trainerDashboard() {
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
-      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">
-        {/* Menu Tabs  */}
+      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">        {/* Menu Tabs  */}
         {showTab === "dashboard" && <Dashboard />}
         {showTab === "messages" && <Messages authUserId={authUserId} />}
         {showTab === "planner" && <Planner />}
         {showTab === "clients" && <Clients />}
         {showTab === "metrics" && <Metrics />}
-        {showTab === "blueprints" && <Blueprints />}
+        {showTab === "nutrition" && <Nutrition />}
         {/* Control Tabs */}
         {showTab === "settings" && <Settings />}
         {/* {showTab === "profile" && <Profile />} */}
