@@ -53,9 +53,9 @@ export default function Clients() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const { list: clients = [], status } = useSelector((state) => state.clients);
-
   const [selectedClient, setSelectedClient] = useState(null);
   const [addClientModalOpen, setAddClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState(null); // Separate state for editing
   const [viewClientInfoModalOpen, setViewClientInfoModalOpen] = useState(false);
   const [deleteClientModalOpen, setDeleteClientModalOpen] = useState(false);
   const [searchString, setSearchString] = useState("");
@@ -78,7 +78,6 @@ export default function Clients() {
       return () => clearTimeout(retryTimer);
     }
   }, [dispatch, status]);
-
   // Update selectedClient when clients are loaded
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
@@ -91,7 +90,7 @@ export default function Clients() {
       };
       setSelectedClient(clientWithName);
     }
-  }, [clients, selectedClient]);
+  }, [clients]); // Removed selectedClient from dependencies to prevent infinite loop
 
   // Mock fitness data for demonstration
   const fitnessData = useMemo(
@@ -235,9 +234,8 @@ export default function Clients() {
     status,
     clientsLength: clients.length,
   });
-
   const handleEditClient = (client) => {
-    setSelectedClient(client);
+    setEditingClient(client);
     setAddClientModalOpen(true);
   };
 
@@ -361,9 +359,12 @@ export default function Clients() {
                   {range}
                 </button>
               ))}
-            </div>
+            </div>{" "}
             <button
-              onClick={() => setAddClientModalOpen(true)}
+              onClick={() => {
+                setSelectedClient(null); // Clear selected client for new addition
+                setAddClientModalOpen(true);
+              }}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -372,7 +373,6 @@ export default function Clients() {
           </div>
         </div>
       </div>
-
       <div className="flex h-full">
         {/* Left Sidebar - Client List (25% width) */}
         <div className="w-1/4 bg-zinc-900 border-r border-zinc-800 flex flex-col">
@@ -410,9 +410,12 @@ export default function Clients() {
             {status === "succeeded" && filteredClients.length === 0 && (
               <div className="p-4 text-center text-zinc-400">
                 <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No clients found</p>
+                <p>No clients found</p>{" "}
                 <button
-                  onClick={() => setAddClientModalOpen(true)}
+                  onClick={() => {
+                    setSelectedClient(null); // Clear selected client for new addition
+                    setAddClientModalOpen(true);
+                  }}
                   className="mt-2 text-sm text-emerald-400 hover:text-emerald-300"
                 >
                   Add your first client
@@ -522,7 +525,7 @@ export default function Clients() {
                 {/* Main Dashboard */}
                 <div className="h-full relative">
                   {/* Header Navigation Pills */}
-                  <div className="absolute top-6 left-8 z-10">
+                  <div className="absolute top-6 left-8 ">
                     <div className="flex items-center gap-1">
                       <div className="flex items-center gap-1 bg-zinc-900/80 backdrop-blur-sm rounded-full p-1">
                         <button className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-full font-medium">
@@ -871,19 +874,17 @@ export default function Clients() {
             </div>
           )}
         </div>
-      </div>
-
+      </div>{" "}
       {/* Modals */}
       {addClientModalOpen && (
         <AddClientModal
           close={() => {
             setAddClientModalOpen(false);
-            setSelectedClient(null);
+            setEditingClient(null);
           }}
-          selectedClient={selectedClient}
+          selectedClient={editingClient}
         />
       )}
-
       {deleteClientModalOpen && (
         <DeleteClientModal
           close={() => {
@@ -899,7 +900,6 @@ export default function Clients() {
           }}
         />
       )}
-
       {viewClientInfoModalOpen && (
         <ClientInfoModal
           close={() => setViewClientInfoModalOpen(false)}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Client Workflow</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #1a1a1a;
+        color: white;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 20px;
+        background: #2a2a2a;
+        border-radius: 8px;
+      }
+      input,
+      textarea,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        background: #333;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+      }
+      button {
+        cursor: pointer;
+        background: #0066cc;
+      }
+      button:hover {
+        background: #0088ff;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        background: #003300;
+        border-radius: 4px;
+      }
+      .error {
+        background: #330000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Test Client Creation & Invitation Workflow</h1>
+
+      <div class="section">
+        <h3>1. Login as Trainer</h3>
+        <input
+          type="email"
+          id="loginEmail"
+          placeholder="Trainer Email"
+          value="adamhymus@outlook.com"
+        />
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Password"
+          value="password123"
+        />
+        <button onclick="login()">Login</button>
+        <div id="loginResult"></div>
+      </div>
+
+      <div class="section">
+        <h3>2. Create Client (Manual Entry)</h3>
+        <input
+          type="text"
+          id="clientFirstName"
+          placeholder="First Name"
+          value="John"
+        />
+        <input
+          type="text"
+          id="clientLastName"
+          placeholder="Last Name"
+          value="Doe"
+        />
+        <input
+          type="email"
+          id="clientEmail"
+          placeholder="Email"
+          value="john.doe@test.com"
+        />
+        <input
+          type="tel"
+          id="clientPhone"
+          placeholder="Phone"
+          value="123-456-7890"
+        />
+        <input
+          type="text"
+          id="clientGoals"
+          placeholder="Fitness Goals"
+          value="weight_loss"
+        />
+        <button onclick="createClient()">Create Client</button>
+        <div id="createResult"></div>
+      </div>
+
+      <div class="section">
+        <h3>3. Send Client Invitation</h3>
+        <input
+          type="email"
+          id="inviteEmail"
+          placeholder="Client Email"
+          value="newclient@test.com"
+        />
+        <button onclick="sendInvite()">Send Invitation</button>
+        <div id="inviteResult"></div>
+      </div>
+
+      <div class="section">
+        <h3>4. Accept Invitation (Client Registration)</h3>
+        <input
+          type="text"
+          id="inviteToken"
+          placeholder="Invite Token (from invitation)"
+        />
+        <input
+          type="text"
+          id="regFirstName"
+          placeholder="First Name"
+          value="Jane"
+        />
+        <input
+          type="text"
+          id="regLastName"
+          placeholder="Last Name"
+          value="Smith"
+        />
+        <input
+          type="password"
+          id="regPassword"
+          placeholder="Password"
+          value="password123"
+        />
+        <button onclick="acceptInvite()">Complete Registration</button>
+        <div id="acceptResult"></div>
+      </div>
+
+      <div class="section">
+        <h3>5. Fetch Clients</h3>
+        <button onclick="fetchClients()">Get All Clients</button>
+        <div id="fetchResult"></div>
+      </div>
+    </div>
+
+    <script>
+      const api = axios.create({
+        baseURL: "http://127.0.0.1:8000",
+        withCredentials: true,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      let authToken = null;
+
+      // Set up axios interceptor for auth token
+      api.interceptors.request.use((config) => {
+        if (authToken) {
+          config.headers.Authorization = `Bearer ${authToken}`;
+        }
+        return config;
+      });
+
+      async function login() {
+        try {
+          // First get CSRF cookie
+          await api.get("/sanctum/csrf-cookie");
+
+          const response = await api.post("/api/login", {
+            email: document.getElementById("loginEmail").value,
+            password: document.getElementById("loginPassword").value,
+          });
+
+          authToken = response.data.token;
+          document.getElementById(
+            "loginResult"
+          ).innerHTML = `<div class="result">✅ Login successful! Token: ${authToken.substring(
+            0,
+            20
+          )}...</div>`;
+        } catch (error) {
+          document.getElementById(
+            "loginResult"
+          ).innerHTML = `<div class="result error">❌ Login failed: ${
+            error.response?.data?.message || error.message
+          }</div>`;
+        }
+      }
+
+      async function createClient() {
+        try {
+          const response = await api.post("/api/clients", {
+            first_name: document.getElementById("clientFirstName").value,
+            last_name: document.getElementById("clientLastName").value,
+            email: document.getElementById("clientEmail").value,
+            phone: document.getElementById("clientPhone").value,
+            fitness_goals: document.getElementById("clientGoals").value,
+          });
+
+          document.getElementById(
+            "createResult"
+          ).innerHTML = `<div class="result">✅ Client created: ${JSON.stringify(
+            response.data,
+            null,
+            2
+          )}</div>`;
+        } catch (error) {
+          document.getElementById(
+            "createResult"
+          ).innerHTML = `<div class="result error">❌ Client creation failed: ${
+            error.response?.data?.message || error.message
+          }</div>`;
+        }
+      }
+
+      async function sendInvite() {
+        try {
+          const response = await api.post("/api/clients/invite", {
+            email: document.getElementById("inviteEmail").value,
+          });
+
+          document.getElementById(
+            "inviteResult"
+          ).innerHTML = `<div class="result">✅ Invitation sent: ${JSON.stringify(
+            response.data,
+            null,
+            2
+          )}</div>`;
+
+          // Auto-fill the token if returned
+          if (response.data.invite_token) {
+            document.getElementById("inviteToken").value =
+              response.data.invite_token;
+          }
+        } catch (error) {
+          document.getElementById(
+            "inviteResult"
+          ).innerHTML = `<div class="result error">❌ Invitation failed: ${
+            error.response?.data?.message || error.message
+          }</div>`;
+        }
+      }
+
+      async function acceptInvite() {
+        try {
+          const response = await api.post("/api/clients/accept-invite", {
+            invite_token: document.getElementById("inviteToken").value,
+            first_name: document.getElementById("regFirstName").value,
+            last_name: document.getElementById("regLastName").value,
+            password: document.getElementById("regPassword").value,
+          });
+
+          document.getElementById(
+            "acceptResult"
+          ).innerHTML = `<div class="result">✅ Registration completed: ${JSON.stringify(
+            response.data,
+            null,
+            2
+          )}</div>`;
+        } catch (error) {
+          document.getElementById(
+            "acceptResult"
+          ).innerHTML = `<div class="result error">❌ Registration failed: ${
+            error.response?.data?.message || error.message
+          }</div>`;
+        }
+      }
+
+      async function fetchClients() {
+        try {
+          const response = await api.get("/api/trainer/clients");
+
+          document.getElementById(
+            "fetchResult"
+          ).innerHTML = `<div class="result">✅ Clients fetched: ${JSON.stringify(
+            response.data,
+            null,
+            2
+          )}</div>`;
+        } catch (error) {
+          document.getElementById(
+            "fetchResult"
+          ).innerHTML = `<div class="result error">❌ Fetch failed: ${
+            error.response?.data?.message || error.message
+          }</div>`;
+        }
+      }
+    </script>
+  </body>
+</html>

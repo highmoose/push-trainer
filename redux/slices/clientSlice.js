@@ -21,16 +21,31 @@ export const fetchClients = createAsyncThunk(
   }
 );
 
-// Add a new client
+// Add a new client with enhanced details
 export const addClient = createAsyncThunk(
   "clients/add",
   async (payload, { rejectWithValue }) => {
     try {
-      const res = await api.post("/api/trainer/clients", payload);
+      const res = await api.post("/api/clients", payload);
       return res.data.client;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Failed to add client"
+      );
+    }
+  }
+);
+
+// Send client invitation
+export const sendClientInvite = createAsyncThunk(
+  "clients/sendInvite",
+  async (email, { rejectWithValue }) => {
+    try {
+      const res = await api.post("/api/clients/invite", { email });
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to send invitation"
       );
     }
   }
@@ -66,12 +81,12 @@ export const getClient = createAsyncThunk(
   }
 );
 
-// Update a client
+// Update a client with enhanced details
 export const updateClient = createAsyncThunk(
   "clients/update",
-  async ({ id, data }, { rejectWithValue }) => {
+  async ({ id, ...data }, { rejectWithValue }) => {
     try {
-      const res = await api.put(`/api/trainer/clients/${id}`, data);
+      const res = await api.put(`/api/clients/${id}`, data);
       return res.data.client;
     } catch (err) {
       return rejectWithValue(
@@ -139,6 +154,12 @@ const clientSlice = createSlice({
       })
       .addCase(deleteClient.fulfilled, (state, action) => {
         state.list = state.list.filter((c) => c.id !== action.payload);
+      })
+      .addCase(sendClientInvite.fulfilled, (state, action) => {
+        // Invitation sent successfully - could add notification state here
+      })
+      .addCase(sendClientInvite.rejected, (state, action) => {
+        state.error = action.payload;
       });
   },
 });

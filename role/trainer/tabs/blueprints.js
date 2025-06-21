@@ -14,47 +14,30 @@ import {
   updateDietPlan,
 } from "@/redux/slices/dietPlanSlice";
 import {
-  User,
   ChefHat,
   Target,
-  Clock,
-  Zap,
-  Scale,
-  Heart,
   TrendingUp,
   TrendingDown,
   Minus,
   Search,
   Sparkles,
   AlertCircle,
-  CheckCircle2,
   X,
-  Copy,
-  Link,
-  Save,
   Eye,
-  Users,
-  Trash2,
-  Edit3,
-  Calendar,
   Plus,
-  Filter,
-  MoreHorizontal,
-  Download,
-  Upload,
-  Star,
-  Archive,
   BookOpen,
   Settings,
   SortAsc,
   SortDesc,
   Grid,
   List,
+  Utensils,
+  Loader,
 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 
 // Meal Plan Display Component with enhanced formatting
-const MealPlanDisplay = ({ aiResponse }) => {
+const MealPlanDisplay = ({ aiResponse, items }) => {
   const [mealData, setMealData] = useState(null);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
@@ -62,13 +45,53 @@ const MealPlanDisplay = ({ aiResponse }) => {
   useEffect(() => {
     console.log("=== MealPlanDisplay Debug ===");
     console.log("Raw aiResponse:", aiResponse);
+    console.log("Items array:", items);
     console.log("aiResponse type:", typeof aiResponse);
 
     try {
       let parsedData;
       let debugSteps = [];
 
-      if (typeof aiResponse === "string") {
+      // First, try to use the items array if available
+      if (items && Array.isArray(items) && items.length > 0) {
+        debugSteps.push("Using items array from API");
+
+        // Convert items array to the expected meal format
+        const mealsFromItems = items.map((item) => ({
+          name: item.meal_name,
+          type: item.meal_type,
+          order: item.meal_order,
+          ingredients: JSON.parse(item.ingredients || "[]"),
+          instructions: item.instructions,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fats: item.fats,
+        }));
+
+        // Calculate daily totals
+        const dailyTotals = items.reduce(
+          (totals, item) => ({
+            calories: totals.calories + (item.calories || 0),
+            protein: totals.protein + (item.protein || 0),
+            carbs: totals.carbs + (item.carbs || 0),
+            fats: totals.fats + (item.fats || 0),
+          }),
+          { calories: 0, protein: 0, carbs: 0, fats: 0 }
+        );
+
+        parsedData = {
+          meals: mealsFromItems,
+          daily_totals: dailyTotals,
+        };
+
+        debugSteps.push(
+          `Successfully converted ${items.length} items to meal format`
+        );
+        console.log("Converted items to meals:", parsedData);
+      }
+      // Fallback to parsing aiResponse if items are not available
+      else if (typeof aiResponse === "string") {
         debugSteps.push("Input is string");
 
         // Parse the OpenAI response structure
@@ -84,11 +107,18 @@ const MealPlanDisplay = ({ aiResponse }) => {
           ) {
             const content = openAiResponse.choices[0].message.content;
             debugSteps.push("Found content in choices[0].message.content");
-            console.log("Raw content:", content);
-
-            // Parse the content (which is a JSON string with escaped characters)
+            console.log("Raw content:", content); // Parse the content (which is a JSON string with escaped characters)
             try {
-              parsedData = JSON.parse(content);
+              // Clean up markdown formatting before parsing
+              let cleanContent = content;
+              cleanContent = cleanContent.replace(/```json\s*/g, "");
+              cleanContent = cleanContent.replace(/```\s*$/g, "");
+              cleanContent = cleanContent.trim();
+
+              debugSteps.push("Cleaned markdown formatting from content");
+              console.log("Cleaned content:", cleanContent);
+
+              parsedData = JSON.parse(cleanContent);
               debugSteps.push("Successfully parsed content as JSON");
               console.log("Final parsed meal data:", parsedData);
             } catch (contentParseError) {
@@ -96,6 +126,23 @@ const MealPlanDisplay = ({ aiResponse }) => {
                 `Content JSON parse failed: ${contentParseError.message}`
               );
               console.log("Content that failed to parse:", content);
+
+              // Try one more fallback without the original content cleaning
+              try {
+                // More aggressive cleaning
+                let aggressiveClean = content;
+                aggressiveClean = aggressiveClean.replace(/```[a-z]*\s*/g, "");
+                aggressiveClean = aggressiveClean.replace(/```\s*/g, "");
+                aggressiveClean = aggressiveClean.trim();
+
+                parsedData = JSON.parse(aggressiveClean);
+                debugSteps.push("Successfully parsed with aggressive cleaning");
+                console.log("Aggressively cleaned and parsed:", parsedData);
+              } catch (aggressiveError) {
+                debugSteps.push(
+                  `Aggressive cleaning also failed: ${aggressiveError.message}`
+                );
+              }
             }
           } else {
             debugSteps.push("No valid choices/message structure found");
@@ -127,10 +174,38 @@ const MealPlanDisplay = ({ aiResponse }) => {
         parsedData: parsedData,
         hasMeals: parsedData && parsedData.meals ? parsedData.meals.length : 0,
       });
-
       if (parsedData && parsedData.meals && Array.isArray(parsedData.meals)) {
-        console.log("✅ Valid meal data found:", parsedData);
-        setMealData(parsedData);
+        // Normalize and validate the meal data
+        const normalizedData = {
+          ...parsedData,
+          meals: parsedData.meals.map((meal) => ({
+            ...meal,
+            ingredients: meal.ingredients
+              ? meal.ingredients.map((ingredient) => {
+                  // Ensure each ingredient is properly formatted
+                  if (typeof ingredient === "string") {
+                    // Convert string to object format for consistency
+                    return { name: ingredient, amount: null };
+                  } else if (
+                    typeof ingredient === "object" &&
+                    ingredient.name
+                  ) {
+                    // Ensure amount exists
+                    return {
+                      name: ingredient.name,
+                      amount: ingredient.amount || null,
+                    };
+                  } else {
+                    // Fallback for malformed ingredients
+                    return { name: String(ingredient), amount: null };
+                  }
+                })
+              : [],
+          })),
+        };
+
+        console.log("✅ Valid meal data found:", normalizedData);
+        setMealData(normalizedData);
         setError(null);
       } else {
         console.log("❌ Invalid meal plan format:", parsedData);
@@ -146,7 +221,7 @@ const MealPlanDisplay = ({ aiResponse }) => {
         hasMeals: 0,
       });
     }
-  }, [aiResponse]);
+  }, [aiResponse, items]);
 
   if (error) {
     return (
@@ -249,64 +324,61 @@ const MealPlanDisplay = ({ aiResponse }) => {
     }
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 px-2">
       {/* Daily Totals Summary */}
       {mealData.daily_totals && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded p-3">
-          <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center">
-            <Target className="w-4 h-4 mr-1" />
+        <div className="flex items-center justify-between bg-zinc-700 rounded p-4 shadow-lg mb-4">
+          <h3 className="text-base font-bold text-zinc-200 flex items-center gap-2 ">
+            <Target className="w-5 h-5 text-zinc-400" />
             Daily Nutritional Goals
           </h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex gap-10">
             <div className="text-center">
-              <div className="text-lg font-bold text-white">
+              <div className="text-lg font-bold text-zinc-100">
                 {mealData.daily_totals.calories}
               </div>
-              <div className="text-sm text-zinc-400">Calories</div>
+              <div className="text-xs text-zinc-400">Calories</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-green-400">
+              <div className="text-lg font-bold text-zinc-100">
                 {mealData.daily_totals.protein}g
               </div>
-              <div className="text-sm text-zinc-400">Protein</div>
+              <div className="text-xs text-zinc-400">Protein</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-yellow-400">
+              <div className="text-lg font-bold text-zinc-100">
                 {mealData.daily_totals.carbs}g
               </div>
-              <div className="text-sm text-zinc-400">Carbs</div>
+              <div className="text-xs text-zinc-400">Carbs</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-400">
+              <div className="text-lg font-bold text-zinc-100">
                 {mealData.daily_totals.fats}g
               </div>
-              <div className="text-sm text-zinc-400">Fats</div>
+              <div className="text-xs text-zinc-400">Fats</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Meals */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-zinc-300 flex items-center">
-          <ChefHat className="w-4 h-4 mr-1" />
+      <div className="space-y-4  rounded shadow-xl">
+        <h3 className="text-base font-bold text-zinc-200 flex items-center gap-2 mb-4">
+          <Utensils className="w-5 h-5 text-zinc-400" />
           Meal Plan
         </h3>
 
         {mealData.meals
           .sort((a, b) => a.order - b.order)
           .map((meal, index) => (
-            <div
-              key={index}
-              className={`border rounded p-3 ${getMealTypeColor(meal.type)}`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center">
-                  <span className="text-sm mr-2">
+            <div key={index} className="bg-zinc-800  rounded shadow-lg p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {/* <span className="text-zinc-400">
                     {getMealTypeIcon(meal.type)}
-                  </span>
+                  </span> */}
                   <div>
-                    <h4 className="font-semibold text-white text-sm">
+                    <h4 className="font-semibold text-zinc-100 text-base mb-0.5">
                       {meal.name}
                     </h4>
                     <span className="text-sm text-zinc-400 capitalize">
@@ -315,43 +387,52 @@ const MealPlanDisplay = ({ aiResponse }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-sm font-medium text-zinc-100">
                     {meal.calories} cal
                   </div>
-                  <div className="text-sm text-zinc-400">
-                    P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fats}g
+                  <div className="text-sm text-zinc-500 mt-0.5">
+                    Protein: {meal.protein}g · Carbs: {meal.carbs}g · Fats:{" "}
+                    {meal.fats}g
                   </div>
                 </div>
               </div>
-
-              <div className="mb-2">
-                <h5 className="text-sm font-medium text-zinc-300 mb-1">
-                  Ingredients:
+              <div className="mb-3">
+                <h5 className="text-sm font-semibold text-zinc-300 mb-1">
+                  Ingredients
                 </h5>
-                <div className="grid grid-cols-1 gap-1">
-                  {meal.ingredients.map((ingredient, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between px-2 py-1 bg-zinc-800/60 rounded text-sm"
-                    >
-                      <span className="text-zinc-300">
-                        {typeof ingredient === "object"
-                          ? ingredient.name
-                          : ingredient}
-                      </span>
-                      {typeof ingredient === "object" && ingredient.amount && (
-                        <span className="text-zinc-500 font-medium">
-                          {ingredient.amount}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {meal.ingredients.map((ingredient, idx) => {
+                    const ingredientName =
+                      typeof ingredient === "object"
+                        ? ingredient.name
+                        : ingredient;
+                    const ingredientAmount =
+                      typeof ingredient === "object" ? ingredient.amount : null;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-zinc-700 rounded-md text-sm"
+                      >
+                        <span className="w-1 h-1 bg-zinc-500 rounded-full"></span>
+                        <span className="text-zinc-300">{ingredientName}</span>
+                        {ingredientAmount ? (
+                          <span className="text-zinc-400 bg-zinc-800 rounded px-1  text-[12px] ml-1">
+                            {ingredientAmount}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-500 italic text-[10px] ml-1">
+                            amount not specified
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
               <div>
-                <h5 className="text-sm font-medium text-zinc-300 mb-1">
-                  Instructions:
+                <h5 className="text-sm font-semibold text-zinc-300 mb-1">
+                  Instructions
                 </h5>
                 <p className="text-sm text-zinc-400 leading-relaxed">
                   {meal.instructions}
@@ -501,6 +582,7 @@ export default function Blueprints() {
   const [useCustomCalories, setUseCustomCalories] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [aiProvider, setAiProvider] = useState("openai");
+  const [generatingPlans, setGeneratingPlans] = useState([]); // Track plans being generated
 
   // Filtered clients
   const filteredClients = useMemo(() => {
@@ -512,7 +594,6 @@ export default function Blueprints() {
         client.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
     );
   }, [clients, clientSearchTerm]);
-
   // Display plans based on selection
   const displayPlans = useMemo(() => {
     let plans = showAllPlans
@@ -520,6 +601,16 @@ export default function Blueprints() {
       : selectedClient
       ? activeDietPlans.filter((plan) => plan.client_id === selectedClient.id)
       : [];
+
+    // Add generating plans to the list
+    const relevantGeneratingPlans = showAllPlans
+      ? generatingPlans
+      : selectedClient
+      ? generatingPlans.filter((plan) => plan.client_id === selectedClient.id)
+      : [];
+
+    // Combine actual plans with generating plans
+    plans = [...relevantGeneratingPlans, ...plans];
 
     // Apply search filter
     if (searchTerm) {
@@ -553,6 +644,7 @@ export default function Blueprints() {
     searchTerm,
     sortBy,
     sortOrder,
+    generatingPlans,
   ]);
 
   // Initialize with first client if available
@@ -593,7 +685,81 @@ export default function Blueprints() {
       console.error("Error fetching plan details:", error);
     }
   };
+  // Generate enhanced diet plan prompt with client data
+  const buildClientAwarePrompt = () => {
+    const client = selectedClientForForm || selectedClient;
+    const selectedPlanType = DIET_PLAN_TYPES.find((p) => p.id === planType);
 
+    let prompt = `Create a comprehensive ${
+      selectedPlanType?.name || planType
+    } diet plan with the following specifications:\n\n`;
+
+    // Plan specifications
+    prompt += `PLAN REQUIREMENTS:\n`;
+    prompt += `- Goal: ${selectedPlanType?.name || planType} - ${
+      selectedPlanType?.description || ""
+    }\n`;
+    prompt += `- Meals per day: ${mealsPerDay}\n`;
+    prompt += `- Meal complexity: ${mealComplexity}\n`;
+
+    if (useCustomCalories && customCalories) {
+      prompt += `- Target daily calories: ${customCalories}\n`;
+    }
+
+    // Client-specific information
+    if (client) {
+      prompt += `\nCLIENT PROFILE:\n`;
+      prompt += `- Name: ${client.first_name} ${client.last_name}\n`;
+
+      if (client.height) {
+        prompt += `- Height: ${client.height} cm\n`;
+      }
+
+      if (client.weight) {
+        prompt += `- Weight: ${client.weight} kg\n`;
+      }
+
+      if (client.fitness_level) {
+        prompt += `- Activity Level: ${client.fitness_level.replace(
+          "_",
+          " "
+        )}\n`;
+      }
+
+      if (client.allergies && client.allergies.trim()) {
+        prompt += `- ALLERGIES (CRITICAL): ${client.allergies}\n`;
+      }
+
+      if (client.food_likes && client.food_likes.trim()) {
+        prompt += `- Food Preferences: ${client.food_likes}\n`;
+      }
+
+      if (client.food_dislikes && client.food_dislikes.trim()) {
+        prompt += `- Foods to Avoid: ${client.food_dislikes}\n`;
+      }
+
+      if (client.medical_conditions && client.medical_conditions.trim()) {
+        prompt += `- Medical Considerations: ${client.medical_conditions}\n`;
+      }
+    }
+
+    // Additional notes
+    if (additionalNotes && additionalNotes.trim()) {
+      prompt += `\nADDITIONAL REQUIREMENTS:\n${additionalNotes}\n`;
+    }
+
+    // Output format requirements
+    prompt += `\nIMPORTANT INSTRUCTIONS:\n`;
+    prompt += `1. STRICTLY AVOID any foods mentioned in allergies or food dislikes\n`;
+    prompt += `2. Prioritize foods mentioned in food preferences when possible\n`;
+    prompt += `3. Calculate calories based on height, weight, and activity level if provided\n`;
+    prompt += `4. Include detailed macronutrient breakdown for each meal\n`;
+    prompt += `5. Provide specific portion sizes and cooking instructions\n`;
+    prompt += `6. Consider the client's activity level for appropriate caloric intake\n`;
+    prompt += `7. Format as a detailed, easy-to-follow meal plan\n`;
+
+    return prompt;
+  };
   // Generate diet plan
   const handleGeneratePlan = async () => {
     if (!planType) {
@@ -606,13 +772,36 @@ export default function Blueprints() {
       return;
     }
 
-    // Use the selected client from the sidebar if no specific client is selected for the form
+    // Use the selected client from the form or sidebar
     const clientId = selectedClientForForm?.id || selectedClient?.id || null;
+    const enhancedPrompt = buildClientAwarePrompt();
+
+    // Create a temporary loading plan item
+    const tempPlanId = `temp_${Date.now()}`;
+    const loadingPlan = {
+      id: tempPlanId,
+      title: planTitle.trim(),
+      client_name: selectedClientForForm?.first_name
+        ? `${selectedClientForForm.first_name} ${selectedClientForForm.last_name}`
+        : selectedClient?.first_name
+        ? `${selectedClient.first_name} ${selectedClient.last_name}`
+        : "Generic Plan",
+      client_id: clientId,
+      plan_type: planType,
+      meals_per_day: mealsPerDay,
+      meal_complexity: mealComplexity,
+      created_at: new Date().toISOString(),
+      isGenerating: true,
+    };
+
+    // Close modal immediately and add loading plan
+    setShowCreateModal(false);
+    setGeneratingPlans((prev) => [...prev, loadingPlan]);
 
     try {
       const result = await dispatch(
         generateDietPlan({
-          prompt: "Generate a diet plan",
+          prompt: enhancedPrompt,
           aiProvider,
           clientId,
           title: planTitle.trim(),
@@ -625,17 +814,24 @@ export default function Blueprints() {
       );
 
       if (result.type === "dietPlans/generate/fulfilled") {
-        setShowCreateModal(false);
+        // Remove the loading plan and refresh the actual plans
+        setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
+
         // Reset form
         setPlanTitle("");
         setPlanType("");
         setSelectedClientForForm(null);
         setAdditionalNotes("");
+
         // Refresh plans
         dispatch(fetchDietPlans());
       }
     } catch (error) {
       console.error("Error generating plan:", error);
+
+      // Remove the loading plan on error
+      setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
+
       alert("Failed to generate diet plan. Please try again.");
     }
   };
@@ -885,62 +1081,91 @@ export default function Blueprints() {
                 {displayPlans.map((plan) => (
                   <div
                     key={plan.id}
-                    className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200"
+                    className={`bg-zinc-800/50 rounded-lg px-4 py-2 transition-all duration-200 ${
+                      plan.isGenerating
+                        ? "border-blue-500/50 bg-blue-500/5"
+                        : "border-zinc-700/50 hover:border-zinc-600/50"
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1">
-                        <div className="p-2 rounded-lg bg-blue-500/10">
-                          <ChefHat className="h-5 w-5 text-blue-400" />
+                        <div
+                          className={`p-2 rounded-lg ${
+                            plan.isGenerating
+                              ? "bg-blue-500/20"
+                              : "bg-blue-500/10"
+                          }`}
+                        >
+                          {plan.isGenerating ? (
+                            <Loader className="h-5 w-5 text-blue-400 animate-spin" />
+                          ) : (
+                            <ChefHat className="h-5 w-5 text-blue-400" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-semibold text-white text-lg">
+                              <h3 className="font-semibold text-white text-lg flex items-center gap-2">
                                 {plan.title}
+                                {plan.isGenerating && (
+                                  <span className="text-sm text-blue-400 font-normal">
+                                    - Developing Nutrition Plan
+                                  </span>
+                                )}
                               </h3>
                               <p className="text-sm text-zinc-400">
                                 {plan.client_name || "Generic Plan"}
                               </p>
                             </div>
-                            <div className="flex items-center gap-6 text-sm">
-                              <div className="text-center">
-                                <span className="text-zinc-400">Plan Type</span>
-                                <p className="text-white capitalize font-medium">
-                                  {plan.plan_type?.replace("_", " ")}
-                                </p>
+                            {!plan.isGenerating && (
+                              <div className="flex items-center gap-6 text-sm">
+                                <div className="text-center">
+                                  <span className="text-zinc-400">
+                                    Plan Type
+                                  </span>
+                                  <p className="text-white capitalize font-medium">
+                                    {plan.plan_type?.replace("_", " ")}
+                                  </p>
+                                </div>
+                                <div className="text-center">
+                                  <span className="text-zinc-400">
+                                    Meals/Day
+                                  </span>
+                                  <p className="text-white font-medium">
+                                    {plan.meals_per_day}
+                                  </p>
+                                </div>
+                                <div className="text-center">
+                                  <span className="text-zinc-400">Created</span>
+                                  <p className="text-white font-medium">
+                                    {new Date(
+                                      plan.created_at
+                                    ).toLocaleDateString()}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="text-center">
-                                <span className="text-zinc-400">Meals/Day</span>
-                                <p className="text-white font-medium">
-                                  {plan.meals_per_day}
-                                </p>
-                              </div>
-                              <div className="text-center">
-                                <span className="text-zinc-400">Created</span>
-                                <p className="text-white font-medium">
-                                  {new Date(
-                                    plan.created_at
-                                  ).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => handleViewPlanDetails(plan)}
-                          className="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm font-medium"
-                        >
-                          View Plan
-                        </button>
-                        <button
-                          onClick={() => handleViewPlanDetails(plan)}
-                          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        {!plan.isGenerating && (
+                          <>
+                            <button
+                              onClick={() => handleViewPlanDetails(plan)}
+                              className="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm font-medium"
+                            >
+                              View Plan
+                            </button>
+                            <button
+                              onClick={() => handleViewPlanDetails(plan)}
+                              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -949,91 +1174,197 @@ export default function Blueprints() {
             )}
           </div>
         </div>
-      </div>
+      </div>{" "}
       {/* Create Plan Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+          <div className="bg-zinc-950 border border-zinc-900 rounded max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
               <h2 className="text-xl font-semibold text-white">
                 Create Diet Plan
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              <div className="space-y-6">
-                {" "}
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
+              <div className="space-y-4">
                 {/* Plan Title */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Plan Title
-                  </label>
-                  <input
-                    type="text"
-                    value={planTitle}
-                    onChange={(e) => setPlanTitle(e.target.value)}
-                    placeholder="Enter plan title"
-                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
-                  />
+                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Plan Details
+                  </h3>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Plan Title
+                    </label>
+                    <input
+                      type="text"
+                      value={planTitle}
+                      onChange={(e) => setPlanTitle(e.target.value)}
+                      placeholder="Enter plan title"
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    />
+                  </div>
                 </div>
+
                 {/* Client Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Client (Optional)
-                  </label>
-                  <select
-                    value={
-                      selectedClientForForm?.id || selectedClient?.id || ""
-                    }
-                    onChange={(e) => {
-                      const clientId = e.target.value;
-                      if (clientId) {
-                        const client = clients.find(
-                          (c) => c.id === parseInt(clientId)
-                        );
-                        setSelectedClientForForm(client);
-                      } else {
-                        setSelectedClientForForm(null);
+                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Client
+                  </h3>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Select Client (Optional)
+                    </label>
+                    <select
+                      value={
+                        selectedClientForForm?.id || selectedClient?.id || ""
                       }
-                    }}
-                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">
-                      Select a client (or leave empty for generic plan)
-                    </option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.first_name} {client.last_name} - {client.email}
+                      onChange={(e) => {
+                        const clientId = e.target.value;
+                        if (clientId) {
+                          const client = clients.find(
+                            (c) => c.id === parseInt(clientId)
+                          );
+                          setSelectedClientForForm(client);
+                        } else {
+                          setSelectedClientForForm(null);
+                        }
+                      }}
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    >
+                      <option value="">
+                        Select a client (or leave empty for generic plan)
                       </option>
-                    ))}
-                  </select>
-                  {selectedClient && !selectedClientForForm && (
-                    <p className="text-sm text-blue-400 mt-1">
-                      Currently creating for: {selectedClient.first_name}{" "}
-                      {selectedClient.last_name}
-                    </p>
-                  )}
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.first_name} {client.last_name} -{" "}
+                          {client.email}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Client Profile Information */}
+                    {(selectedClientForForm || selectedClient) && (
+                      <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+                        <h4 className="text-sm font-medium text-zinc-300 mb-2">
+                          Client Profile Data
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                          {(selectedClientForForm || selectedClient)
+                            ?.height && (
+                            <div>
+                              <span className="text-zinc-500">Height:</span>
+                              <span className="text-zinc-300 ml-1">
+                                {
+                                  (selectedClientForForm || selectedClient)
+                                    .height
+                                }{" "}
+                                cm
+                              </span>
+                            </div>
+                          )}
+                          {(selectedClientForForm || selectedClient)
+                            ?.weight && (
+                            <div>
+                              <span className="text-zinc-500">Weight:</span>
+                              <span className="text-zinc-300 ml-1">
+                                {
+                                  (selectedClientForForm || selectedClient)
+                                    .weight
+                                }{" "}
+                                kg
+                              </span>
+                            </div>
+                          )}
+                          {(selectedClientForForm || selectedClient)
+                            ?.fitness_level && (
+                            <div>
+                              <span className="text-zinc-500">
+                                Activity Level:
+                              </span>
+                              <span className="text-zinc-300 ml-1 capitalize">
+                                {(
+                                  selectedClientForForm || selectedClient
+                                ).fitness_level.replace("_", " ")}
+                              </span>
+                            </div>
+                          )}
+                          {(selectedClientForForm || selectedClient)
+                            ?.allergies && (
+                            <div className="col-span-2 md:col-span-3">
+                              <span className="text-zinc-500">Allergies:</span>
+                              <span className="text-zinc-300 ml-1">
+                                {
+                                  (selectedClientForForm || selectedClient)
+                                    .allergies
+                                }
+                              </span>
+                            </div>
+                          )}
+                          {(selectedClientForForm || selectedClient)
+                            ?.food_likes && (
+                            <div className="col-span-2 md:col-span-3">
+                              <span className="text-zinc-500">Food Likes:</span>
+                              <span className="text-zinc-300 ml-1">
+                                {
+                                  (selectedClientForForm || selectedClient)
+                                    .food_likes
+                                }
+                              </span>
+                            </div>
+                          )}
+                          {(selectedClientForForm || selectedClient)
+                            ?.food_dislikes && (
+                            <div className="col-span-2 md:col-span-3">
+                              <span className="text-zinc-500">
+                                Food Dislikes:
+                              </span>
+                              <span className="text-zinc-300 ml-1">
+                                {
+                                  (selectedClientForForm || selectedClient)
+                                    .food_dislikes
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-green-400 mt-2">
+                          ✓ This data will be used to personalize the diet plan
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedClient && !selectedClientForForm && (
+                      <p className="text-sm text-blue-400 mt-1">
+                        Currently creating for: {selectedClient.first_name}{" "}
+                        {selectedClient.last_name}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 {/* Plan Type Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
                     Diet Plan Goal
-                  </label>
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {DIET_PLAN_TYPES.map((type) => (
                       <button
                         key={type.id}
                         onClick={() => setPlanType(type.id)}
-                        className={`p-4 rounded-lg border text-left transition-all ${
+                        className={`p-3 rounded border-2 transition-all text-left ${
                           planType === type.id
                             ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                            : "border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600"
+                            : "border-zinc-800 bg-zinc-900 hover:border-zinc-600 text-zinc-300"
                         }`}
                       >
                         <div className="flex items-center gap-3 mb-2">
@@ -1047,68 +1378,70 @@ export default function Blueprints() {
                     ))}
                   </div>
                 </div>
-                {/* Meals Per Day */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Meals Per Day: {mealsPerDay}
-                  </label>
-                  <input
-                    type="range"
-                    min="3"
-                    max="6"
-                    value={mealsPerDay}
-                    onChange={(e) => setMealsPerDay(parseInt(e.target.value))}
-                    className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-sm text-zinc-500 mt-1">
-                    <span>3</span>
-                    <span>4</span>
-                    <span>5</span>
-                    <span>6</span>
+
+                {/* Plan Settings */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Plan Settings
+                  </h3>
+                  <div className="space-y-4">
+                    {/* Meals Per Day */}
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-2">
+                        Meals Per Day: {mealsPerDay}
+                      </label>
+                      <input
+                        type="range"
+                        min="3"
+                        max="6"
+                        value={mealsPerDay}
+                        onChange={(e) =>
+                          setMealsPerDay(parseInt(e.target.value))
+                        }
+                        className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="flex justify-between text-sm text-zinc-500 mt-1">
+                        <span>3</span>
+                        <span>4</span>
+                        <span>5</span>
+                        <span>6</span>
+                      </div>
+                    </div>
+
+                    {/* Additional Notes */}
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">
+                        Additional Notes (Optional)
+                      </label>
+                      <textarea
+                        value={additionalNotes}
+                        onChange={(e) => setAdditionalNotes(e.target.value)}
+                        placeholder="Any specific requirements or preferences..."
+                        rows={3}
+                        className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                      />
+                    </div>
                   </div>
-                </div>
-                {/* Additional Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Additional Notes (Optional)
-                  </label>
-                  <textarea
-                    value={additionalNotes}
-                    onChange={(e) => setAdditionalNotes(e.target.value)}
-                    placeholder="Any specific requirements or preferences..."
-                    rows={3}
-                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none resize-none"
-                  />
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-zinc-800 bg-zinc-900/50">
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleGeneratePlan}
-                  disabled={generating}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg font-medium text-white transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {generating ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Generate Plan
-                    </>
-                  )}
-                </button>
-              </div>
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-zinc-800 bg-zinc-900 p-4 px-8">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>{" "}
+              <button
+                onClick={handleGeneratePlan}
+                disabled={!planType || !planTitle.trim()}
+                className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black text-white rounded transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="w-4 h-4" />
+                Generate Plan
+              </button>
             </div>
           </div>
         </div>
@@ -1116,7 +1449,7 @@ export default function Blueprints() {
       {/* Plan Details Modal */}
       {showPlanDetailModal && planDetails && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-zinc-800">
               <h2 className="text-xl font-semibold text-white">
                 {planDetails.title}
@@ -1159,16 +1492,18 @@ export default function Blueprints() {
                       {new Date(planDetails.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                </div>
-
+                </div>{" "}
                 {/* Plan Content */}
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-300 mb-2">
                     Diet Plan Content
                   </h3>
-                  <div className="bg-zinc-800/50 rounded p-3 border border-zinc-700">
-                    <div className="text-sm text-zinc-300 max-h-80 overflow-y-auto scrollbar-thin scrollbar-dark">
-                      <MealPlanDisplay aiResponse={planDetails.ai_response} />
+                  <div className=" rounded p-3 ">
+                    <div className="text-sm text-zinc-300 max-h-[55vh] overflow-y-auto scrollbar-thin scrollbar-dark">
+                      <MealPlanDisplay
+                        aiResponse={planDetails.ai_response}
+                        items={planDetails.items}
+                      />
                     </div>
                   </div>
                 </div>
