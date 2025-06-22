@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { X, Upload, Save, Camera, Scale, CheckCircle } from "lucide-react";
 import axios from "@/lib/axios";
-import {
-  addMessage,
-  completeWeighInRequest,
-} from "@/redux/slices/messagingSlice";
 
 export default function WeighInRequestResponseModal({
   isOpen,
@@ -16,7 +11,6 @@ export default function WeighInRequestResponseModal({
   onCompleted,
   authUserId, // Add this prop to get the authenticated user ID
 }) {
-  const dispatch = useDispatch();
   const [metrics, setMetrics] = useState({});
   const [photos, setPhotos] = useState({});
   const [loading, setLoading] = useState(false);
@@ -144,35 +138,21 @@ export default function WeighInRequestResponseModal({
           setLoading(false);
           return;
         }
-      } // Mark the request as completed using Redux thunk
-      const completeResult = await dispatch(
-        completeWeighInRequest({
-          requestId: request.id,
-        })
+      }
+
+      // Mark the request as completed using direct API call
+      const completeResponse = await axios.patch(
+        `/api/weigh-in-requests/${request.id}/complete`
       );
 
-      if (completeResult.type.endsWith("/fulfilled")) {
-        // Send a completion message to the chat
-        const completionMessage = {
-          id: `completion_${request.id}_${Date.now()}`,
-          sender_id: authUserId || request.client_id,
-          receiver_id: request.trainer_id || 1, // Default to trainer ID 1 for testing
-          message: `✅ Weigh-in request completed: "${request.title}"`,
-          message_type: "weigh_in_completion",
-          weigh_in_request_id: request.id,
-          created_at: new Date().toISOString(),
-          pending: false,
-        };
-
-        console.log("🎯 Sending completion message:", completionMessage);
-        dispatch(addMessage(completionMessage));
-
-        onCompleted?.(completeResult.payload.data);
+      if (completeResponse.data.success) {
+        console.log(`✅ Weigh-in request ${request.id} completed successfully`);
+        onCompleted?.(completeResponse.data);
         onClose();
       } else {
         setErrors({
           general:
-            completeResult.error?.message || "Failed to complete request",
+            completeResponse.data.message || "Failed to complete request",
         });
       }
     } catch (error) {

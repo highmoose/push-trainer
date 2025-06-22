@@ -50,99 +50,6 @@ export const fetchAllMessages = createAsyncThunk(
   }
 );
 
-export const acceptWeighInRequest = createAsyncThunk(
-  "messaging/acceptWeighInRequest",
-  async ({ requestId }, { dispatch, getState }) => {
-    console.log(`📝 Accepting weigh-in request: ${requestId}`);
-
-    try {
-      const response = await axios.patch(
-        `/api/weigh-in-requests/${requestId}/accept`
-      );
-
-      // Update the request status in Redux
-      dispatch(
-        updateWeighInRequestStatus({
-          requestId,
-          status: "accepted",
-          clientResponse: "accepted",
-        })
-      );
-
-      console.log(`✅ Weigh-in request ${requestId} accepted successfully`);
-      return response.data;
-    } catch (error) {
-      console.error(
-        `❌ Failed to accept weigh-in request ${requestId}:`,
-        error
-      );
-      throw error;
-    }
-  }
-);
-
-export const declineWeighInRequest = createAsyncThunk(
-  "messaging/declineWeighInRequest",
-  async ({ requestId }, { dispatch, getState }) => {
-    console.log(`📝 Declining weigh-in request: ${requestId}`);
-
-    try {
-      const response = await axios.patch(
-        `/api/weigh-in-requests/${requestId}/decline`
-      );
-
-      // Update the request status in Redux
-      dispatch(
-        updateWeighInRequestStatus({
-          requestId,
-          status: "declined",
-          clientResponse: "declined",
-        })
-      );
-
-      console.log(`✅ Weigh-in request ${requestId} declined successfully`);
-      return response.data;
-    } catch (error) {
-      console.error(
-        `❌ Failed to decline weigh-in request ${requestId}:`,
-        error
-      );
-      throw error;
-    }
-  }
-);
-
-export const completeWeighInRequest = createAsyncThunk(
-  "messaging/completeWeighInRequest",
-  async ({ requestId }, { dispatch, getState }) => {
-    console.log(`📝 Completing weigh-in request: ${requestId}`);
-
-    try {
-      const response = await axios.patch(
-        `/api/weigh-in-requests/${requestId}/complete`
-      );
-
-      // Update the request status in Redux
-      dispatch(
-        updateWeighInRequestStatus({
-          requestId,
-          status: "completed",
-          clientResponse: "completed",
-        })
-      );
-
-      console.log(`✅ Weigh-in request ${requestId} completed successfully`);
-      return response.data;
-    } catch (error) {
-      console.error(
-        `❌ Failed to complete weigh-in request ${requestId}:`,
-        error
-      );
-      throw error;
-    }
-  }
-);
-
 // Initial State
 const initialState = {
   conversations: [],
@@ -248,34 +155,6 @@ const messagingSlice = createSlice({
         state.messagesByUser
       );
     },
-    updateWeighInRequestStatus(state, action) {
-      const { requestId, status, clientResponse } = action.payload;
-      console.log(
-        `🔄 Updating weigh-in request status: ${requestId} → ${status}`
-      );
-
-      // Find and update the weigh-in request in all user conversations
-      Object.keys(state.messagesByUser).forEach((userId) => {
-        const messages = state.messagesByUser[userId];
-        const requestIndex = messages.findIndex(
-          (msg) =>
-            msg.message_type === "weigh_in_request" &&
-            msg.weigh_in_request_id === requestId
-        );
-
-        if (requestIndex !== -1) {
-          // Update the request status
-          state.messagesByUser[userId][requestIndex].weigh_in_request.status =
-            status;
-          state.messagesByUser[userId][
-            requestIndex
-          ].weigh_in_request.client_response = clientResponse;
-          console.log(
-            `✅ Updated request ${requestId} status to ${status} for user ${userId}`
-          );
-        }
-      });
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -352,7 +231,5 @@ const messagingSlice = createSlice({
   },
 });
 
-export const { addMessage, setAuthUserId, updateWeighInRequestStatus } =
-  messagingSlice.actions;
-export { acceptWeighInRequest, declineWeighInRequest, completeWeighInRequest };
+export const { addMessage, setAuthUserId } = messagingSlice.actions;
 export default messagingSlice.reducer;

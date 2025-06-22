@@ -3,7 +3,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "@/redux/slices/authSlice";
-import { Bell, LogOut, Settings, X } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import NotificationBadge from "@/components/common/NotificationBadge";
 
 export default function Header({ setShowTab }) {
   const dispatch = useDispatch();
@@ -48,7 +49,6 @@ export default function Header({ setShowTab }) {
         height={200}
         alt="logo"
       />
-
       {user?.role === "trainer" && (
         <div className="flex gap-2">
           {trainerMenu.map((item, index) => (
@@ -74,12 +74,11 @@ export default function Header({ setShowTab }) {
             </button>
           ))}
         </div>
-      )}
+      )}{" "}
       <div className="flex gap-2">
-        <button className="relative bg-zinc-900 hover:bg-zinc-800 py-3 px-4 text-[15px] font-semibold rounded cursor-pointer transition-colors duration-300">
-          <Bell size={20} />
-          <div className="w-2 h-2 bg-yellow-300 rounded-full absolute top-2 right-2"></div>
-        </button>
+        <div className="bg-zinc-900 hover:bg-zinc-800 py-3 px-4 text-[15px] font-semibold rounded cursor-pointer transition-colors duration-300">
+          <NotificationBadge />
+        </div>
         <button
           onClick={() => setShowTab("settings")}
           className="bg-zinc-900 hover:bg-zinc-800 py-3 px-4 text-[15px] font-semibold rounded cursor-pointer transition-colors duration-300"

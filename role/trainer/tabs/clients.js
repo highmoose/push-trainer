@@ -5,6 +5,7 @@ import DeleteClientModal from "@/components/trainer/deleteClientModal";
 import ClientInfoModal from "@/components/trainer/clientInfoModal";
 import AddClientMetricsModal from "@/components/trainer/AddClientMetricsModal";
 import CreateWeighInRequestModal from "@/components/trainer/CreateWeighInRequestModal";
+import RecurringWeighInModal from "@/components/trainer/RecurringWeighInModal";
 import ClientTimeline from "@/components/trainer/ClientTimeline";
 import SearchInput from "@/components/common/searchInput";
 import LinkStatusBadge from "@/components/common/LinkStatusBadge";
@@ -63,6 +64,8 @@ export default function Clients() {
   const [deleteClientModalOpen, setDeleteClientModalOpen] = useState(false);
   const [addMetricsModalOpen, setAddMetricsModalOpen] = useState(false);
   const [weighInRequestModalOpen, setWeighInRequestModalOpen] = useState(false);
+  const [recurringWeighInModalOpen, setRecurringWeighInModalOpen] =
+    useState(false);
   const [searchString, setSearchString] = useState("");
   const [activeTab, setActiveTab] = useState("progress");
   const [timeRange, setTimeRange] = useState("30d"); // Fetch clients when component mounts
@@ -596,13 +599,20 @@ export default function Clients() {
                       >
                         <Activity className="h-4 w-4" />
                         Add Metrics
-                      </button>
+                      </button>{" "}
                       <button
                         onClick={() => setWeighInRequestModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
                       >
                         <Scale className="h-4 w-4" />
                         Request Weigh-in
+                      </button>
+                      <button
+                        onClick={() => setRecurringWeighInModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      >
+                        <Clock className="h-4 w-4" />
+                        Recurring
                       </button>
                     </div>
                   </div>{" "}
@@ -1025,13 +1035,22 @@ export default function Clients() {
             console.log("Metrics added successfully:", metricsData);
           }}
         />
-      )}
+      )}{" "}
       {weighInRequestModalOpen && (
         <CreateWeighInRequestModal
           isOpen={weighInRequestModalOpen}
           onClose={() => setWeighInRequestModalOpen(false)}
           clientId={selectedClient?.id}
           clientName={selectedClient?.name}
+        />
+      )}
+      {recurringWeighInModalOpen && (
+        <RecurringWeighInModal
+          isOpen={recurringWeighInModalOpen}
+          onClose={() => setRecurringWeighInModalOpen(false)}
+          clientId={selectedClient?.id}
+          clientName={selectedClient?.name}
+          existingSettings={selectedClient?.recurring_weigh_in}
         />
       )}
     </div>
