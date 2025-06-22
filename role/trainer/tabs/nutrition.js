@@ -463,13 +463,6 @@ const DIET_PLAN_TYPES = [
     color: "orange",
   },
   {
-    id: "lean_bulk",
-    name: "Lean Bulk",
-    description: "Muscle gain with minimal fat gain",
-    icon: TrendingUp,
-    color: "green",
-  },
-  {
     id: "maintain",
     name: "Maintenance",
     description: "Maintain current weight and composition",
@@ -482,6 +475,20 @@ const DIET_PLAN_TYPES = [
     description: "Simultaneously lose fat and gain muscle",
     icon: Target,
     color: "purple",
+  },
+  {
+    id: "lean_bulk",
+    name: "Lean Bulk",
+    description: "Muscle gain with minimal fat gain",
+    icon: TrendingUp,
+    color: "green",
+  },
+  {
+    id: "aggressive_bulk",
+    name: "Aggressive Muscle Gain",
+    description: "Rapid muscle gain with significant caloric surplus",
+    icon: TrendingUp,
+    color: "emerald",
   },
 ];
 
@@ -851,11 +858,11 @@ export default function Nutrition() {
     try {
       await dispatch(deleteDietPlan(planToDelete.id));
       console.log("Diet plan deleted successfully:", planToDelete.id);
-      
+
       // Close modal and reset state
       setShowDeleteModal(false);
       setPlanToDelete(null);
-      
+
       // Optionally refresh the plans list
       dispatch(fetchDietPlans());
     } catch (error) {
@@ -877,7 +884,8 @@ export default function Nutrition() {
         {/* Professional Trainer Sidebar */}
         <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
           {" "}
-          {/* Sidebar Header */}          <div className="p-3 border-b border-zinc-800/30">
+          {/* Sidebar Header */}{" "}
+          <div className="p-3 border-b border-zinc-800/30">
             <h1 className="text-base font-bold text-zinc-300 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-blue-400" />
               Nutrition Plans
@@ -1180,7 +1188,8 @@ export default function Nutrition() {
                             )}
                           </div>
                         </div>
-                      </div>                      <div className="flex items-center gap-2 ml-4">
+                      </div>{" "}
+                      <div className="flex items-center gap-2 ml-4">
                         {!plan.isGenerating && (
                           <>
                             <button
@@ -1252,7 +1261,6 @@ export default function Nutrition() {
                     />
                   </div>
                 </div>
-
                 {/* Client Selection */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
                   <h3 className="text-sm font-medium text-zinc-300 mb-3">
@@ -1389,7 +1397,6 @@ export default function Nutrition() {
                     )}
                   </div>
                 </div>
-
                 {/* Plan Type Selection */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
                   <h3 className="text-sm font-medium text-zinc-300 mb-3">
@@ -1416,49 +1423,115 @@ export default function Nutrition() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div>{" "}
+                {/* Plan Settings and Calories - Side by Side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Plan Settings */}
+                  <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                    <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                      Plan Settings
+                    </h3>
+                    <div className="space-y-4">
+                      {/* Meals Per Day */}
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                          Meals Per Day: {mealsPerDay}
+                        </label>
+                        <input
+                          type="range"
+                          min="3"
+                          max="6"
+                          value={mealsPerDay}
+                          onChange={(e) =>
+                            setMealsPerDay(parseInt(e.target.value))
+                          }
+                          className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="flex justify-between text-sm text-zinc-500 mt-1">
+                          <span>3</span>
+                          <span>4</span>
+                          <span>5</span>
+                          <span>6</span>
+                        </div>
+                      </div>
 
-                {/* Plan Settings */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                    Plan Settings
-                  </h3>
-                  <div className="space-y-4">
-                    {/* Meals Per Day */}
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-2">
-                        Meals Per Day: {mealsPerDay}
-                      </label>
-                      <input
-                        type="range"
-                        min="3"
-                        max="6"
-                        value={mealsPerDay}
-                        onChange={(e) =>
-                          setMealsPerDay(parseInt(e.target.value))
-                        }
-                        className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
-                      />
-                      <div className="flex justify-between text-sm text-zinc-500 mt-1">
-                        <span>3</span>
-                        <span>4</span>
-                        <span>5</span>
-                        <span>6</span>
+                      {/* Additional Notes */}
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">
+                          Additional Notes (Optional)
+                        </label>
+                        <textarea
+                          value={additionalNotes}
+                          onChange={(e) => setAdditionalNotes(e.target.value)}
+                          placeholder="Any specific requirements or preferences..."
+                          rows={3}
+                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                        />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Additional Notes */}
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-1">
-                        Additional Notes (Optional)
-                      </label>
-                      <textarea
-                        value={additionalNotes}
-                        onChange={(e) => setAdditionalNotes(e.target.value)}
-                        placeholder="Any specific requirements or preferences..."
-                        rows={3}
-                        className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                      />
+                  {/* Calories Settings */}
+                  <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                    <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                      Calories
+                    </h3>
+                    <div className="space-y-4">
+                      {/* Automatic Calories Option */}
+                      <div>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="calorieOption"
+                            checked={!useCustomCalories}
+                            onChange={() => setUseCustomCalories(false)}
+                            className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2"
+                          />
+                          <div>
+                            <div className="text-sm font-medium text-zinc-300">
+                              Automatic
+                            </div>
+                            <div className="text-xs text-zinc-500">
+                              We'll calculate the total calories based on your
+                              plan.
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* Manual Calories Option */}
+                      <div>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="calorieOption"
+                            checked={useCustomCalories}
+                            onChange={() => setUseCustomCalories(true)}
+                            className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-zinc-300">
+                              Enter calories manually
+                            </div>
+                            <div className="text-xs text-zinc-500 mb-2">
+                              Take full control of the calorie count.
+                            </div>
+                            {useCustomCalories && (
+                              <input
+                                type="number"
+                                value={customCalories}
+                                onChange={(e) =>
+                                  setCustomCalories(e.target.value)
+                                }
+                                placeholder="e.g., 2000"
+                                min="800"
+                                max="5000"
+                                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
+                              />
+                            )}
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1550,7 +1623,8 @@ export default function Nutrition() {
             </div>
           </div>
         </div>
-      )}      {/* Delete Confirmation Modal */}
+      )}{" "}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && planToDelete && (
         <ConfirmationModal
           isOpen={showDeleteModal}

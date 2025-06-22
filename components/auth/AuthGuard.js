@@ -17,7 +17,7 @@ const PROTECTED_ROUTES = [
   "/dashboard",
   "/profile",
   "/settings",
-  "/test-tasks", // Add any other protected routes
+  // Add any other protected routes
 ];
 
 export default function AuthGuard({ children }) {

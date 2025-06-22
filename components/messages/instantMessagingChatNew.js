@@ -11,10 +11,16 @@ import {
   MessageSquare,
   CheckCircle,
 } from "lucide-react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import CreateWeighInRequestModal from "../trainer/CreateWeighInRequestModal";
 import WeighInRequestResponseModal from "../client/WeighInRequestResponseModal";
-import { addMessage, updateWeighInRequestStatus, acceptWeighInRequest, declineWeighInRequest, completeWeighInRequest } from "@/redux/slices/messagingSlice";
+import {
+  addMessage,
+  acceptWeighInRequest,
+  declineWeighInRequest,
+  completeWeighInRequest,
+  fetchMessages,
+} from "@/redux/slices/messagingSlice";
 
 const ChartClient = dynamic(
   () => import("@/components/common/chart/ChartClient"),
@@ -33,12 +39,8 @@ export default function InstantMessagingChat({
   onSend,
   onMarkAsRead,
   userRole,
-  socketRef, // Add socket reference
 }) {
   const dispatch = useDispatch();
-  const reduxMessagesByUser = useSelector(
-    (state) => state.messaging.messagesByUser
-  );
   const textAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [showWeighInModal, setShowWeighInModal] = useState(false);
@@ -46,41 +48,22 @@ export default function InstantMessagingChat({
 
   // Create conversation items from messages
   const [conversationItems, setConversationItems] = useState([]);
+
   console.log("📨 InstantMessagingChat - Received props:");
   console.log("- messages:", messages);
   console.log("- userRole:", userRole);
   console.log("- authUserId:", authUserId);
-  console.log("- user:", user);
-  console.log("- socketRef:", socketRef);
-  console.log("📊 Redux messagesByUser from component:", reduxMessagesByUser);
-  console.log(
-    "📊 Redux messages for this user:",
-    reduxMessagesByUser[user?.id]
-  );
-  // Watch Redux state changes
-  useEffect(() => {
-    console.log("🔄 Redux messagesByUser changed:", reduxMessagesByUser);
-    if (user?.id && reduxMessagesByUser[user.id]) {
-      console.log(
-        `🔄 Redux messages for user ${user.id}:`,
-        reduxMessagesByUser[user.id]
-      );
-    }
-  }, [reduxMessagesByUser, user?.id]);
 
   // Convert messages to conversation items
   useEffect(() => {
-    console.log("🔄 useEffect triggered - messages changed:", messages);
     if (!messages) {
-      console.log("🔄 No messages, setting empty conversation items");
       setConversationItems([]);
       return;
     }
 
     const items = messages.map((msg) => {
-      console.log("🔄 Processing message:", msg);
       if (msg.message_type === "weigh_in_request") {
-        const item = {
+        return {
           id: msg.id,
           type: "weigh_in_request",
           timestamp: msg.created_at,
@@ -92,8 +75,6 @@ export default function InstantMessagingChat({
           },
           pending: msg.pending || false,
         };
-        console.log("🔄 Created weigh-in request item:", item);
-        return item;
       } else if (msg.message_type === "weigh_in_completion") {
         return {
           id: msg.id,
@@ -146,16 +127,15 @@ export default function InstantMessagingChat({
       el.scrollIntoView({ block: "end", behavior: "smooth" });
     }
   };
-  // Handle weigh-in request creation  const handleWeighInRequest = (request) => {
+  // Handle weigh-in request creation
+  const handleWeighInRequest = (request) => {
     console.log("🎯 Weigh-in request created:", request);
-
-    // Emit via WebSocket if socket is available
-    if (socketRef?.current) {
-      console.log("📡 Emitting weigh-in request via WebSocket:", request);
-      socketRef.current.emit("send-message", request);
-    }
-
     setShowWeighInModal(false);
+
+    // Refresh messages to show the new weigh-in request
+    if (user?.id) {
+      dispatch(fetchMessages(user.id));
+    }
   };
 
   // Render conversation items
@@ -163,7 +143,8 @@ export default function InstantMessagingChat({
     const isMe = item.senderId === authUserId;
 
     switch (item.type) {
-      case "weigh_in_request":        return (
+      case "weigh_in_request":
+        return (
           <WeighInRequestItem
             key={item.id}
             item={item}
@@ -171,7 +152,6 @@ export default function InstantMessagingChat({
             onAccept={setSelectedWeighInRequest}
             userRole={userRole}
             user={user}
-            dispatch={dispatch}
           />
         );
       case "weigh_in_completion":
@@ -228,15 +208,9 @@ export default function InstantMessagingChat({
                 </p>
               </div>{" "}
               {/* Weigh-in Request Buttons for Trainers */}
-              {(() => {
-                console.log(
-                  "🎭 Checking userRole for buttons:",
-                  userRole,
-                  userRole === "trainer"
-                );
-                return userRole === "trainer";
-              })() && (
-                <div className="flex gap-2">                  <button
+              {userRole === "trainer" && (
+                <div className="flex gap-2">
+                  <button
                     onClick={() => setShowWeighInModal(true)}
                     className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                     title="Send Weigh-in Request"
@@ -259,13 +233,14 @@ export default function InstantMessagingChat({
                 renderConversationItem(item, index)
               )
             ) : (
-              <div className="flex items-center justify-center h-full text-zinc-500">
+              <div className="flex items-center justify-center h-full  text-zinc-500">
                 <div className="text-center">
                   <MessageSquare
                     size={48}
                     className="mx-auto mb-4 opacity-50"
                   />
-                  <p>No messages yet</p>                  <p className="text-sm">Start a conversation!</p>
+                  <p>No messages yet</p>
+                  <p className="text-sm">Start a conversation!</p>
                 </div>
               </div>
             )}
@@ -352,7 +327,8 @@ export default function InstantMessagingChat({
 }
 
 // Individual conversation item components
-function WeighInRequestItem({ item, isMe, onAccept, userRole, user, dispatch }) {
+function WeighInRequestItem({ item, isMe, onAccept, userRole, user }) {
+  const dispatch = useDispatch();
   const request = item.data.request;
 
   return (
@@ -388,14 +364,12 @@ function WeighInRequestItem({ item, isMe, onAccept, userRole, user, dispatch }) 
                 </span>
               )}
             </div>
-
             <p
               className="text-sm font-medium mb-1"
               style={{ color: isMe ? "white" : "black" }}
             >
               {request?.title || "New weigh-in request"}
             </p>
-
             {request?.description && (
               <p
                 className="text-xs opacity-75 mb-2"
@@ -404,7 +378,6 @@ function WeighInRequestItem({ item, isMe, onAccept, userRole, user, dispatch }) 
                 {request.description}
               </p>
             )}
-
             <div
               className="text-xs opacity-75 mb-3"
               style={{ color: isMe ? "white" : "black" }}
@@ -424,16 +397,40 @@ function WeighInRequestItem({ item, isMe, onAccept, userRole, user, dispatch }) 
                   📅 Due: {new Date(request.due_date).toLocaleDateString()}
                 </div>
               )}
-            </div>            {/* Status-based UI for client */}
+            </div>{" "}
+            {/* Action buttons for client */}
             {userRole === "client" && !isMe && (
               <div>
+                {" "}
                 {request?.status === "pending" && (
-                  <div className="flex gap-2">                    <button
+                  <div className="flex gap-2">
+                    {" "}
+                    <button
                       onClick={() => {
-                        console.log("🎯 Client accepting weigh-in request:", request);
-                        dispatch(acceptWeighInRequest({
-                          requestId: request?.id || item.data.requestId
-                        }));
+                        console.log(
+                          "🎯 Client accepting weigh-in request:",
+                          request
+                        );
+                        // Open the modal for the user to submit data
+                        onAccept(
+                          request || {
+                            id: item.data.requestId,
+                            title: request?.title || "Weigh-in Request",
+                            description: request?.description || "",
+                            requested_metrics: request?.requested_metrics || [
+                              "weight",
+                            ],
+                            requested_photos: request?.requested_photos || [
+                              "front",
+                            ],
+                            due_date:
+                              request?.due_date ||
+                              new Date().toISOString().split("T")[0],
+                            priority: request?.priority || "medium",
+                            status: "pending",
+                            client_id: user?.id,
+                          }
+                        );
                       }}
                       className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors font-medium"
                     >
@@ -441,41 +438,55 @@ function WeighInRequestItem({ item, isMe, onAccept, userRole, user, dispatch }) 
                     </button>
                     <button
                       onClick={() => {
-                        console.log("❌ Client denied weigh-in request:", request);
-                        dispatch(declineWeighInRequest({
-                          requestId: request?.id || item.data.requestId
-                        }));
+                        console.log(
+                          "❌ Client declining weigh-in request:",
+                          request
+                        );
+                        dispatch(
+                          declineWeighInRequest({
+                            requestId: request?.id || item.data.requestId,
+                          })
+                        );
                       }}
                       className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors font-medium"
                     >
                       ✗ Deny
                     </button>
                   </div>
-                )}                {request?.status === "declined" && (
+                )}
+                {request?.status === "accepted" && (
+                  <div className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
+                    ✅ Request accepted - Please submit your data
+                  </div>
+                )}
+                {request?.status === "declined" && (
                   <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
                     ❌ You declined this request
                   </div>
                 )}
-                {request?.status === "accepted" && (
-                  <div className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
-                    ✓ Request accepted - Please submit your data
-                  </div>
-                )}
                 {request?.status === "completed" && (
                   <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded">
-                    ✅ Weigh-in completed successfully
+                    ✅ Request completed
                   </div>
                 )}
               </div>
-            )}            {/* Status indicator for trainer */}
+            )}{" "}
+            {/* Status indicator for trainer */}
             {userRole === "trainer" && isMe && (
               <div className="text-xs opacity-70 bg-black/20 rounded px-2 py-1">
-                Status: {(() => {                  switch(request?.status) {
-                    case "pending": return "⏳ Waiting for client response";
-                    case "accepted": return "✓ Accepted - Awaiting submission";
-                    case "declined": return "❌ Declined by client";
-                    case "completed": return "✅ Completed";
-                    default: return "pending";
+                Status:{" "}
+                {(() => {
+                  switch (request?.status) {
+                    case "pending":
+                      return "⏳ Waiting for client response";
+                    case "accepted":
+                      return "✓ Accepted - Awaiting submission";
+                    case "declined":
+                      return "❌ Declined by client";
+                    case "completed":
+                      return "✅ Completed";
+                    default:
+                      return request?.status || "pending";
                   }
                 })()}
               </div>

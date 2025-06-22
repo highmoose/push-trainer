@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import InstantMessagingChat from "@/components/messages/instantMessagingChat";
+import InstantMessagingChat from "@/components/messages/instantMessagingChatNew";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchConversations,
@@ -63,7 +63,6 @@ export default function Messages({ authUserId }) {
       );
     }
   };
-
   // Debug logs after state declarations
   console.log("conversations", conversations);
   console.log("messagesByUser", messagesByUser);
@@ -73,6 +72,7 @@ export default function Messages({ authUserId }) {
       "Messages for selected client:",
       messagesByUser[selectedClientForNewChat.id]
     );
+    console.log("📊 Redux messagesByUser keys:", Object.keys(messagesByUser));
   }
   // Fetch clients when component mounts
   useEffect(() => {
@@ -548,11 +548,12 @@ export default function Messages({ authUserId }) {
         {/* Chat Area */}
         <div className="flex-1 flex overflow-x-scroll gap-x-2 p-4">
           {" "}
-          {/* Show new client chat if selected */}
+          {/* Show new client chat if selected */}{" "}
           {selectedClientForNewChat && (
             <InstantMessagingChat
               key={selectedClientForNewChat.id}
               user={{
+                id: selectedClientForNewChat.id,
                 name: `${selectedClientForNewChat.first_name} ${selectedClientForNewChat.last_name}`,
                 gym: selectedClientForNewChat.gym || "Unknown Gym",
                 lastActive: "Start new conversation",
@@ -581,6 +582,8 @@ export default function Messages({ authUserId }) {
               onMarkAsRead={() =>
                 markClientAsClicked(selectedClientForNewChat.id)
               }
+              userRole="trainer"
+              socketRef={socketRef}
             />
           )}
           {/* Show existing conversations */}
@@ -611,6 +614,8 @@ export default function Messages({ authUserId }) {
                 onChange={(e) => handleInputChange(userId, e.target.value)}
                 onSend={() => handleSendMessage(userId)}
                 onMarkAsRead={() => markClientAsClicked(userId)}
+                userRole="trainer"
+                socketRef={socketRef}
               />
             );
           })}

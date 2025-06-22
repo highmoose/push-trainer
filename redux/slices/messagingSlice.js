@@ -42,9 +42,103 @@ export const fetchAllMessages = createAsyncThunk(
       const response = await axios.get("/api/messages");
       return { messages: response.data, authUserId };
     } catch (error) {
+      console.error("Failed to fetch messages:", error);
       return rejectWithValue(
-        error.response?.data || { error: "Unknown error" }
+        error.response?.data || { error: "Failed to fetch messages" }
       );
+    }
+  }
+);
+
+export const acceptWeighInRequest = createAsyncThunk(
+  "messaging/acceptWeighInRequest",
+  async ({ requestId }, { dispatch, getState }) => {
+    console.log(`📝 Accepting weigh-in request: ${requestId}`);
+
+    try {
+      const response = await axios.patch(
+        `/api/weigh-in-requests/${requestId}/accept`
+      );
+
+      // Update the request status in Redux
+      dispatch(
+        updateWeighInRequestStatus({
+          requestId,
+          status: "accepted",
+          clientResponse: "accepted",
+        })
+      );
+
+      console.log(`✅ Weigh-in request ${requestId} accepted successfully`);
+      return response.data;
+    } catch (error) {
+      console.error(
+        `❌ Failed to accept weigh-in request ${requestId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+);
+
+export const declineWeighInRequest = createAsyncThunk(
+  "messaging/declineWeighInRequest",
+  async ({ requestId }, { dispatch, getState }) => {
+    console.log(`📝 Declining weigh-in request: ${requestId}`);
+
+    try {
+      const response = await axios.patch(
+        `/api/weigh-in-requests/${requestId}/decline`
+      );
+
+      // Update the request status in Redux
+      dispatch(
+        updateWeighInRequestStatus({
+          requestId,
+          status: "declined",
+          clientResponse: "declined",
+        })
+      );
+
+      console.log(`✅ Weigh-in request ${requestId} declined successfully`);
+      return response.data;
+    } catch (error) {
+      console.error(
+        `❌ Failed to decline weigh-in request ${requestId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+);
+
+export const completeWeighInRequest = createAsyncThunk(
+  "messaging/completeWeighInRequest",
+  async ({ requestId }, { dispatch, getState }) => {
+    console.log(`📝 Completing weigh-in request: ${requestId}`);
+
+    try {
+      const response = await axios.patch(
+        `/api/weigh-in-requests/${requestId}/complete`
+      );
+
+      // Update the request status in Redux
+      dispatch(
+        updateWeighInRequestStatus({
+          requestId,
+          status: "completed",
+          clientResponse: "completed",
+        })
+      );
+
+      console.log(`✅ Weigh-in request ${requestId} completed successfully`);
+      return response.data;
+    } catch (error) {
+      console.error(
+        `❌ Failed to complete weigh-in request ${requestId}:`,
+        error
+      );
+      throw error;
     }
   }
 );
@@ -83,21 +177,42 @@ const messagingSlice = createSlice({
         return;
       }
 
-      const otherUserId =
-        msg.sender_id == state.authUserId ? msg.receiver_id : msg.sender_id; // Using == instead of === for loose comparison
+      // Helper function to add message to a specific user's conversation
+      const addToConversation = (userId, message) => {
+        if (!state.messagesByUser[userId]) {
+          state.messagesByUser[userId] = [];
+        }
 
-      console.log("👤 addMessage reducer - otherUserId:", otherUserId);
+        const exists = state.messagesByUser[userId].some(
+          (m) => m.id === message.id
+        );
 
-      if (!state.messagesByUser[otherUserId]) {
-        state.messagesByUser[otherUserId] = [];
-      } // prevent duplicates by ID
-      const exists = state.messagesByUser[otherUserId].some(
-        (m) => m.id === msg.id
-      );
+        if (!exists) {
+          state.messagesByUser[userId].push(message);
+          console.log(
+            `✅ addMessage reducer - added message to user: ${userId}`
+          );
+        } else {
+          // If message exists and this is a non-pending version, replace the pending one
+          if (!message.pending) {
+            const index = state.messagesByUser[userId].findIndex(
+              (m) => m.id === message.id
+            );
+            if (index !== -1) {
+              state.messagesByUser[userId][index] = message;
+              console.log(
+                `🔄 addMessage reducer - replaced pending message for user: ${userId}`
+              );
+            }
+          }
+        }
+      };
 
       // Handle replacement of optimistic messages
       if (msg.replaceOptimistic) {
-        const optimisticIndex = state.messagesByUser[otherUserId].findIndex(
+        const otherUserId =
+          msg.sender_id == state.authUserId ? msg.receiver_id : msg.sender_id;
+        const optimisticIndex = state.messagesByUser[otherUserId]?.findIndex(
           (m) => m.id === msg.replaceOptimistic
         );
         if (optimisticIndex !== -1) {
@@ -113,33 +228,53 @@ const messagingSlice = createSlice({
         }
       }
 
-      if (!exists) {
-        state.messagesByUser[otherUserId].push(msg);
-        console.log(
-          "✅ addMessage reducer - added message to user:",
-          otherUserId
+      // Store message in BOTH user conversations so both participants can see it
+      // For the sender: store under receiver's ID
+      // For the receiver: store under sender's ID
+      const senderId = String(msg.sender_id);
+      const receiverId = String(msg.receiver_id);
+
+      console.log(
+        `� addMessage reducer - storing message for both users: sender=${senderId}, receiver=${receiverId}`
+      );
+      // Add to sender's conversation with receiver
+      addToConversation(receiverId, msg);
+
+      // Add to receiver's conversation with sender - simplified logic
+      addToConversation(senderId, msg);
+
+      console.log(
+        "📊 addMessage reducer - messagesByUser after add:",
+        state.messagesByUser
+      );
+    },
+    updateWeighInRequestStatus(state, action) {
+      const { requestId, status, clientResponse } = action.payload;
+      console.log(
+        `🔄 Updating weigh-in request status: ${requestId} → ${status}`
+      );
+
+      // Find and update the weigh-in request in all user conversations
+      Object.keys(state.messagesByUser).forEach((userId) => {
+        const messages = state.messagesByUser[userId];
+        const requestIndex = messages.findIndex(
+          (msg) =>
+            msg.message_type === "weigh_in_request" &&
+            msg.weigh_in_request_id === requestId
         );
-        console.log(
-          "📊 addMessage reducer - messagesByUser after add:",
-          state.messagesByUser
-        );
-      } else {
-        // If message exists and this is a non-pending version, replace the pending one
-        if (!msg.pending) {
-          const index = state.messagesByUser[otherUserId].findIndex(
-            (m) => m.id === msg.id
-          );
-          if (index !== -1) {
-            state.messagesByUser[otherUserId][index] = msg;
-            console.log("🔄 addMessage reducer - replaced pending message");
-          }
-        } else {
+
+        if (requestIndex !== -1) {
+          // Update the request status
+          state.messagesByUser[userId][requestIndex].weigh_in_request.status =
+            status;
+          state.messagesByUser[userId][
+            requestIndex
+          ].weigh_in_request.client_response = clientResponse;
           console.log(
-            "⚠️ addMessage reducer - message already exists:",
-            msg.id
+            `✅ Updated request ${requestId} status to ${status} for user ${userId}`
           );
         }
-      }
+      });
     },
   },
   extraReducers: (builder) => {
@@ -197,8 +332,13 @@ const messagingSlice = createSlice({
         const grouped = {};
 
         messages.forEach((msg) => {
+          const senderId = String(msg.sender_id);
+          const receiverId = String(msg.receiver_id);
+
+          // Store message in BOTH user conversations so both participants can see it
+          // For the current user, determine the "other user" in the conversation
           const otherUserId =
-            msg.sender_id === authUserId ? msg.receiver_id : msg.sender_id;
+            senderId === String(authUserId) ? receiverId : senderId;
 
           if (!grouped[otherUserId]) grouped[otherUserId] = [];
           grouped[otherUserId].push(msg);
@@ -212,5 +352,7 @@ const messagingSlice = createSlice({
   },
 });
 
-export const { addMessage, setAuthUserId } = messagingSlice.actions;
+export const { addMessage, setAuthUserId, updateWeighInRequestStatus } =
+  messagingSlice.actions;
+export { acceptWeighInRequest, declineWeighInRequest, completeWeighInRequest };
 export default messagingSlice.reducer;

@@ -28,10 +28,10 @@ export default function Header({ setShowTab }) {
     { label: "Metrics" },
     { label: "Nutrition" },
   ];
-
   const clientMenu = [
     { label: "Quick Stats" },
     { label: "Messages" },
+    { label: "Timeline" },
     { label: "Diet Plan" },
     { label: "Workout Plan" },
     { label: "Goal Tracker" },

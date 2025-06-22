@@ -3,6 +3,7 @@ import DataTable from "@components/common/dataTable";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import Messages from "@/role/client/tabs/messages";
+import ClientProgressTimeline from "@/components/client/ClientProgressTimeline";
 
 const columns = [
   { key: "product", label: "Product Name" },
@@ -22,6 +23,7 @@ export default function clientDashboard() {
       <Header showTab={showTab} setShowTab={setShowTab} />
       <div className="flex-1 w-full px-8 pb-8">
         {showTab === "messages" && <Messages />}
+        {showTab === "timeline" && <ClientProgressTimeline />}
       </div>
       <Footer />
     </div>

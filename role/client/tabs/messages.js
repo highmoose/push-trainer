@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import InstantMessagingChat from "@/components/messages/instantMessagingChat";
+import InstantMessagingChat from "@/components/messages/instantMessagingChatNew";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchConversations,
@@ -333,18 +333,41 @@ export default function Messages() {
               {" "}
               <InstantMessagingChat
                 user={{
+                  id: selectedTrainerForNewChat.id,
                   name: `${selectedTrainerForNewChat.first_name} ${selectedTrainerForNewChat.last_name}`,
                   gym: selectedTrainerForNewChat.gym || "Your Trainer",
                   lastActive: "Last active recently",
                   avatar: "/images/placeholder/profile-placeholder.png",
                 }}
-                messages={messagesByUser[selectedTrainerForNewChat.id] || []}
+                messages={(() => {
+                  // With the updated Redux logic, messages are stored under both user IDs
+                  // So we can get all messages for this conversation from the trainer's ID
+                  const messages =
+                    messagesByUser[selectedTrainerForNewChat.id] || [];
+
+                  console.log(
+                    `📨 Client - Messages for trainer ${selectedTrainerForNewChat.id}:`,
+                    messages
+                  );
+                  console.log(
+                    `📨 Client - All messagesByUser keys:`,
+                    Object.keys(messagesByUser)
+                  );
+
+                  return messages;
+                })()}
                 authUserId={authUserId}
-                engagement={calculateEngagementLast24Hours(
-                  messagesByUser[selectedTrainerForNewChat.id] || [],
-                  authUserId,
-                  selectedTrainerForNewChat.id
-                )}
+                engagement={(() => {
+                  // Use simplified message retrieval for engagement calculation
+                  const messages =
+                    messagesByUser[selectedTrainerForNewChat.id] || [];
+
+                  return calculateEngagementLast24Hours(
+                    messages,
+                    authUserId,
+                    selectedTrainerForNewChat.id
+                  );
+                })()}
                 message={newMessages[selectedTrainerForNewChat.id] || ""}
                 onChange={(e) =>
                   handleInputChange(
@@ -354,6 +377,8 @@ export default function Messages() {
                 }
                 onSend={() => handleSendMessage(selectedTrainerForNewChat.id)}
                 onMarkAsRead={() => {}} // No-op for client side
+                userRole="client"
+                socketRef={socketRef}
               />
             </div>
           ) : (

@@ -45,7 +45,9 @@ export default function trainerDashboard() {
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
-      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">        {/* Menu Tabs  */}
+      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">
+        {" "}
+        {/* Menu Tabs  */}
         {showTab === "dashboard" && <Dashboard />}
         {showTab === "messages" && <Messages authUserId={authUserId} />}
         {showTab === "planner" && <Planner />}
