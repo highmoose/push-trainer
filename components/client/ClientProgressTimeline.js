@@ -50,7 +50,7 @@ export default function ClientProgressTimeline() {
     { id: "metric_entry", label: "My Metrics (Legacy)" }, // Keep for backward compatibility
     { id: "photo_upload", label: "Progress Photos" },
     { id: "session", label: "Training Sessions" },
-    { id: "weigh_in_request", label: "Weigh-in Requests" },
+    { id: "weigh_in_request", label: "Check-in Requests" },
     { id: "milestone", label: "Milestones" },
     { id: "note", label: "Notes" },
   ];
@@ -92,7 +92,7 @@ export default function ClientProgressTimeline() {
         setWeighInRequests(data.data || []);
       }
     } catch (error) {
-      console.error("Error fetching weigh-in requests:", error);
+      console.error("Error fetching check-in requests:", error);
     }
   };
 
@@ -171,7 +171,7 @@ export default function ClientProgressTimeline() {
         }`;
 
       case "weigh_in_request":
-        return `⚖️ ${data.title || "Weigh-in request received"}`;
+        return `⚖️ ${data.title || "Check-in request received"}`;
 
       case "milestone":
         return `🎉 ${data.description || data.title || "Milestone achieved"}`;
@@ -232,13 +232,13 @@ export default function ClientProgressTimeline() {
           </button>
         </div>
 
-        {/* Pending Weigh-in Requests Alert */}
+        {/* Pending Check-in Requests Alert */}
         {pendingRequests.length > 0 && (
           <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-500 rounded-lg">
             <div className="flex items-center gap-3 mb-3">
               <Scale className="text-yellow-400" size={20} />
               <h3 className="text-yellow-400 font-medium">
-                Pending Weigh-in Requests ({pendingRequests.length})
+                Pending Check-in Requests ({pendingRequests.length})
               </h3>
             </div>
             <div className="space-y-2">
@@ -416,7 +416,7 @@ export default function ClientProgressTimeline() {
           )}
         </div>
 
-        {/* Weigh-in Request Response Modal */}
+        {/* Check-in Request Response Modal */}
         {selectedRequest && (
           <WeighInRequestResponseModal
             close={() => setSelectedRequest(null)}

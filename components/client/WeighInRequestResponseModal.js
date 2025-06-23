@@ -146,7 +146,7 @@ export default function WeighInRequestResponseModal({
       );
 
       if (completeResponse.data.success) {
-        console.log(`✅ Weigh-in request ${request.id} completed successfully`);
+        console.log(`✅ Check-in request ${request.id} completed successfully`);
         onCompleted?.(completeResponse.data);
         onClose();
       } else {
@@ -156,7 +156,7 @@ export default function WeighInRequestResponseModal({
         });
       }
     } catch (error) {
-      console.error("Error completing weigh-in request:", error);
+      console.error("Error completing check-in request:", error);
       setErrors({ general: "Network error. Please try again." });
     } finally {
       setLoading(false);
@@ -384,7 +384,7 @@ export default function WeighInRequestResponseModal({
         {isRequestCompleted && (
           <div className="bg-green-900/20 border border-green-500 rounded-lg p-4">
             <p className="text-green-400">
-              ✅ This weigh-in request has been completed.
+              ✅ This check-in request has been completed.
             </p>
           </div>
         )}

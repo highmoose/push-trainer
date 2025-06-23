@@ -605,14 +605,13 @@ export default function Clients() {
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
                       >
                         <Scale className="h-4 w-4" />
-                        Request Weigh-in
-                      </button>
-                      <button
+                        Request Check-in
+                      </button>                      <button
                         onClick={() => setRecurringWeighInModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
                       >
                         <Clock className="h-4 w-4" />
-                        Recurring
+                        Recurring Check-in
                       </button>
                     </div>
                   </div>{" "}
@@ -1050,7 +1049,7 @@ export default function Clients() {
           onClose={() => setRecurringWeighInModalOpen(false)}
           clientId={selectedClient?.id}
           clientName={selectedClient?.name}
-          existingSettings={selectedClient?.recurring_weigh_in}
+          existingSettings={selectedClient?.recurring_check_in}
         />
       )}
     </div>

@@ -48,7 +48,7 @@ export default function ClientTimeline({
     { id: "metric_entry", label: "Metric Entries" },
     { id: "photo_upload", label: "Photo Uploads" },
     { id: "session", label: "Sessions" },
-    { id: "weigh_in_request", label: "Weigh-in Requests" },
+    { id: "weigh_in_request", label: "Check-in Requests" },
     { id: "milestone", label: "Milestones" },
     { id: "note", label: "Notes" },
   ];
@@ -156,7 +156,7 @@ export default function ClientTimeline({
         }`;
 
       case "weigh_in_request":
-        return `⚖️ ${data.title || "Weigh-in request"}`;
+        return `⚖️ ${data.title || "Check-in request"}`;
 
       case "milestone":
         return `🎉 ${data.description || data.title || "Milestone achieved"}`;

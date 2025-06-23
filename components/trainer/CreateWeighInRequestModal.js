@@ -108,7 +108,7 @@ export default function CreateWeighInRequestModal({
 
       console.log("✅ API responded with:", data);
       if (data.success) {
-        console.log("✅ Weigh-in request created successfully:", data.data);
+        console.log("✅ Check-in request created successfully:", data.data);
 
         // Call the callback
         onRequestCreated?.(data.data);
@@ -128,7 +128,7 @@ export default function CreateWeighInRequestModal({
         setErrors({ general: data.message || "Failed to create request" });
       }
     } catch (error) {
-      console.error("Error creating weigh-in request:", error);
+      console.error("Error creating check-in request:", error);
       if (error.response?.data) {
         setErrors({ general: error.response.data.message || "Request failed" });
       } else {
@@ -160,7 +160,7 @@ export default function CreateWeighInRequestModal({
         <div className="flex items-center gap-3">
           <Scale className="text-green-400" size={24} />
           <h2 className="text-white text-xl font-semibold">
-            Create Weigh-in Request for {clientName}
+            Create Check-in Request for {clientName}
           </h2>
         </div>
         {/* Error Display */}

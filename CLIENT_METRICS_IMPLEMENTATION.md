@@ -27,7 +27,7 @@ Successfully implemented a comprehensive client metrics tracking system for the 
 ### Controllers Created:
 
 1. **`ClientMetricsController`** - Full CRUD for metrics with analytics
-2. **`WeighInRequestController`** - Request lifecycle management
+2. **`CheckInRequestController`** - Request lifecycle management
 3. **`ClientPhotosController`** - Photo upload and management
 4. **`ClientTimelineController`** - Timeline events and statistics
 
@@ -40,7 +40,7 @@ GET /api/client-metrics/trends
 GET /api/client-metrics/comparisons
 GET /api/client-metrics/charts
 
-# Weigh-in Requests
+# Check-in Requests
 GET/POST /api/weigh-in-requests
 PATCH /api/weigh-in-requests/{id}/complete
 
@@ -58,15 +58,15 @@ GET /api/client-timeline/stats
 ### Trainer Components:
 
 - **`AddClientMetricsModal`** - Manual metric entry interface
-- **`CreateWeighInRequestModal`** - Send weigh-in/photo requests
+- **`CreateCheckInRequestModal`** - Send check-in/photo requests
 - **`ClientTimeline`** - View client progress timeline
 - **Enhanced `clientInfoModal`** - Added metrics and timeline tabs
 
 ### Client Components:
 
-- **`WeighInRequestResponseModal`** - Respond to trainer requests
+- **`CheckInRequestResponseModal`** - Respond to trainer requests
 - **`ClientProgressTimeline`** - Client's personal timeline view
-- **Enhanced `instantMessagingChat`** - Weigh-in request integration
+- **Enhanced `instantMessagingChat`** - Check-in request integration
 
 ### Key Features:
 

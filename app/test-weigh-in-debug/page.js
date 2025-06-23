@@ -40,10 +40,9 @@ export default function TestWeighInDebug() {
     const requestId = lastRequestId || 123;
     console.log(`🧪 Testing complete request: ${requestId}`);
     dispatch(completeWeighInRequest({ requestId }));
-  };
-  // Add test weigh-in request
+  };  // Add test check-in request
   const addTestWeighInRequest = () => {
-    console.log("🧪 Creating test weigh-in request...");
+    console.log("🧪 Creating test check-in request...");
 
     const requestId = Date.now();
     setLastRequestId(requestId);
@@ -52,7 +51,7 @@ export default function TestWeighInDebug() {
       id: `test_weigh_in_${requestId}`,
       sender_id: testAuthUserId,
       receiver_id: testClientId,
-      message: "Test Weigh-in Request",
+      message: "Test Check-in Request",
       message_type: "weigh_in_request",
       weigh_in_request_id: requestId,
       weigh_in_request: {
@@ -78,7 +77,7 @@ export default function TestWeighInDebug() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Weigh-in Request Debug</h1>
+      <h1 className="text-2xl font-bold mb-4">Check-in Request Debug</h1>
 
       <div className="mb-4">
         <p>
@@ -100,7 +99,7 @@ export default function TestWeighInDebug() {
           onClick={addTestWeighInRequest}
           className="px-4 py-2 bg-green-600 text-white rounded mr-2"
         >
-          🧪 Add Test Weigh-in Request
+          🧪 Add Test Check-in Request
         </button>
         <button
           onClick={testAcceptRequest}
