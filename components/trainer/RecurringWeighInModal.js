@@ -97,7 +97,8 @@ export default function RecurringWeighInModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-700">
           <div className="flex items-center gap-3">
-            <RotateCcw className="text-purple-400" size={24} />            <h2 className="text-xl font-semibold text-white">
+            <RotateCcw className="text-purple-400" size={24} />{" "}
+            <h2 className="text-xl font-semibold text-white">
               Recurring Check-ins for {clientName}
             </h2>
           </div>
@@ -109,7 +110,8 @@ export default function RecurringWeighInModal({
           </button>
         </div>
 
-        {success && (          <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 m-6 rounded-lg">
+        {success && (
+          <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 m-6 rounded-lg">
             ✓ Recurring check-in settings saved successfully!
           </div>
         )}
@@ -224,7 +226,8 @@ export default function RecurringWeighInModal({
                       }))
                     }
                     className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-600 text-white focus:border-purple-500 focus:outline-none"
-                  />                  <p className="text-xs text-zinc-400 mt-1">
+                  />{" "}
+                  <p className="text-xs text-zinc-400 mt-1">
                     Time when the check-in request will be sent
                   </p>
                 </div>

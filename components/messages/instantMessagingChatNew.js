@@ -10,8 +10,6 @@ import {
   MessageSquare,
   CheckCircle,
 } from "lucide-react";
-import { useDispatch } from "react-redux";
-import { addMessage, fetchMessages } from "@/redux/slices/messagingSlice";
 
 const ChartClient = dynamic(
   () => import("@/components/common/chart/ChartClient"),
@@ -29,19 +27,12 @@ export default function InstantMessagingChat({
   onChange,
   onSend,
   onMarkAsRead,
-  userRole,
 }) {
-  const dispatch = useDispatch();
   const textAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   // Create conversation items from messages
   const [conversationItems, setConversationItems] = useState([]);
-
-  console.log("📨 InstantMessagingChat - Received props:");
-  console.log("- messages:", messages);
-  console.log("- userRole:", userRole);
-  console.log("- authUserId:", authUserId);
 
   // Convert messages to conversation items
   useEffect(() => {

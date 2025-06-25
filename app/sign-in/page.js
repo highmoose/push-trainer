@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
+
   // Check for session expiration message
   const reason = searchParams.get("reason");
   const isSessionExpired = reason === "session_expired";
@@ -104,7 +105,7 @@ export default function LoginPage() {
             {status === "loading" ? "Logging in..." : "Login"}
           </button>
         </form>
-      </div>
+      </div>{" "}
       <button
         onClick={() => router.push("/welcome")}
         className="mt-2 text-zinc-400 hover:text-white transition-colors"

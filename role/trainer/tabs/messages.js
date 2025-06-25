@@ -1,16 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import InstantMessagingChat from "@/components/messages/instantMessagingChatNew";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchConversations,
-  sendMessage,
-  addMessage,
-  fetchAllMessages,
-  fetchMessages,
-  setAuthUserId,
-} from "@/redux/slices/messagingSlice";
-import { fetchClients } from "@/redux/slices/clientSlice";
-import { nanoid } from "@reduxjs/toolkit";
+import { useMessaging } from "@/hooks/messaging";
+import { useClients } from "@/hooks/clients";
 import {
   Columns2,
   Columns3,
@@ -25,16 +16,24 @@ import api from "@/lib/axios";
 import { initSocket } from "@/lib/socket";
 
 export default function Messages({ authUserId }) {
-  const dispatch = useDispatch();
   const socketRef = useRef(null);
+  const {
+    conversations,
+    messagesByUser,
+    loading: messagingLoading,
+    error: messagingError,
+    fetchConversations,
+    fetchMessages,
+    sendMessage,
+    addMessage,
+  } = useMessaging(authUserId);
 
-  const { conversations, messagesByUser } = useSelector(
-    (state) => state.messaging
-  );
+  const {
+    clients,
+    loading: clientsLoading,
+    error: clientsError,
+  } = useClients();
 
-  const { list: clients = [], status: clientsStatus } = useSelector(
-    (state) => state.clients
-  );
   const [newMessages, setNewMessages] = useState({});
   const [timeframe, setTimeframe] = useState("24h");
   const [showClientList, setShowClientList] = useState(true);
@@ -63,32 +62,20 @@ export default function Messages({ authUserId }) {
       );
     }
   };
-  // Debug logs after state declarations
-  console.log("conversations", conversations);
-  console.log("messagesByUser", messagesByUser);
-  console.log("selectedClientForNewChat", selectedClientForNewChat);
+
   if (selectedClientForNewChat) {
     console.log(
       "Messages for selected client:",
       messagesByUser[selectedClientForNewChat.id]
     );
     console.log("📊 Redux messagesByUser keys:", Object.keys(messagesByUser));
-  }
-  // Fetch clients when component mounts
-  useEffect(() => {
-    if (clientsStatus === "idle") {
-      dispatch(fetchClients());
-    }
-  }, [dispatch, clientsStatus]); // Fetch conversations and set up messaging when component mounts
+  } // Fetch conversations and set up messaging when component mounts
   useEffect(() => {
     if (authUserId) {
-      // Set the authUserId in the messaging slice first
-      dispatch(setAuthUserId(authUserId));
-      dispatch(fetchConversations());
-      // Fetch all messages to populate the messagesByUser state
-      dispatch(fetchAllMessages({ authUserId }));
+      fetchConversations();
+      // Note: fetchAllMessages is handled by the useMessaging hook automatically
     }
-  }, [dispatch, authUserId]);
+  }, [authUserId, fetchConversations]);
   useEffect(() => {
     if (!authUserId) return;
 
@@ -97,7 +84,7 @@ export default function Messages({ authUserId }) {
     socketRef.current = socket;
     socket.on("receive-message", (message) => {
       console.log("🔔 Trainer received WebSocket message:", message);
-      dispatch(addMessage(message));
+      addMessage(message);
 
       // If we receive a message from a client, remove them from clicked clients
       // so the green dot reappears (indicating new unread message)
@@ -131,9 +118,9 @@ export default function Messages({ authUserId }) {
         "🔄 Selected client changed, fetching messages for:",
         selectedClientForNewChat.id
       );
-      dispatch(fetchMessages(selectedClientForNewChat.id));
+      fetchMessages(selectedClientForNewChat.id);
     }
-  }, [selectedClientForNewChat, authUserId, dispatch]);
+  }, [selectedClientForNewChat, authUserId, fetchMessages]);
   const handleInputChange = (userId, value) => {
     setNewMessages((prev) => ({ ...prev, [userId]: value }));
   };
@@ -148,56 +135,30 @@ export default function Messages({ authUserId }) {
       content
     );
 
-    const tempId = nanoid();
-    const optimisticMessage = {
-      id: tempId,
-      sender_id: authUserId,
-      receiver_id: userId,
-      content,
-      created_at: new Date().toISOString(),
-      pending: true,
-    };
-
-    console.log("📝 Dispatching optimistic message:", optimisticMessage);
-    dispatch(addMessage(optimisticMessage));
-    setNewMessages((prev) => ({ ...prev, [userId]: "" }));
-
     try {
-      // ✅ Emit via WebSocket once (without pending flag)
+      // Use the hook's sendMessage which handles optimistic updates
+      await sendMessage({
+        receiver_id: userId,
+        content,
+      });
+
+      setNewMessages((prev) => ({ ...prev, [userId]: "" }));
+
+      // Emit via WebSocket
       const websocketMessage = {
-        id: tempId,
         sender_id: authUserId,
         receiver_id: userId,
         content,
-        created_at: optimisticMessage.created_at,
-        // Don't include pending: true for WebSocket
+        created_at: new Date().toISOString(),
       };
       console.log("📡 Trainer sending WebSocket message:", websocketMessage);
       socketRef.current?.emit("send-message", websocketMessage);
-
-      // ✅ Persist to API
-      const response = await api.post("/api/messages", {
-        sender_id: authUserId,
-        receiver_id: userId,
-        content,
-        created_at: optimisticMessage.created_at,
-      });
-      console.log("✅ API response:", response.data);
-
-      // Replace the optimistic message with the real one from the API
-      const realMessage = response.data;
-
-      // Mark the real message to replace the optimistic one
-      const messageWithReplacementFlag = {
-        ...realMessage,
-        replaceOptimistic: tempId, // Tell Redux to replace the optimistic message with this ID
-      };
-
-      dispatch(addMessage(messageWithReplacementFlag));
-    } catch (err) {
-      console.error("❌ Failed to send message via API:", err);
+    } catch (error) {
+      console.error("❌ Failed to send message:", error);
     }
-  }; // Handle starting a new conversation with a client
+  };
+
+  // Handle starting a new conversation with a client
   const handleStartChatWithClient = (client) => {
     setSelectedClientForNewChat(client);
 
@@ -209,11 +170,9 @@ export default function Messages({ authUserId }) {
     // Initialize message state for this client if not exists
     if (!newMessages[client.id]) {
       setNewMessages((prev) => ({ ...prev, [client.id]: "" }));
-    }
-
-    // Always fetch messages for this specific client to get the latest conversation history
+    } // Always fetch messages for this specific client to get the latest conversation history
     console.log("🔄 Fetching messages for client:", client.id);
-    dispatch(fetchMessages(client.id));
+    fetchMessages(client.id);
   };
   // Filter clients based on search query
   const filteredClients = clients.filter((client) => {
@@ -422,19 +381,18 @@ export default function Messages({ authUserId }) {
                 className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-400 focus:border-zinc-600 focus:outline-none"
               />
             </div>
-          </div>
-
+          </div>{" "}
           {/* Client List */}
           <div className="flex-1 overflow-y-auto">
             {" "}
-            {clientsStatus === "loading" && (
+            {clientsLoading && (
               <div className="p-4 text-center text-zinc-400">
                 Loading clients...
               </div>
             )}
-            {clientsStatus === "failed" && (
+            {clientsError && (
               <div className="p-4 text-center text-red-400">
-                Failed to load clients
+                Failed to load clients: {clientsError}
               </div>
             )}{" "}
             {sortedClients.length === 0 && searchQuery && (
@@ -442,13 +400,11 @@ export default function Messages({ authUserId }) {
                 No clients found
               </div>
             )}
-            {sortedClients.length === 0 &&
-              !searchQuery &&
-              clientsStatus === "succeeded" && (
-                <div className="p-4 text-center text-zinc-400">
-                  No clients assigned
-                </div>
-              )}
+            {sortedClients.length === 0 && !searchQuery && !clientsLoading && (
+              <div className="p-4 text-center text-zinc-400">
+                No clients assigned
+              </div>
+            )}
             {sortedClients.map((client) => {
               const hasConversation = conversations.some(
                 (conv) => conv.user.id === client.id

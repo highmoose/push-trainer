@@ -26,6 +26,9 @@ export default function Header({ setShowTab }) {
     { label: "Messages" },
     { label: "Planner" },
     { label: "Clients" },
+    { label: "Workouts" },
+    { label: "Check-Ins" },
+    { label: "Team" },
     { label: "Metrics" },
     { label: "Nutrition" },
   ];

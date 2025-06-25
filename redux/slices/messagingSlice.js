@@ -35,6 +35,25 @@ export const sendMessage = createAsyncThunk(
   }
 );
 
+export const sendEnhancedMessage = createAsyncThunk(
+  "messaging/sendEnhancedMessage",
+  async (
+    { receiver_id, message_text, message_type, metadata, attachments },
+    { dispatch }
+  ) => {
+    const response = await axios.post("/api/messages/enhanced", {
+      receiver_id,
+      message_text,
+      message_type,
+      metadata,
+      attachments,
+    });
+
+    dispatch(fetchConversations());
+    return response.data;
+  }
+);
+
 export const fetchAllMessages = createAsyncThunk(
   "messaging/fetchAllMessages",
   async ({ authUserId }, { rejectWithValue }) => {
@@ -55,7 +74,12 @@ const initialState = {
   conversations: [],
   messagesByUser: {}, // { userId: [messages] }
   authUserId: null,
+  typingUsers: {}, // { userId: { isTyping: boolean, timestamp: number } }
+  messageReactions: {}, // { messageId: [{ userId, emoji, timestamp }] }
+  unreadCounts: {}, // { userId: number }
   status: "idle",
+  loading: false,
+  error: null,
 };
 
 // Slice
@@ -155,6 +179,90 @@ const messagingSlice = createSlice({
         state.messagesByUser
       );
     },
+    setTypingUsers(state, action) {
+      const { userId, isTyping, timestamp = Date.now() } = action.payload;
+      if (isTyping) {
+        state.typingUsers[userId] = { isTyping: true, timestamp };
+      } else {
+        delete state.typingUsers[userId];
+      }
+    },
+    addReaction(state, action) {
+      const {
+        messageId,
+        userId,
+        emoji,
+        timestamp = Date.now(),
+      } = action.payload;
+      if (!state.messageReactions[messageId]) {
+        state.messageReactions[messageId] = [];
+      }
+
+      // Remove existing reaction from this user for this message
+      state.messageReactions[messageId] = state.messageReactions[
+        messageId
+      ].filter((reaction) => reaction.userId !== userId);
+
+      // Add new reaction
+      state.messageReactions[messageId].push({ userId, emoji, timestamp });
+    },
+    removeReaction(state, action) {
+      const { messageId, userId } = action.payload;
+      if (state.messageReactions[messageId]) {
+        state.messageReactions[messageId] = state.messageReactions[
+          messageId
+        ].filter((reaction) => reaction.userId !== userId);
+
+        // Clean up empty reaction arrays
+        if (state.messageReactions[messageId].length === 0) {
+          delete state.messageReactions[messageId];
+        }
+      }
+    },
+    updateMessageStatus(state, action) {
+      const { messageId, status, timestamp = Date.now() } = action.payload;
+
+      // Find and update message status across all conversations
+      Object.keys(state.messagesByUser).forEach((userId) => {
+        const messageIndex = state.messagesByUser[userId].findIndex(
+          (msg) => msg.id === messageId
+        );
+        if (messageIndex !== -1) {
+          state.messagesByUser[userId][messageIndex] = {
+            ...state.messagesByUser[userId][messageIndex],
+            status,
+            [`${status}_at`]: timestamp,
+          };
+        }
+      });
+    },
+    markAsRead(state, action) {
+      const { conversationId, userId } = action.payload;
+
+      // Reset unread count for this conversation
+      state.unreadCounts[conversationId] = 0;
+
+      // Mark all messages in this conversation as read
+      if (state.messagesByUser[conversationId]) {
+        state.messagesByUser[conversationId].forEach((message) => {
+          if (message.sender_id !== userId && message.status !== "read") {
+            message.status = "read";
+            message.read_at = Date.now();
+          }
+        });
+      }
+    },
+    incrementUnreadCount(state, action) {
+      const { conversationId } = action.payload;
+      state.unreadCounts[conversationId] =
+        (state.unreadCounts[conversationId] || 0) + 1;
+    },
+    setLoading(state, action) {
+      state.loading = action.payload;
+    },
+    setError(state, action) {
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -231,5 +339,16 @@ const messagingSlice = createSlice({
   },
 });
 
-export const { addMessage, setAuthUserId } = messagingSlice.actions;
+export const {
+  addMessage,
+  setAuthUserId,
+  setTypingUsers,
+  addReaction,
+  removeReaction,
+  updateMessageStatus,
+  markAsRead,
+  incrementUnreadCount,
+  setLoading,
+  setError,
+} = messagingSlice.actions;
 export default messagingSlice.reducer;

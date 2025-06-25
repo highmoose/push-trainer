@@ -10,7 +10,6 @@ import GymOwnerDashboard from "@role/gym-owner/tabs/gymOwnerDashboard";
 export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);
 
-  // AuthGuard handles authentication, so we can safely assume user exists here
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen">

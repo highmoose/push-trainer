@@ -1,28 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSessions } from "@/hooks/session";
+import { useTasks } from "@/hooks/tasks";
+import { useClients } from "@/hooks/clients";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import updateLocale from "dayjs/plugin/updateLocale";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import CreateSessionModal from "@/components/trainer/createSessionModal";
 import CreateTaskModal from "@/components/trainer/CreateTaskModal";
 import CalendarContextMenu from "@/components/trainer/CalendarContextMenu";
-import {
-  updateSession,
-  updateSessionTime,
-  updateSessionTimeOptimistic,
-  revertSessionTimeUpdate,
-} from "@/redux/slices/sessionSlice";
-import {
-  fetchTasks,
-  updateTask,
-  updateTaskOptimistic,
-  revertTaskUpdate,
-  markTaskCompleted,
-  markTaskCompletedOptimistic,
-  revertMarkTaskCompleted,
-} from "@/redux/slices/taskSlice";
 import "@/components/trainer/calendarStyles.css";
 import {
   Circle,
@@ -36,10 +25,14 @@ import {
   convertForCalendar,
   getUserTimezone,
   formatWithTimezone,
+  convertToServerTime,
 } from "@/lib/timezone";
 
 // Configure dayjs to start week on Monday
 dayjs.extend(weekday);
+dayjs.extend(updateLocale);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.extend(updateLocale);
 dayjs.updateLocale("en", {
   weekStart: 1, // Monday = 1, Sunday = 0
@@ -52,15 +45,32 @@ const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
 );
 
 export default function TrainerCalendarPage() {
-  const dispatch = useDispatch();
   const calendarRef = useRef(null);
   const calendarContainerRef = useRef(null);
   const hoverLineRef = useRef(null);
   const userTimezone = getUserTimezone();
 
-  const { list: sessions = [] } = useSelector((state) => state.sessions);
-  const { list: clients = [], status } = useSelector((state) => state.clients);
-  const { list: tasks = [], statistics } = useSelector((state) => state.tasks);
+  // Debug timezone detection
+  useEffect(() => {
+    console.log("=== TIMEZONE DEBUG ===");
+    console.log("User timezone from getUserTimezone():", userTimezone);
+    console.log(
+      "Browser detected timezone:",
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+    console.log(
+      "Current date in user timezone:",
+      dayjs.tz(dayjs(), userTimezone).format("YYYY-MM-DD HH:mm:ss Z")
+    );
+    console.log(
+      "Current date in browser timezone:",
+      dayjs().format("YYYY-MM-DD HH:mm:ss Z")
+    );
+  }, [userTimezone]);
+  const { sessions, updateSessionTime, updateSessionTimeOptimistic } =
+    useSessions();
+  const { clients } = useClients();
+  const { tasks, updateTask, completeTask } = useTasks();
 
   // Process sessions with timezone-aware datetime conversion
   const processedSessions = sessions.map((session) => ({
@@ -70,10 +80,11 @@ export default function TrainerCalendarPage() {
     // Keep original for server communication
     start_time_original: session.start_time,
     end_time_original: session.end_time,
-  }));
-
-  // Debug: Log session changes
+  })); // Debug: Log session and task changes
   useEffect(() => {
+    console.log("Planner - User timezone:", userTimezone);
+    console.log("Planner - Raw sessions from hook:", sessions);
+    console.log("Planner - Raw tasks from hook:", tasks);
     console.log(
       "Planner - Sessions updated:",
       processedSessions.map((s) => ({
@@ -83,12 +94,23 @@ export default function TrainerCalendarPage() {
         original_time: s.start_time_original,
         local_time: s.start_time_local?.format("YYYY-MM-DD HH:mm"),
         timezone: userTimezone,
+        has_local_time: !!s.start_time_local,
       }))
     );
-  }, [sessions, userTimezone]);
+    console.log(
+      "Planner - Tasks with due_date:",
+      tasks
+        .filter((t) => t.due_date)
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          due_date: t.due_date,
+          status: t.status,
+          duration: t.duration,
+        }))
+    );
+  }, [sessions, tasks, userTimezone]);
 
-  // Use processed sessions for display
-  const displaySessions = processedSessions;
   const [selectedSession, setSelectedSession] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -173,6 +195,9 @@ export default function TrainerCalendarPage() {
       type: "consultation",
     },
   ]);
+  // Use processed sessions for display - now includes optimistic updates
+  const displaySessions = processedSessions;
+
   // Helper function to create session from template
   const createFromTemplate = (template) => {
     const now = dayjs();
@@ -243,65 +268,34 @@ export default function TrainerCalendarPage() {
   };
   const handleTaskModalClose = () => {
     setCreateTaskModalOpen(false);
-    // Refresh tasks after modal closes to show newly created tasks
-    dispatch(fetchTasks());
+    // Note: useTasks hook will automatically refresh tasks
   };
 
   const handleEditTaskModalClose = () => {
     setEditTaskModalOpen(false);
     setSelectedTask(null);
-    // Refresh tasks after modal closes to show updated tasks
-    dispatch(fetchTasks());
   };
   const handleTaskCompletionToggle = async (task, event) => {
-    // Prevent event from bubbling up to parent elements
     event.stopPropagation();
     event.preventDefault();
 
-    // Prevent multiple clicks on the same task
     if (updatingTasks.has(task.id)) {
       return;
-    }
-
-    // Add task to updating set immediately
+    } // Add task to updating set immediately
     setUpdatingTasks((prev) => new Set(prev).add(task.id));
 
-    // Store original task for potential revert
-    const originalTask = { ...task };
     const newStatus = task.status === "completed" ? "pending" : "completed";
 
     try {
-      // Single optimistic update based on current status
-      dispatch(
-        updateTaskOptimistic({
-          id: task.id,
-          updates: { status: newStatus },
-        })
-      );
-
-      // Make API call but don't let it update the state automatically
+      // Use the hook which handles optimistic updates automatically
       if (newStatus === "completed") {
-        await dispatch(markTaskCompleted(task.id));
+        await completeTask(task.id);
       } else {
-        await dispatch(
-          updateTask({
-            id: task.id,
-            data: { status: "pending" },
-          })
-        );
-      }
-
-      // Success - keep the optimistic update
+        await updateTask(task.id, { status: "pending" });
+      } // Success - hook handles the state update
     } catch (error) {
       console.error("Failed to update task status:", error);
-
-      // Revert the optimistic update on error
-      dispatch(
-        revertTaskUpdate({
-          id: task.id,
-          originalTask,
-        })
-      );
+      // Hook already handles revert on error
     } finally {
       // Remove task from updating set with a minimal delay to prevent rapid re-clicks
       setTimeout(() => {
@@ -313,22 +307,16 @@ export default function TrainerCalendarPage() {
       }, 50);
     }
   };
-
   const closeContextMenu = () => {
     setContextMenuOpen(false);
     setContextMenuData(null);
     setSelectedTimeSlot(null); // Clear selection when context menu closes
   };
 
-  // Fetch tasks when component mounts
-  useEffect(() => {
-    dispatch(fetchTasks());
-  }, [dispatch]);
-
   // Helper function to calculate weekly stats
   const calculateWeeklyStats = () => {
-    const weekStart = currentDate.startOf("week");
-    const weekEnd = currentDate.endOf("week");
+    const weekStart = dayjs.tz(currentDate.startOf("week"), userTimezone);
+    const weekEnd = dayjs.tz(currentDate.endOf("week"), userTimezone);
     const weekSessions = displaySessions.filter((s) => {
       const sessionDate = dayjs(s.start_time);
       return sessionDate.isAfter(weekStart) && sessionDate.isBefore(weekEnd);
@@ -388,34 +376,59 @@ export default function TrainerCalendarPage() {
 
       // Ensure we don't go beyond valid hours (0-23)
       actualHour = Math.min(23, actualHour);
-      const actualMinute = snappedMinute;
-
-      // Calculate new date and time
+      const actualMinute = snappedMinute; // Calculate new date and time - ensure days are created in user's timezone
       const days = [...Array(7)].map((_, i) =>
-        currentDate.startOf("week").add(i, "day")
+        dayjs.tz(currentDate.startOf("week"), userTimezone).add(i, "day")
       );
       const targetDay =
         newColumnIndex >= 0
           ? days[newColumnIndex]
           : isDragging
           ? dayjs(draggingSession.start_time)
-          : dayjs(draggingTask.due_date);
-
-      // Handle session dragging
+          : dayjs(draggingTask.due_date); // Handle session dragging
       if (isDragging && draggingSession) {
-        const newStart = targetDay
-          .startOf("day")
+        // Create new time in the user's timezone consistently
+        const newStart = dayjs
+          .tz(targetDay.format("YYYY-MM-DD"), userTimezone)
           .hour(actualHour)
           .minute(actualMinute)
           .second(0);
-        const duration = dayjs(draggingSession.end_time).diff(
-          dayjs(draggingSession.start_time),
-          "minute"
+
+        // Calculate duration from the original session times (not the dragging session times)
+        const originalStart = dayjs(
+          draggingSession.start_time_original || draggingSession.start_time
         );
+        const originalEnd = dayjs(
+          draggingSession.end_time_original || draggingSession.end_time
+        );
+        const duration = originalEnd.diff(originalStart, "minute");
         const newEnd = newStart.add(duration, "minute");
 
+        console.log("Drag calculation:", {
+          targetDay: targetDay.format("YYYY-MM-DD"),
+          targetDayTimezone: targetDay.format("YYYY-MM-DD HH:mm:ss Z"),
+          actualHour,
+          actualMinute,
+          userTimezone,
+          originalStart: originalStart.format("YYYY-MM-DD HH:mm:ss"),
+          originalEnd: originalEnd.format("YYYY-MM-DD HH:mm:ss"),
+          duration: duration + " minutes",
+          newStart: newStart.format("YYYY-MM-DD HH:mm:ss"),
+          newStartTimezone: newStart.format("YYYY-MM-DD HH:mm:ss Z"),
+          newEnd: newEnd.format("YYYY-MM-DD HH:mm:ss"),
+          newStartFormatted: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+          originalSessionStart: draggingSession.start_time_original,
+        });
         setDraggingSession({
           ...draggingSession, // Preserve all existing session data
+          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
+          start_time_local: newStart, // Update local timezone version
+          end_time_local: newEnd,
+        });
+
+        // Also update the session optimistically for instant visual feedback
+        updateSessionTimeOptimistic(draggingSession.id, {
           start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
           end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
         });
@@ -435,16 +448,14 @@ export default function TrainerCalendarPage() {
         });
       }
     };
-    const handleMouseUp = () => {
+    const handleMouseUp = async () => {
       setIsDragging(false);
       setIsDraggingTask(false);
       setDragCurrentColumn(null);
       setDragStartColumn(null);
 
       // Remove global drag state
-      document.body.classList.remove("dragging", "no-select");
-
-      // Update session time via Redux
+      document.body.classList.remove("dragging", "no-select"); // Update session time via hook (which handles optimistic updates)
       if (draggingSession && draggingSession.id) {
         // Store original session for potential revert
         const originalSession = sessions.find(
@@ -466,36 +477,26 @@ export default function TrainerCalendarPage() {
           setDraggingSession(null);
           return;
         }
+        try {
+          // Pass the time directly to the hook - it already handles timezone conversion
+          await updateSessionTime(draggingSession.id, {
+            start_time: draggingSession.start_time,
+            end_time: draggingSession.end_time,
+          });
 
-        // 1. Immediate optimistic update
-        dispatch(
-          updateSessionTimeOptimistic({
+          console.log("Session time updated successfully", {
             id: draggingSession.id,
             start_time: draggingSession.start_time,
             end_time: draggingSession.end_time,
-          })
-        );
+            timezone: userTimezone,
+          });
+        } catch (error) {
+          console.error("Failed to update session:", error);
+          // The hook should handle rollback automatically
+        }
+      }
 
-        // 2. API call in background
-        dispatch(
-          updateSessionTime({
-            id: draggingSession.id,
-            start_time: draggingSession.start_time,
-            end_time: draggingSession.end_time,
-          })
-        ).catch((error) => {
-          console.error("Failed to update session, reverting:", error);
-          // Revert optimistic update on API failure
-          if (originalSession) {
-            dispatch(
-              revertSessionTimeUpdate({
-                id: draggingSession.id,
-                originalSession,
-              })
-            );
-          }
-        });
-      } // Update task time via Redux
+      // Update task time via hooks
       if (draggingTask && draggingTask.id) {
         // Store original task for potential revert
         const originalTask = tasks.find((t) => t.id === draggingTask.id);
@@ -510,41 +511,17 @@ export default function TrainerCalendarPage() {
           console.error("Dragging task missing due_date:", draggingTask);
           setDraggingTask(null);
           return;
+        } // Update task time via hooks (which handles optimistic updates)
+        try {
+          await updateTask(draggingTask.id, {
+            due_date: draggingTask.due_date,
+            duration: draggingTask.duration,
+          });
+        } catch (error) {
+          console.error("Failed to update task:", error);
         }
-
-        // 1. Immediate optimistic update
-        dispatch(
-          updateTaskOptimistic({
-            id: draggingTask.id,
-            updates: {
-              due_date: draggingTask.due_date,
-              duration: draggingTask.duration,
-            },
-          })
-        );
-        // 2. API call in background
-        dispatch(
-          updateTask({
-            id: draggingTask.id,
-            data: {
-              ...draggingTask,
-              due_date: draggingTask.due_date,
-              duration: draggingTask.duration, // Include duration
-            },
-          })
-        ).catch((error) => {
-          console.error("Failed to update task, reverting:", error);
-          // Revert optimistic update on API failure
-          if (originalTask) {
-            dispatch(
-              revertTaskUpdate({
-                id: draggingTask.id,
-                originalTask,
-              })
-            );
-          }
-        });
       }
+
       setDraggingSession(null);
       setDraggingTask(null);
     };
@@ -560,7 +537,6 @@ export default function TrainerCalendarPage() {
         setDraggingTask(null);
       }
     };
-
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("keydown", handleKeyDown);
@@ -578,6 +554,12 @@ export default function TrainerCalendarPage() {
     draggingTask,
     dragOffsetY,
     currentDate,
+    sessions,
+    tasks,
+    updateSessionTime,
+    updateSessionTimeOptimistic,
+    updateTask,
+    userTimezone,
   ]);
   // New useEffect for resizing (sessions and tasks)
   useEffect(() => {
@@ -677,96 +659,30 @@ export default function TrainerCalendarPage() {
         });
       }
     };
-    const handleMouseUp = () => {
+    const handleMouseUp = async () => {
       setIsResizing(false);
       setIsResizingTask(false);
       setResizeType(null); // Remove global resize state
-      document.body.classList.remove("resizing", "no-select");
-
-      // Update session time via Redux
+      document.body.classList.remove("resizing", "no-select"); // Update session time via hook
       if (resizingSession && resizingSession.id) {
-        // Store original session for potential revert
-        const originalSession = sessions.find(
-          (s) => s.id === resizingSession.id
-        );
-
-        // 1. Immediate optimistic update
-        dispatch(
-          updateSessionTimeOptimistic({
-            id: resizingSession.id,
+        try {
+          await updateSessionTime(resizingSession.id, {
             start_time: resizingSession.start_time,
             end_time: resizingSession.end_time,
-          })
-        );
-
-        // 2. API call in background
-        dispatch(
-          updateSessionTime({
-            id: resizingSession.id,
-            start_time: resizingSession.start_time,
-            end_time: resizingSession.end_time,
-          })
-        ).catch((error) => {
-          console.error("Failed to update session, reverting:", error);
-          // Revert optimistic update on API failure
-          if (originalSession) {
-            dispatch(
-              revertSessionTimeUpdate({
-                id: resizingSession.id,
-                originalSession,
-              })
-            );
-          }
-        });
-      } // Update task time via Redux
+          });
+        } catch (error) {
+          console.error("Failed to update session:", error);
+        }
+      } // Update task time via hook
       if (resizingTask && resizingTask.id) {
-        // Store original task for potential revert
-        const originalTask = tasks.find((t) => t.id === resizingTask.id);
-
-        if (!originalTask) {
-          console.error("Original task not found for revert:", resizingTask.id);
-          setResizingTask(null);
-          return;
+        try {
+          await updateTask(resizingTask.id, {
+            due_date: resizingTask.due_date,
+            duration: resizingTask.duration,
+          });
+        } catch (error) {
+          console.error("Failed to update task:", error);
         }
-
-        if (!resizingTask.due_date) {
-          console.error("Resizing task missing due_date:", resizingTask);
-          setResizingTask(null);
-          return;
-        }
-
-        // 1. Immediate optimistic update
-        dispatch(
-          updateTaskOptimistic({
-            id: resizingTask.id,
-            updates: {
-              due_date: resizingTask.due_date,
-              duration: resizingTask.duration,
-            },
-          })
-        );
-        // 2. API call in background
-        dispatch(
-          updateTask({
-            id: resizingTask.id,
-            data: {
-              ...resizingTask,
-              due_date: resizingTask.due_date,
-              duration: resizingTask.duration, // Include duration in the update
-            },
-          })
-        ).catch((error) => {
-          console.error("Failed to update task, reverting:", error);
-          // Revert optimistic update on API failure
-          if (originalTask) {
-            dispatch(
-              revertTaskUpdate({
-                id: resizingTask.id,
-                originalTask,
-              })
-            );
-          }
-        });
       }
 
       setResizingSession(null);
@@ -802,10 +718,9 @@ export default function TrainerCalendarPage() {
       calendarContainerRef.current.scrollTop = scrollToPosition;
     }
   }, []);
-
   const renderWeekGridWithTimes = () => {
     const days = [...Array(7)].map((_, i) =>
-      currentDate.startOf("week").add(i, "day")
+      dayjs.tz(currentDate.startOf("week"), userTimezone).add(i, "day")
     );
 
     return (
@@ -934,27 +849,13 @@ export default function TrainerCalendarPage() {
                     {/* Existing sessions - Only render in starting hour to avoid duplicates */}{" "}
                     {displaySessions
                       .filter((s) => {
-                        // For dragging sessions, show them in the column they're being dragged to
-                        if (isDragging && s.id === draggingSession?.id) {
-                          return draggingSession.start_time_local?.isSame(
-                            day,
-                            "day"
-                          );
-                        }
-                        // For normal sessions, show them in their original day
+                        // Show sessions in their current day (includes optimistic updates)
                         return s.start_time_local?.isSame(day, "day");
                       })
                       .filter((s) => {
                         // Only show session in its starting hour block to avoid duplicates
-                        const sessionToCheck =
-                          isResizing && s.id === resizingSession?.id
-                            ? resizingSession
-                            : isDragging && s.id === draggingSession?.id
-                            ? draggingSession
-                            : s;
                         const sessionStart =
-                          sessionToCheck.start_time_local ||
-                          dayjs(sessionToCheck.start_time);
+                          s.start_time_local || dayjs(s.start_time);
                         const sessionHour = sessionStart.hour();
 
                         // Only render in the hour block where the session starts
@@ -972,27 +873,14 @@ export default function TrainerCalendarPage() {
                         return true;
                       })
                       .map((s, j) => {
-                        // Use resizing session data if this session is being resized
+                        // Use session data directly (includes optimistic updates)
                         let start, end;
                         if (isResizing && s.id === resizingSession?.id) {
                           start = dayjs(resizingSession.start_time);
                           end = dayjs(resizingSession.end_time);
-                        } else if (isDragging && s.id === draggingSession?.id) {
-                          // Debug: check for undefined data during dragging
-                          if (
-                            !draggingSession.first_name ||
-                            !draggingSession.last_name
-                          ) {
-                            console.warn(
-                              "Dragging session missing client data:",
-                              draggingSession
-                            );
-                          }
-                          start = dayjs(draggingSession.start_time);
-                          end = dayjs(draggingSession.end_time);
                         } else {
-                          start = dayjs(s.start_time);
-                          end = dayjs(s.end_time);
+                          start = s.start_time_local || dayjs(s.start_time);
+                          end = s.end_time_local || dayjs(s.end_time);
                         }
 
                         // Calculate position and height for sessions that may span multiple hours
@@ -1487,8 +1375,14 @@ export default function TrainerCalendarPage() {
               Sessions Overview
             </h3>
             <div className="text-xs text-zinc-500">
-              {currentDate.startOf("week").format("MMM D")} -{" "}
-              {currentDate.endOf("week").format("MMM D")}
+              {" "}
+              {dayjs
+                .tz(currentDate.startOf("week"), userTimezone)
+                .format("MMM D")}{" "}
+              -{" "}
+              {dayjs
+                .tz(currentDate.endOf("week"), userTimezone)
+                .format("MMM D")}
             </div>
           </div>
           {(() => {
@@ -1512,7 +1406,8 @@ export default function TrainerCalendarPage() {
                     {stats.clients}
                   </div>
                   <div className="text-xs text-zinc-500">Active Clients</div>
-                </div>                <div className="bg-zinc-900/50 p-3 rounded-lg">
+                </div>{" "}
+                <div className="bg-zinc-900/50 p-3 rounded-lg">
                   <div className="text-lg font-bold text-zinc-300">
                     £{parseFloat(stats.revenue).toFixed(2)}
                   </div>
@@ -1527,11 +1422,9 @@ export default function TrainerCalendarPage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-zinc-300">Task Overview</h3>
             <div className="text-xs text-zinc-500">{tasks.length} total</div>
-          </div>
-
-          {(() => {
-            const weekStart = currentDate.startOf("week");
-            const weekEnd = currentDate.endOf("week");
+          </div>          {(() => {
+            const weekStart = dayjs.tz(currentDate.startOf("week"), userTimezone);
+            const weekEnd = dayjs.tz(currentDate.endOf("week"), userTimezone);
             const weekTasks = tasks.filter((task) => {
               if (!task.due_date) return false;
               const taskDate = dayjs(task.due_date);

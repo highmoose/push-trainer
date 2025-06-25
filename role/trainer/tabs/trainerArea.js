@@ -4,44 +4,40 @@ import Clients from "@role/trainer/tabs/clients";
 import Dashboard from "@role/trainer/tabs/dashboard";
 import Messages from "@role/trainer/tabs/messages";
 import Planner from "@role/trainer/tabs/planner";
+import Workouts from "@role/trainer/tabs/workouts";
+import CheckIns from "@role/trainer/tabs/checkins";
+import Team from "@role/trainer/tabs/team";
 import Settings from "@role/trainer/tabs/settings";
 import Metrics from "@role/trainer/tabs/metrics";
 import Nutrition from "@role/trainer/tabs/nutrition";
 import Footer from "@/components/layout/footer";
 
-import { fetchClients } from "@/redux/slices/clientSlice";
-import { fetchSessions } from "@/redux/slices/sessionSlice";
-import { fetchTasks } from "@/redux/slices/taskSlice";
-
-import { useDispatch, useSelector } from "react-redux";
-
-import {
-  fetchConversations,
-  sendMessage,
-  addMessage,
-  fetchAllMessages,
-} from "@/redux/slices/messagingSlice";
+import { useSelector } from "react-redux";
+import { useClients } from "@/hooks/clients";
+import { useSessions } from "@/hooks/session";
+import { useTasks } from "@/hooks/tasks";
+import { useMessaging } from "@/hooks/messaging";
 
 export default function trainerDashboard() {
-  const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [showTab, setShowTab] = useState("dashboard");
   const authUser = useSelector((state) => state.auth.user);
-  const authUserId = authUser?.id; // Fixed: removed .user
+  const authUserId = authUser?.id;
+
+  // Initialize hooks - they will fetch data automatically on mount
+  useClients();
+  useSessions();
+  useTasks();
+  const { fetchConversations } = useMessaging(authUserId);
 
   console.log("TrainerArea - authUser:", authUser);
   console.log("TrainerArea - authUserId:", authUserId);
+  // Only fetch conversations once since messaging hook doesn't auto-fetch
   useEffect(() => {
     if (user?.role === "trainer" && authUserId) {
-      // Once all pages are in, pull all this data in one go instead of seperate calls
-      dispatch(fetchClients());
-      dispatch(fetchSessions());
-      dispatch(fetchTasks());
-      dispatch({ type: "messaging/setAuthUserId", payload: authUserId });
-      dispatch(fetchConversations()); // ✅ fine
-      dispatch(fetchAllMessages({ authUserId })); // ✅ pass id explicitly
+      fetchConversations();
     }
-  }, [dispatch, user, authUserId]);
+  }, [user, authUserId]); // Remove fetchConversations from dependencies
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
@@ -52,6 +48,9 @@ export default function trainerDashboard() {
         {showTab === "messages" && <Messages authUserId={authUserId} />}
         {showTab === "planner" && <Planner />}
         {showTab === "clients" && <Clients />}
+        {showTab === "workouts" && <Workouts />}
+        {showTab === "check-ins" && <CheckIns />}
+        {showTab === "team" && <Team />}
         {showTab === "metrics" && <Metrics />}
         {showTab === "nutrition" && <Nutrition />}
         {/* Control Tabs */}

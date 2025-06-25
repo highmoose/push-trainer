@@ -1,18 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { fetchClients } from "@/redux/slices/clientSlice";
-import {
-  generateDietPlan,
-  createDietPlan,
-  fetchDietPlans,
-  fetchPlanDetails,
-  duplicateDietPlan,
-  linkDietPlanToClients,
-  deleteDietPlan,
-  updateDietPlan,
-} from "@/redux/slices/dietPlanSlice";
+import { useClients } from "@/hooks/clients";
+import { useDietPlans } from "@/hooks/diet";
 import {
   ChefHat,
   Target,
@@ -511,16 +501,22 @@ const MEAL_COMPLEXITY = [
 ];
 
 export default function Nutrition() {
-  const dispatch = useDispatch();
-  const { list: clients = [], status: clientsStatus } = useSelector(
-    (state) => state.clients
-  );
   const {
-    list: dietPlans = [],
-    current: currentPlan,
-    generating,
-    status: dietPlanStatus,
-  } = useSelector((state) => state.dietPlans);
+    clients,
+    loading: clientsLoading,
+    error: clientsError,
+    fetchClients,
+  } = useClients();
+  const {
+    dietPlans,
+    loading: dietPlansLoading,
+    error: dietPlansError,
+    generateDietPlan,
+    createDietPlan,
+    updateDietPlan,
+    deleteDietPlan,
+    fetchDietPlans,
+  } = useDietPlans();
 
   // Sample data for testing
   const sampleDietPlans = [
@@ -662,16 +658,11 @@ export default function Nutrition() {
       setSelectedClient(clients[0]);
     }
   }, [clients, selectedClient, showAllPlans]);
-
   // Fetch data on mount
   useEffect(() => {
-    if (clientsStatus === "idle") {
-      dispatch(fetchClients());
-    }
-    if (dietPlanStatus === "idle") {
-      dispatch(fetchDietPlans());
-    }
-  }, [dispatch, clientsStatus, dietPlanStatus]);
+    fetchClients();
+    fetchDietPlans();
+  }, [fetchClients, fetchDietPlans]);
 
   // View plan details
   const handleViewPlanDetails = async (plan) => {
@@ -679,20 +670,11 @@ export default function Nutrition() {
     console.log("Initial plan data:", plan);
     console.log("Plan has ai_response:", !!plan.ai_response);
     console.log("AI response preview:", plan.ai_response?.substring(0, 100));
-
     setPlanDetails(plan);
     setShowPlanDetailModal(true);
 
-    try {
-      const result = await dispatch(fetchPlanDetails(plan.id));
-      console.log("Fetch plan details result:", result);
-      if (result.type === "dietPlans/fetchDetails/fulfilled") {
-        console.log("Fetched plan details:", result.payload);
-        setPlanDetails(result.payload);
-      }
-    } catch (error) {
-      console.error("Error fetching plan details:", error);
-    }
+    // TODO: Implement fetchPlanDetails in useDietPlans hook if needed for additional details
+    console.log("Using plan data directly:", plan);
   };
   // Generate enhanced diet plan prompt with client data
   const buildClientAwarePrompt = () => {
@@ -806,35 +788,28 @@ export default function Nutrition() {
     // Close modal immediately and add loading plan
     setShowCreateModal(false);
     setGeneratingPlans((prev) => [...prev, loadingPlan]);
-
     try {
-      const result = await dispatch(
-        generateDietPlan({
-          prompt: enhancedPrompt,
-          aiProvider,
-          clientId,
-          title: planTitle.trim(),
-          planType,
-          mealsPerDay,
-          mealComplexity,
-          customCalories: useCustomCalories ? customCalories : null,
-          additionalNotes,
-        })
-      );
+      const result = await generateDietPlan({
+        prompt: enhancedPrompt,
+        aiProvider,
+        clientId,
+        title: planTitle.trim(),
+        planType,
+        mealsPerDay,
+        mealComplexity,
+        customCalories: useCustomCalories ? customCalories : null,
+        additionalNotes,
+      });
 
-      if (result.type === "dietPlans/generate/fulfilled") {
-        // Remove the loading plan and refresh the actual plans
-        setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
+      // Remove the loading plan and refresh the actual plans
+      setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
 
-        // Reset form
-        setPlanTitle("");
-        setPlanType("");
-        setSelectedClientForForm(null);
-        setAdditionalNotes("");
-
-        // Refresh plans
-        dispatch(fetchDietPlans());
-      }
+      // Reset form
+      setPlanTitle("");
+      setPlanType("");
+      setSelectedClientForForm(null);
+      setAdditionalNotes(""); // Refresh plans - hook handles this automatically
+      console.log("Diet plan generated successfully:", result);
     } catch (error) {
       console.error("Error generating plan:", error);
 
@@ -850,21 +825,19 @@ export default function Nutrition() {
     setPlanToDelete(plan);
     setShowDeleteModal(true);
   };
-
   // Handle confirmed deletion
   const handleConfirmDelete = async () => {
     if (!planToDelete) return;
 
     try {
-      await dispatch(deleteDietPlan(planToDelete.id));
+      await deleteDietPlan(planToDelete.id);
       console.log("Diet plan deleted successfully:", planToDelete.id);
 
       // Close modal and reset state
       setShowDeleteModal(false);
       setPlanToDelete(null);
 
-      // Optionally refresh the plans list
-      dispatch(fetchDietPlans());
+      // Hook handles refresh automatically
     } catch (error) {
       console.error("Error deleting diet plan:", error);
       // Handle error appropriately - maybe show a toast notification
@@ -942,19 +915,31 @@ export default function Nutrition() {
           )}
           {/* Client List */}
           <div className="flex-1 overflow-y-auto">
+            {" "}
             {!showAllPlans ? (
               <>
-                {clientsStatus === "loading" && (
+                {clientsLoading && (
                   <div className="p-4 text-center text-zinc-400">
                     <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
                     <p>Loading clients...</p>
                   </div>
                 )}
-                {clientsStatus === "failed" && (
-                  <div className="p-4 text-center text-zinc-400">
-                    <p>Failed to load clients</p>
+                {clientsError && (
+                  <div className="p-4 text-center text-red-400">
+                    <p>Failed to load clients: {clientsError}</p>
                     <button
-                      onClick={() => dispatch(fetchClients())}
+                      onClick={() => fetchClients()}
+                      className="mt-2 text-sm bg-zinc-800 px-3 py-1 rounded hover:bg-zinc-700"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {!clientsLoading && !clientsError && clients.length === 0 && (
+                  <div className="p-4 text-center text-zinc-400">
+                    <p>No clients found</p>
+                    <button
+                      onClick={() => fetchClients()}
                       className="mt-2 text-sm bg-zinc-800 px-3 py-1 rounded hover:bg-zinc-700"
                     >
                       Retry
@@ -1018,6 +1003,7 @@ export default function Nutrition() {
           <div className="bg-zinc-900 border-b border-zinc-800 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {" "}
                 {!showAllPlans && selectedClient ? (
                   <>
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -1035,6 +1021,18 @@ export default function Nutrition() {
                       </p>
                     </div>
                   </>
+                ) : clientsLoading && !showAllPlans ? (
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white">
+                        Loading Clients...
+                      </h2>
+                      <p className="text-zinc-400 text-sm">
+                        Fetching client data
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <div>
                     <h2 className="text-lg font-bold text-white">
@@ -1101,7 +1099,15 @@ export default function Nutrition() {
           </div>{" "}
           {/* Diet Plans List */}
           <div className="flex-1 overflow-y-auto p-3">
-            {displayPlans.length === 0 ? (
+            {clientsLoading && !selectedClient && !showAllPlans ? (
+              <div className="text-center text-zinc-400 py-12">
+                <div className="animate-spin w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-lg mb-2">Loading clients...</p>
+                <p className="text-sm text-zinc-500">
+                  Please wait while we fetch your client list
+                </p>
+              </div>
+            ) : displayPlans.length === 0 ? (
               <div className="text-center text-zinc-400 py-12">
                 <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">No diet plans found</p>
