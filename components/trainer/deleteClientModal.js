@@ -1,14 +1,24 @@
 "use client";
 
 import { deleteClient } from "@/redux/slices/clientSlice";
-import { X, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+} from "@heroui/react";
 
 export default function DeleteClientConfirmationModal({
   close,
   clientName = "",
   clientId = "",
+  isOpen = false,
 }) {
   const dispatch = useDispatch();
   const [input, setInput] = useState("");
@@ -22,58 +32,75 @@ export default function DeleteClientConfirmationModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-xs z-50">
-      <div className="bg-zinc-950 relative flex flex-col rounded-xl shadow-2xl shadow-white/10 gap-6 p-10 max-w-[500px] w-full overflow-hidden">
-        <X
-          onClick={close}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer"
-          size={22}
-        />
-
-        <div className="flex items-center gap-4 text-red-400">
-          <Trash2 size={32} />
-          <h2 className="text-xl font-semibold text-white">
+    <Modal
+      isOpen={isOpen}
+      onClose={close}
+      size="md"
+      backdrop="blur"
+      classNames={{
+        base: "bg-zinc-950 border border-zinc-800",
+        header: "border-b border-zinc-800",
+        body: "py-6",
+        footer: "border-t border-zinc-800",
+      }}
+    >
+      <ModalContent>
+        <ModalHeader className="flex items-center gap-4 text-red-400">
+          <Trash2 size={24} />
+          <span className="text-xl font-semibold text-white">
             Confirm Client Deletion
-          </h2>
-        </div>
+          </span>
+        </ModalHeader>
 
-        <p className="text-sm text-zinc-400 leading-relaxed">
-          You are about to{" "}
-          <span className="text-red-400 font-semibold">Permanently Delete</span>{" "}
-          the client <span className="text-white font-bold">{clientName}</span>.
-          This action cannot be undone.
-        </p>
+        <ModalBody>
+          <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+            You are about to{" "}
+            <span className="text-red-400 font-semibold">
+              Permanently Delete
+            </span>{" "}
+            the client{" "}
+            <span className="text-white font-bold">{clientName}</span>. This
+            action cannot be undone.
+          </p>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-zinc-400">
-            Type <span className="text-white font-semibold">{clientName}</span>{" "}
-            to confirm
-          </label>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="bg-zinc-900 text-white rounded-md px-3 py-3 text-sm"
-            placeholder="Enter name to confirm"
-          />
-        </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-zinc-400">
+              Type{" "}
+              <span className="text-white font-semibold">{clientName}</span> to
+              confirm
+            </label>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Enter name to confirm"
+              classNames={{
+                base: "max-w-full",
+                input: "bg-zinc-900 text-white",
+                inputWrapper:
+                  "bg-zinc-900 border-zinc-700 hover:border-zinc-600",
+              }}
+            />
+          </div>
+        </ModalBody>
 
-        <div className="flex justify-between items-center pt-4 border-t border-zinc-800">
-          <button
-            onClick={close}
-            className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+        <ModalFooter>
+          <Button
+            variant="light"
+            onPress={close}
+            className="text-zinc-400 hover:text-white"
           >
             Cancel
-          </button>
-          <button
-            onClick={handleDeleteClient}
-            disabled={!isMatch}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2 rounded-md text-sm transition-colors disabled:bg-zinc-800 disabled:text-zinc-500"
+          </Button>
+          <Button
+            color="danger"
+            onPress={handleDeleteClient}
+            isDisabled={!isMatch}
+            className="font-bold"
           >
             Delete Client
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }

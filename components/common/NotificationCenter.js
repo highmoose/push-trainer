@@ -2,14 +2,23 @@
 
 import { useState, useEffect } from "react";
 import {
-  X,
   Bell,
   Check,
   CheckCircle2,
   Info,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import axios from "@/lib/axios";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Button,
+  Spinner,
+  Chip,
+} from "@heroui/react";
 
 const notificationIcons = {
   info: Info,
@@ -127,43 +136,53 @@ export default function NotificationCenter({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden border border-zinc-700">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-700">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="2xl"
+      scrollBehavior="inside"
+      backdrop="blur"
+      classNames={{
+        base: "bg-zinc-900 border border-zinc-700",
+        header: "border-b border-zinc-700",
+        body: "p-0",
+      }}
+    >
+      <ModalContent>
+        <ModalHeader className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Bell className="text-blue-400" size={24} />
-            <h2 className="text-xl font-semibold text-white">Notifications</h2>
+            <span className="text-xl font-semibold text-white">
+              Notifications
+            </span>
             {unreadCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                {unreadCount}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              <Chip
+                color="primary"
+                size="sm"
+                variant="solid"
+                className="text-white"
               >
-                Mark all read
-              </button>
+                {unreadCount}
+              </Chip>
             )}
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="max-h-96 overflow-y-auto">
+          {unreadCount > 0 && (
+            <Button
+              variant="light"
+              size="sm"
+              onPress={markAllAsRead}
+              className="text-blue-400 hover:text-blue-300"
+            >
+              Mark all read
+            </Button>
+          )}
+        </ModalHeader>
+
+        <ModalBody>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <Spinner size="lg" color="primary" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-8 text-zinc-400">
@@ -215,24 +234,30 @@ export default function NotificationCenter({ isOpen, onClose }) {
                             </span>
 
                             {isUnread && (
-                              <button
-                                onClick={() => markAsRead(notification.id)}
-                                className="text-blue-400 hover:text-blue-300 transition-colors"
+                              <Button
+                                isIconOnly
+                                variant="light"
+                                size="sm"
+                                onPress={() => markAsRead(notification.id)}
+                                className="text-blue-400 hover:text-blue-300 min-w-unit-6 w-unit-6 h-unit-6"
                                 title="Mark as read"
                               >
                                 <Check size={16} />
-                              </button>
+                              </Button>
                             )}
 
-                            <button
-                              onClick={() =>
+                            <Button
+                              isIconOnly
+                              variant="light"
+                              size="sm"
+                              onPress={() =>
                                 deleteNotification(notification.id)
                               }
-                              className="text-zinc-500 hover:text-red-400 transition-colors"
+                              className="text-zinc-500 hover:text-red-400 min-w-unit-6 w-unit-6 h-unit-6"
                               title="Delete notification"
                             >
                               <X size={16} />
-                            </button>
+                            </Button>
                           </div>
                         </div>
 
@@ -255,8 +280,8 @@ export default function NotificationCenter({ isOpen, onClose }) {
               })}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 }

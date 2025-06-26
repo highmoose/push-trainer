@@ -2,6 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { X, Upload, Save, Camera, Scale, CheckCircle } from "lucide-react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Card,
+  CardBody,
+  CardHeader,
+  Divider,
+  Spinner,
+  Progress,
+} from "@heroui/react";
 import axios from "@/lib/axios";
 
 export default function WeighInRequestResponseModal({

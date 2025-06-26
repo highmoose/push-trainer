@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { register } from "@/redux/slices/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { login } from "@/redux/slices/authSlice";
+import { Input, Button, Select, SelectItem } from "@heroui/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -47,85 +48,118 @@ export default function RegisterPage() {
 
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center">
-      <div>
-        <div className="flex justify-between items-center gap-4 w-full">
-          <div>
-            <p className="text-xl font-bold text-white -mt-4">Create Account</p>
-            <p className="text-sm text-zinc-400 -mt-1">Enter your details</p>
-          </div>
+      <div className="max-w-lg w-full">
+        <div className="flex flex-col gap-2 justify-between items-center w-full">
           <Image
             src="/images/logo/push-logo-white.svg"
-            width={170}
-            height={160}
+            width={300}
+            height={200}
             alt="logo"
-            className="mb-3"
+            className="mb-6"
           />
+
+          <p className="text-3xl font-bold text-white">Create Account</p>
+          <p className="text-lg text-white">
+            Already have an account?{" "}
+            <a className="underline" onClick={() => router.push("/sign-in")}>
+              Sign in
+            </a>
+          </p>
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col items-center gap-4 bg-zinc-200 p-10 rounded"
+          className="flex flex-col items-center gap-4 p-10 rounded"
         >
-          {" "}
-          <div className="flex flex-col gap-2">
-            <input
+          {error && (
+            <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4 w-full">
+            <Input
+              label="First Name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              placeholder="First Name"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 inner-shadow min-w-[300px]"
+              autoComplete="given-name"
             />
-            <input
+            <Input
+              label="Last Name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              placeholder="Last Name"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 inner-shadow min-w-[300px]"
+              autoComplete="family-name"
             />
-            <input
+            <Input
+              label="Email"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 inner-shadow min-w-[300px]"
+              autoComplete="email"
             />
-            <input
+            <Input
+              label="Password"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="Password"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2"
+              autoComplete="new-password"
             />
-            <input
+            <Input
+              label="Confirm Password"
+              type="password"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
-              type="password"
-              placeholder="Confirm Password"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2"
+              autoComplete="new-password"
+              className="mb-4"
             />
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2"
+            <Select
+              label="Role"
+              selectedKeys={[role]}
+              onSelectionChange={(keys) => setRole(Array.from(keys)[0])}
+              className="mb-4"
             >
-              <option value="client">Client</option>
-              <option value="trainer">Personal Trainer</option>
-              <option value="gym_owner">Gym Owner</option>
-            </select>
+              <SelectItem key="client" value="client">
+                Client
+              </SelectItem>
+              <SelectItem key="trainer" value="trainer">
+                Personal Trainer
+              </SelectItem>
+              <SelectItem key="gym_owner" value="gym_owner">
+                Gym Owner
+              </SelectItem>
+            </Select>
+            <Button
+              type="submit"
+              color="primary"
+              variant="solid"
+              className="w-full bg-white text-black hover:bg-zinc-100 h-14"
+              disabled={
+                !firstName ||
+                !lastName ||
+                !email ||
+                !password ||
+                !passwordConfirm ||
+                password !== passwordConfirm
+              }
+            >
+              Create Account
+            </Button>
+
+            <p className="mx-auto text-sm text-center text-zinc-400 max-w-xs mb-4">
+              By clicking continue, you agree to our{" "}
+              <span className="underline">Terms of Service</span> and{" "}
+              <span className="underline">Privacy Policy</span>.
+            </p>
+            <Button
+              color="primary"
+              variant="solid"
+              className="bg-zinc-800 text-white hover:bg-zinc-700 w-fit mx-auto"
+              onClick={() => router.push("/welcome")}
+            >
+              Go back
+            </Button>
           </div>
-          <button
-            type="submit"
-            className="bg-zinc-100 hover:bg-zinc-300 transition duration-300 text-black rounded py-2 px-10 cursor-pointer"
-          >
-            Register
-          </button>
-          {error && (
-            <p className="text-red-500 text-sm font-medium -mt-2">{error}</p>
-          )}
         </form>
       </div>
-      <button
-        onClick={() => router.push("/welcome")}
-        className="mt-2 text-white"
-      >
-        Go back
-      </button>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Filter,
 } from "lucide-react";
+import { Button, Chip } from "@heroui/react";
 import axios from "@/lib/axios";
 
 const eventIcons = {
@@ -204,13 +205,15 @@ export default function ClientTimeline({
           </h3>
         </div>
 
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+        <Button
+          onPress={() => setShowFilters(!showFilters)}
+          variant="flat"
+          color="default"
+          startContent={<Filter size={16} />}
+          className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
         >
-          <Filter size={16} />
           Filters
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -249,17 +252,23 @@ export default function ClientTimeline({
             </label>
             <div className="flex flex-wrap gap-2">
               {eventTypes.map((type) => (
-                <button
+                <Chip
                   key={type.id}
-                  onClick={() => handleEventTypeToggle(type.id)}
-                  className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                  onPress={() => handleEventTypeToggle(type.id)}
+                  variant={
+                    filters.event_type.includes(type.id) ? "solid" : "bordered"
+                  }
+                  color={
+                    filters.event_type.includes(type.id) ? "primary" : "default"
+                  }
+                  className={`cursor-pointer transition-colors ${
                     filters.event_type.includes(type.id)
                       ? "bg-blue-600 text-white"
                       : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
                   }`}
                 >
                   {type.label}
-                </button>
+                </Chip>
               ))}
             </div>
           </div>

@@ -1,25 +1,25 @@
 import React from "react";
+import { Chip } from "@heroui/react";
 
 export default function LinkStatusBadge({ isTemp, size = "medium" }) {
-  const sizeClasses = {
-    small: "px-2 py-0.5 text-[10px]",
-    medium: "px-3 py-0.5 text-xs",
-    large: "px-4 py-1 text-sm",
-    extraLarge: "px-5 py-1.5 text-base", // 🆕 extraLarge added
+  const sizeMap = {
+    small: "sm",
+    medium: "md",
+    large: "lg",
+    extraLarge: "lg", // Hero UI doesn't have extraLarge, use lg
   };
 
-  const baseClass = "flex w-fit items-center rounded-full";
-  const textColour = isTemp
-    ? "bg-white/30 text-zinc-400/70"
-    : "bg-green-100 text-green-500";
-
   return (
-    <div
-      className={`${baseClass} ${textColour} ${
-        sizeClasses[size] || sizeClasses.medium
-      }`}
+    <Chip
+      color={isTemp ? "default" : "success"}
+      variant={isTemp ? "flat" : "solid"}
+      size={sizeMap[size] || "md"}
+      classNames={{
+        base: isTemp ? "bg-white/20 border-zinc-600" : "",
+        content: isTemp ? "text-zinc-400" : "text-white",
+      }}
     >
       {isTemp ? "Unlinked" : "Linked"}
-    </div>
+    </Chip>
   );
 }

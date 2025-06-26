@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Select, SelectItem, Button } from "@heroui/react";
 import {
   SUPPORTED_TIMEZONES,
   getUserTimezone,
@@ -29,20 +30,30 @@ export default function TimezoneSelector({ onTimezoneChange }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-zinc-300 mb-2">
-          Timezone
-        </label>
-        <select
-          value={selectedTimezone}
-          onChange={(e) => handleTimezoneChange(e.target.value)}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Select
+          label="Timezone"
+          selectedKeys={[selectedTimezone]}
+          onSelectionChange={(keys) => {
+            const newTimezone = Array.from(keys)[0];
+            if (newTimezone) {
+              handleTimezoneChange(newTimezone);
+            }
+          }}
+          classNames={{
+            base: "max-w-full",
+            label: "text-zinc-300 font-medium",
+            trigger: "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+            value: "text-white",
+            listbox: "bg-zinc-800",
+            popoverContent: "bg-zinc-800 border-zinc-700",
+          }}
         >
           {Object.entries(SUPPORTED_TIMEZONES).map(([timezone, label]) => (
-            <option key={timezone} value={timezone}>
+            <SelectItem key={timezone} value={timezone} className="text-white">
               {label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </Select>
       </div>
 
       {browserTimezone && browserTimezone !== selectedTimezone && (
@@ -51,12 +62,14 @@ export default function TimezoneSelector({ onTimezoneChange }) {
             Your browser timezone is detected as:{" "}
             <strong>{browserTimezone}</strong>
           </p>
-          <button
-            onClick={() => handleTimezoneChange(browserTimezone)}
-            className="mt-2 text-sm text-blue-400 hover:text-blue-300 underline"
+          <Button
+            variant="light"
+            size="sm"
+            onPress={() => handleTimezoneChange(browserTimezone)}
+            className="mt-2 text-blue-400 hover:text-blue-300 underline h-auto p-0"
           >
             Use browser timezone
-          </button>
+          </Button>
         </div>
       )}
 

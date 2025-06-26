@@ -5,6 +5,22 @@ import { useDispatch } from "react-redux";
 import { X, Send, Calendar, Camera, Scale } from "lucide-react";
 import { addMessage } from "@/redux/slices/messagingSlice";
 import axios from "@/lib/axios";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  CheckboxGroup,
+  Checkbox,
+  Card,
+  CardBody,
+} from "@heroui/react";
 
 export default function CreateWeighInRequestModal({
   isOpen,
@@ -147,190 +163,221 @@ export default function CreateWeighInRequestModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/80 bg-opacity-50 backdrop-blur-xs z-50">
-      <div className="bg-zinc-950 relative flex flex-col rounded-xl shadow-2xl shadow-white/10 gap-6 p-8 max-w-[900px] max-h-[90vh] w-full overflow-y-auto scrollbar-dark">
-        {" "}
-        {/* Close Icon */}
-        <X
-          onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer z-10"
-          size={22}
-        />
-        {/* Heading */}
-        <div className="flex items-center gap-3">
-          <Scale className="text-green-400" size={24} />
-          <h2 className="text-white text-xl font-semibold">
-            Create Check-in Request for {clientName}
-          </h2>
-        </div>
-        {/* Error Display */}
-        {errors.general && (
-          <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
-            <p className="text-red-400 text-sm">{errors.general}</p>
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      size="4xl"
+      scrollBehavior="inside"
+      classNames={{
+        base: "max-h-[90vh]",
+        body: "p-6",
+        header: "border-b border-zinc-800",
+      }}
+    >
+      <ModalContent className="bg-zinc-950 border border-zinc-900">
+        <ModalHeader className="bg-zinc-900">
+          <div className="flex items-center gap-3">
+            <Scale className="text-green-400" size={24} />
+            <h2 className="text-white text-xl font-semibold">
+              Create Check-in Request for {clientName}
+            </h2>
           </div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-300">
-                Request Title *
-              </label>
-              <input
-                type="text"
-                value={requestData.title}
-                onChange={(e) =>
-                  setRequestData((prev) => ({ ...prev, title: e.target.value }))
-                }
-                className={`w-full p-3 rounded-lg bg-zinc-800 border text-white placeholder-zinc-400 focus:outline-none ${
-                  errors.title
-                    ? "border-red-500"
-                    : "border-zinc-700 focus:border-blue-500"
-                }`}
-                placeholder="e.g., Weekly Check-in"
-              />
-              {errors.title && (
-                <p className="text-red-400 text-xs">{errors.title}</p>
-              )}
-            </div>
+        </ModalHeader>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-300">
-                Priority
-              </label>
-              <select
-                value={requestData.priority}
-                onChange={(e) =>
+        <ModalBody className="bg-zinc-900">
+          {/* Error Display */}
+          {errors.general && (
+            <Card className="bg-red-900/20 border border-red-500">
+              <CardBody className="p-4">
+                <p className="text-red-400 text-sm">{errors.general}</p>
+              </CardBody>
+            </Card>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                type="text"
+                label="Request Title"
+                placeholder="e.g., Weekly Check-in"
+                value={requestData.title}
+                onValueChange={(value) =>
+                  setRequestData((prev) => ({ ...prev, title: value }))
+                }
+                isRequired
+                isInvalid={!!errors.title}
+                errorMessage={errors.title}
+                classNames={{
+                  input: "bg-zinc-800 text-white",
+                  inputWrapper: "bg-zinc-800 border-zinc-700",
+                  label: "text-zinc-300",
+                }}
+              />
+
+              <Select
+                label="Priority"
+                placeholder="Select priority"
+                selectedKeys={[requestData.priority]}
+                onSelectionChange={(keys) => {
+                  const selectedValue = Array.from(keys)[0];
                   setRequestData((prev) => ({
                     ...prev,
-                    priority: e.target.value,
-                  }))
-                }
-                className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:border-blue-500 focus:outline-none"
+                    priority: selectedValue,
+                  }));
+                }}
+                classNames={{
+                  trigger: "bg-zinc-800 border-zinc-700",
+                  value: "text-white",
+                  label: "text-zinc-300",
+                  listboxWrapper: "bg-zinc-800",
+                  popoverContent: "bg-zinc-800",
+                }}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+                <SelectItem key="low" className="text-white">
+                  Low
+                </SelectItem>
+                <SelectItem key="medium" className="text-white">
+                  Medium
+                </SelectItem>
+                <SelectItem key="high" className="text-white">
+                  High
+                </SelectItem>
+              </Select>
             </div>
-          </div>
 
-          {/* Due Date */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-              <Calendar size={16} />
-              Due Date (Optional)
-            </label>
-            <input
+            {/* Due Date */}
+            <Input
               type="date"
+              label="Due Date (Optional)"
               value={requestData.due_date}
               min={minDate}
-              onChange={(e) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  due_date: e.target.value,
-                }))
+              onValueChange={(value) =>
+                setRequestData((prev) => ({ ...prev, due_date: value }))
               }
-              className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:border-blue-500 focus:outline-none"
+              startContent={<Calendar size={16} className="text-zinc-400" />}
+              classNames={{
+                input: "bg-zinc-800 text-white",
+                inputWrapper: "bg-zinc-800 border-zinc-700",
+                label: "text-zinc-300",
+              }}
             />
-          </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">
-              Description (Optional)
-            </label>
-            <textarea
+            {/* Description */}
+            <Textarea
+              label="Description (Optional)"
+              placeholder="Additional instructions or notes for the client..."
               value={requestData.description}
-              onChange={(e) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
+              onValueChange={(value) =>
+                setRequestData((prev) => ({ ...prev, description: value }))
               }
               rows={3}
-              className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none resize-none"
-              placeholder="Additional instructions or notes for the client..."
+              classNames={{
+                input: "bg-zinc-800 text-white resize-none",
+                inputWrapper: "bg-zinc-800 border-zinc-700",
+                label: "text-zinc-300",
+              }}
             />
-          </div>
 
-          {/* Requested Metrics */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-              <Scale size={16} />
-              Requested Metrics
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {availableMetrics.map((metric) => (
-                <label
-                  key={metric.id}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-zinc-800 cursor-pointer hover:bg-zinc-700 transition-colors"
+            {/* Requested Metrics */}
+            <Card className="bg-zinc-900/50 border border-zinc-800">
+              <CardBody className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Scale size={16} className="text-zinc-400" />
+                  <label className="text-sm font-medium text-zinc-300">
+                    Requested Metrics
+                  </label>
+                </div>
+
+                <CheckboxGroup
+                  value={requestData.requested_metrics}
+                  onValueChange={(value) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      requested_metrics: value,
+                    }))
+                  }
+                  classNames={{
+                    wrapper: "grid grid-cols-2 md:grid-cols-3 gap-2",
+                  }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={requestData.requested_metrics.includes(metric.id)}
-                    onChange={() => handleMetricToggle(metric.id)}
-                    className="rounded border-zinc-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-zinc-300">{metric.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+                  {availableMetrics.map((metric) => (
+                    <Checkbox
+                      key={metric.id}
+                      value={metric.id}
+                      classNames={{
+                        base: "flex items-center gap-2 p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors w-full max-w-none",
+                        wrapper: "after:bg-blue-500 after:border-blue-500",
+                        label: "text-sm text-zinc-300",
+                      }}
+                    >
+                      {metric.label}
+                    </Checkbox>
+                  ))}
+                </CheckboxGroup>
+              </CardBody>
+            </Card>
 
-          {/* Requested Photos */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-              <Camera size={16} />
-              Requested Photos
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {availablePhotos.map((photo) => (
-                <label
-                  key={photo.id}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-zinc-800 cursor-pointer hover:bg-zinc-700 transition-colors"
+            {/* Requested Photos */}
+            <Card className="bg-zinc-900/50 border border-zinc-800">
+              <CardBody className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Camera size={16} className="text-zinc-400" />
+                  <label className="text-sm font-medium text-zinc-300">
+                    Requested Photos
+                  </label>
+                </div>
+
+                <CheckboxGroup
+                  value={requestData.requested_photos}
+                  onValueChange={(value) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      requested_photos: value,
+                    }))
+                  }
+                  classNames={{
+                    wrapper: "grid grid-cols-2 md:grid-cols-3 gap-2",
+                  }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={requestData.requested_photos.includes(photo.id)}
-                    onChange={() => handlePhotoToggle(photo.id)}
-                    className="rounded border-zinc-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-zinc-300">{photo.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+                  {availablePhotos.map((photo) => (
+                    <Checkbox
+                      key={photo.id}
+                      value={photo.id}
+                      classNames={{
+                        base: "flex items-center gap-2 p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors w-full max-w-none",
+                        wrapper: "after:bg-blue-500 after:border-blue-500",
+                        label: "text-sm text-zinc-300",
+                      }}
+                    >
+                      {photo.label}
+                    </Checkbox>
+                  ))}
+                </CheckboxGroup>
+              </CardBody>
+            </Card>
+          </form>
+        </ModalBody>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  Send Request
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <ModalFooter className="bg-zinc-900 border-t border-zinc-800">
+          <Button
+            onPress={onClose}
+            variant="ghost"
+            className="text-zinc-400 hover:text-white"
+          >
+            Cancel
+          </Button>
+          <Button
+            onPress={handleSubmit}
+            isLoading={loading}
+            color="success"
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Send size={16} />
+            Send Request
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }

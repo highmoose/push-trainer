@@ -6,6 +6,21 @@ import { createTask, updateTask, deleteTask } from "@/redux/slices/taskSlice";
 import dayjs from "dayjs";
 import { ClipboardCheck, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  Switch,
+  Card,
+  CardBody,
+} from "@heroui/react";
 
 export default function CreateTaskModal({
   close,
@@ -135,269 +150,303 @@ export default function CreateTaskModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-900 rounded  max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {" "}
-        {/* Header */}
-        <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
-          <div>
-            <h2 className="text-white text-xl font-bold">
-              {mode === "edit" ? "Edit Task" : "New Personal Task"}
-            </h2>
-            <p className="text-zinc-400 text-sm mt-1">
-              {mode === "edit"
-                ? "Update task details"
-                : "Create a personal task or to-do item"}
-            </p>
-          </div>{" "}
-          <button
-            onClick={close}
-            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>{" "}
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 px-8 bg-zinc-900">
-          <div className="space-y-4">
-            {/* Task Title */}
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Task Title *
-              </label>{" "}
-              <input
+    <>
+      <Modal
+        isOpen={true}
+        onOpenChange={(isOpen) => !isOpen && close()}
+        size="2xl"
+        scrollBehavior="inside"
+        classNames={{
+          base: "max-h-[90vh]",
+          body: "p-6",
+          header: "border-b border-zinc-800",
+        }}
+      >
+        <ModalContent className="bg-zinc-950 border border-zinc-900">
+          <ModalHeader className="bg-zinc-900">
+            <div className="flex flex-col">
+              <h2 className="text-white text-xl font-bold">
+                {mode === "edit" ? "Edit Task" : "New Personal Task"}
+              </h2>
+              <p className="text-zinc-400 text-sm mt-1">
+                {mode === "edit"
+                  ? "Update task details"
+                  : "Create a personal task or to-do item"}
+              </p>
+            </div>
+          </ModalHeader>
+
+          <ModalBody className="bg-zinc-900">
+            <div className="space-y-4">
+              {/* Task Title */}
+              <Input
                 type="text"
-                value={taskForm.title}
-                onChange={(e) =>
-                  setTaskForm((prev) => ({ ...prev, title: e.target.value }))
-                }
+                label="Task Title"
                 placeholder="Enter task title..."
-                className="w-full p-2 rounded text-white bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                required
-              />
-            </div>
-            {/* Task Description */}
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Description
-              </label>{" "}
-              <textarea
-                value={taskForm.description}
-                onChange={(e) =>
-                  setTaskForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
+                value={taskForm.title}
+                onValueChange={(value) =>
+                  setTaskForm((prev) => ({ ...prev, title: value }))
                 }
-                placeholder="Add task description..."
-                rows={3}
-                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                isRequired
+                classNames={{
+                  input: "bg-zinc-800 text-white",
+                  inputWrapper: "bg-zinc-800 border-zinc-700",
+                  label: "text-zinc-300",
+                }}
               />
-            </div>{" "}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Due Date
-                </label>{" "}
-                <input
+
+              {/* Task Description */}
+              <Textarea
+                label="Description"
+                placeholder="Add task description..."
+                value={taskForm.description}
+                onValueChange={(value) =>
+                  setTaskForm((prev) => ({ ...prev, description: value }))
+                }
+                rows={3}
+                classNames={{
+                  input: "bg-zinc-800 text-white resize-none",
+                  inputWrapper: "bg-zinc-800 border-zinc-700",
+                  label: "text-zinc-300",
+                }}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
                   type="datetime-local"
+                  label="Due Date"
                   value={taskForm.due_date || ""}
-                  onChange={(e) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      due_date: e.target.value,
-                    }))
+                  onValueChange={(value) =>
+                    setTaskForm((prev) => ({ ...prev, due_date: value }))
                   }
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  classNames={{
+                    input: "bg-zinc-800 text-white",
+                    inputWrapper: "bg-zinc-800 border-zinc-700",
+                    label: "text-zinc-300",
+                  }}
                 />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Priority
-                </label>
-                <select
-                  value={taskForm.priority}
-                  onChange={(e) =>
+                <Select
+                  label="Priority"
+                  placeholder="Select priority"
+                  selectedKeys={taskForm.priority ? [taskForm.priority] : []}
+                  onSelectionChange={(keys) => {
+                    const selectedValue = Array.from(keys)[0];
                     setTaskForm((prev) => ({
                       ...prev,
-                      priority: e.target.value,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      priority: selectedValue || "none",
+                    }));
+                  }}
+                  classNames={{
+                    trigger: "bg-zinc-800 border-zinc-700",
+                    value: "text-white",
+                    label: "text-zinc-300",
+                    listboxWrapper: "bg-zinc-800",
+                    popoverContent: "bg-zinc-800",
+                  }}
                 >
-                  <option value="none">None</option>
-                  <option value="low">Low </option>
-                  <option value="medium">Medium </option>
-                  <option value="high">High </option>{" "}
-                </select>
-              </div>
+                  <SelectItem key="none" className="text-white">
+                    None
+                  </SelectItem>
+                  <SelectItem key="low" className="text-white">
+                    Low
+                  </SelectItem>
+                  <SelectItem key="medium" className="text-white">
+                    Medium
+                  </SelectItem>
+                  <SelectItem key="high" className="text-white">
+                    High
+                  </SelectItem>
+                </Select>
 
-              {/* Duration Field */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Duration (minutes)
-                </label>
-                <input
+                <Input
                   type="number"
-                  min="15"
-                  max="480"
-                  step="15"
-                  value={taskForm.duration}
-                  onChange={(e) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      duration: parseInt(e.target.value) || 45,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  label="Duration (minutes)"
                   placeholder="45"
+                  min={15}
+                  max={480}
+                  step={15}
+                  value={taskForm.duration.toString()}
+                  onValueChange={(value) =>
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      duration: parseInt(value) || 45,
+                    }))
+                  }
+                  description="How long you expect this task to take (15min increments)"
+                  classNames={{
+                    input: "bg-zinc-800 text-white",
+                    inputWrapper: "bg-zinc-800 border-zinc-700",
+                    label: "text-zinc-300",
+                    description: "text-zinc-500",
+                  }}
                 />
-                <p className="text-xs text-zinc-500 mt-1">
-                  How long you expect this task to take (15min increments)
-                </p>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Category"
+                  placeholder="Select category"
+                  selectedKeys={taskForm.category ? [taskForm.category] : []}
+                  onSelectionChange={(keys) => {
+                    const selectedValue = Array.from(keys)[0];
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      category: selectedValue || "general",
+                    }));
+                  }}
+                  classNames={{
+                    trigger: "bg-zinc-800 border-zinc-700",
+                    value: "text-white",
+                    label: "text-zinc-300",
+                    listboxWrapper: "bg-zinc-800",
+                    popoverContent: "bg-zinc-800",
+                  }}
+                >
+                  <SelectItem key="general" className="text-white">
+                    General
+                  </SelectItem>
+                  <SelectItem key="client-related" className="text-white">
+                    Client Related
+                  </SelectItem>
+                  <SelectItem key="equipment" className="text-white">
+                    Equipment
+                  </SelectItem>
+                  <SelectItem key="administrative" className="text-white">
+                    Administrative
+                  </SelectItem>
+                </Select>
+
+                <Select
+                  label="Status"
+                  placeholder="Select status"
+                  selectedKeys={taskForm.status ? [taskForm.status] : []}
+                  onSelectionChange={(keys) => {
+                    const selectedValue = Array.from(keys)[0];
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      status: selectedValue || "pending",
+                    }));
+                  }}
+                  classNames={{
+                    trigger: "bg-zinc-800 border-zinc-700",
+                    value: "text-white",
+                    label: "text-zinc-300",
+                    listboxWrapper: "bg-zinc-800",
+                    popoverContent: "bg-zinc-800",
+                  }}
+                >
+                  <SelectItem key="pending" className="text-white">
+                    Pending
+                  </SelectItem>
+                  <SelectItem key="completed" className="text-white">
+                    Completed
+                  </SelectItem>
+                </Select>
+              </div>
+
+              {/* Reminder */}
+              <Card className="bg-zinc-900 border border-zinc-800">
+                <CardBody className="p-4">
+                  <div className="space-y-3">
+                    <Switch
+                      isSelected={taskForm.reminder}
+                      onValueChange={(checked) =>
+                        setTaskForm((prev) => ({ ...prev, reminder: checked }))
+                      }
+                      classNames={{
+                        base: "flex-row-reverse justify-between w-full max-w-none",
+                        wrapper: "bg-zinc-700",
+                        thumb: "bg-white",
+                        label: "text-zinc-300",
+                      }}
+                    >
+                      Set reminder for this task
+                    </Switch>
+
+                    {taskForm.reminder && (
+                      <div className="ml-0 pt-2">
+                        <Select
+                          label="Reminder Time"
+                          placeholder="Select reminder time"
+                          selectedKeys={
+                            taskForm.reminderTime ? [taskForm.reminderTime] : []
+                          }
+                          onSelectionChange={(keys) => {
+                            const selectedValue = Array.from(keys)[0];
+                            setTaskForm((prev) => ({
+                              ...prev,
+                              reminderTime: selectedValue || "15min",
+                            }));
+                          }}
+                          className="max-w-48"
+                          classNames={{
+                            trigger: "bg-zinc-800 border-zinc-700",
+                            value: "text-white",
+                            label: "text-zinc-300",
+                            listboxWrapper: "bg-zinc-800",
+                            popoverContent: "bg-zinc-800",
+                          }}
+                        >
+                          <SelectItem key="15min" className="text-white">
+                            15 minutes before
+                          </SelectItem>
+                          <SelectItem key="30min" className="text-white">
+                            30 minutes before
+                          </SelectItem>
+                          <SelectItem key="1hour" className="text-white">
+                            1 hour before
+                          </SelectItem>
+                          <SelectItem key="1day" className="text-white">
+                            1 day before
+                          </SelectItem>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Category
-                </label>
-                <select
-                  value={taskForm.category}
-                  onChange={(e) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      category: e.target.value,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                >
-                  <option value="general">General</option>
-                  <option value="client-related">Client Related</option>
-                  <option value="equipment">Equipment</option>
-                  <option value="administrative">Administrative</option>
-                </select>
-              </div>
+          </ModalBody>
 
+          <ModalFooter className="bg-zinc-900 border-t border-zinc-800">
+            <div className="flex justify-between w-full">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Status
-                </label>
-                <select
-                  value={taskForm.status}
-                  onChange={(e) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      status: e.target.value,
-                    }))
-                  }
-                  className="w-full p-2 rounded bg-zinc-800/50 text-white  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                >
-                  {" "}
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            </div>{" "}
-            {/* Reminder */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="reminder"
-                  checked={taskForm.reminder}
-                  onChange={(e) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      reminder: e.target.checked,
-                    }))
-                  }
-                  className="w-4 h-4 text-blue-600 bg-zinc-800/50 border-zinc-800/30 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <label htmlFor="reminder" className="text-sm text-zinc-300">
-                  Set reminder for this task
-                </label>
-              </div>
-
-              {taskForm.reminder && (
-                <div className="ml-7">
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
-                    Reminder Time
-                  </label>
-                  <select
-                    value={taskForm.reminderTime}
-                    onChange={(e) =>
-                      setTaskForm((prev) => ({
-                        ...prev,
-                        reminderTime: e.target.value,
-                      }))
-                    }
-                    className="w-full max-w-48 p-2 rounded bg-zinc-800/50 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                {mode === "edit" && initialValues?.id && (
+                  <Button
+                    onPress={() => setShowDeleteConfirm(true)}
+                    variant="ghost"
+                    color="danger"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                   >
-                    <option value="15min">15 minutes before</option>
-                    <option value="30min">30 minutes before</option>
-                    <option value="1hour">1 hour before</option>
-                    <option value="1day">1 day before</option>
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>{" "}
-        {/* Footer */}
-        <div className="flex justify-between items-center gap-3 pb-6 pt-4 px-8 border-t border-zinc-800/30 bg-zinc-900 ">
-          <div>
-            {" "}
-            {mode === "edit" && initialValues?.id && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Task
-              </button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={close}
-              className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded transition-colors"
-            >
-              Cancel
-            </button>{" "}
-            <button
-              onClick={handleTaskSubmit}
-              disabled={!taskForm.title.trim() || isSubmitting}
-              className="px-6 py-2 bg-zinc-800/50 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  {mode === "edit" ? "Updating..." : "Creating..."}
-                </>
-              ) : (
-                <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Task
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onPress={close}
+                  variant="ghost"
+                  className="text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onPress={handleTaskSubmit}
+                  isDisabled={!taskForm.title.trim() || isSubmitting}
+                  isLoading={isSubmitting}
+                  color="primary"
+                  className="bg-zinc-800 hover:bg-white hover:text-black text-white"
+                >
                   <ClipboardCheck className="w-4 h-4" />
                   {mode === "edit" ? "Update Task" : "Create Task"}
-                </>
-              )}
-            </button>{" "}
-          </div>
-        </div>
-      </div>
+                </Button>
+              </div>
+            </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Custom Confirmation Modal */}
       <ConfirmationModal
@@ -410,6 +459,6 @@ export default function CreateTaskModal({
         variant="danger"
         isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 }

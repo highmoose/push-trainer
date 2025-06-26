@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
+import { Button, Spinner } from "@heroui/react";
 
 // Pages that don't require authentication
 const PUBLIC_ROUTES = [
@@ -75,7 +76,7 @@ export default function AuthGuard({ children }) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-zinc-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <Spinner size="lg" color="primary" />
           <p className="text-white text-sm">Loading...</p>
         </div>
       </div>
@@ -93,12 +94,14 @@ export default function AuthGuard({ children }) {
           <p className="text-zinc-400">
             Your session has expired due to inactivity.
           </p>
-          <button
-            onClick={() => router.replace("/sign-in?reason=session_expired")}
-            className="bg-white text-black px-6 py-2 rounded hover:bg-zinc-200 transition-colors"
+          <Button
+            onPress={() => router.replace("/sign-in?reason=session_expired")}
+            color="primary"
+            size="lg"
+            className="bg-white text-black hover:bg-zinc-200"
           >
             Login Again
-          </button>
+          </Button>
         </div>
       </div>
     );

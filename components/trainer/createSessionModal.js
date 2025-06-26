@@ -13,6 +13,23 @@ import {
 import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
 import { Clock, User, Trash2, CheckCircle } from "lucide-react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  Card,
+  CardBody,
+  CardHeader,
+  Switch,
+  Spinner,
+} from "@heroui/react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import {
   convertFromServerTime,
@@ -30,7 +47,6 @@ export default function CreateSessionModal({
   const clients = useSelector((state) => state.clients.list || []);
   const clientsStatus = useSelector((state) => state.clients.status);
   const sessions = useSelector((state) => state.sessions.list || []);
-  // Use real client data from Redux store
   const clientsToUse = clients;
 
   // Session Templates
@@ -93,18 +109,17 @@ export default function CreateSessionModal({
     "Client's Home",
     "Online Session",
   ];
+
   const [manualEntry, setManualEntry] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [showConflicts, setShowConflicts] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state
-  // Add confirmation modal state
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showReinstateConfirm, setShowReinstateConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Ref for client search input
   const clientSearchRef = useRef(null);
 
   // Session form state
@@ -130,7 +145,7 @@ export default function CreateSessionModal({
     goals: "",
   });
 
-  // Helper functions for sessions
+  // Helper functions
   const filteredClients = clientsToUse.filter((client) =>
     `${client.first_name} ${client.last_name}`
       .toLowerCase()
@@ -169,11 +184,11 @@ export default function CreateSessionModal({
     sessionForm.scheduled_at,
     sessionForm.duration
   );
+
+  // Initialize form with existing values
   useEffect(() => {
     if (initialValues?.start_time) {
       const userTimezone = getUserTimezone();
-
-      // Convert server datetime to local timezone for form display
       const serverDateTime = convertFromServerTime(
         initialValues.start_time,
         userTimezone
@@ -187,7 +202,6 @@ export default function CreateSessionModal({
           60000
         : 60;
 
-      // Format for datetime-local input
       const formattedDateTime = serverDateTime.format("YYYY-MM-DDTHH:mm");
 
       setSessionForm({
@@ -220,15 +234,7 @@ export default function CreateSessionModal({
     }
   }, [initialValues]);
 
-  // Debug logging for client status
-  useEffect(() => {
-    console.log("CreateSessionModal - Client Status:", {
-      clientsStatus,
-      clientsCount: clients.length,
-      clientsToUseCount: clientsToUse.length,
-    });
-  }, [clientsStatus, clients.length, clientsToUse.length]);
-  // Ensure clients are loaded when modal opens
+  // Ensure clients are loaded
   useEffect(() => {
     if (clientsStatus === "idle" || clientsStatus === "failed") {
       dispatch(clearError());
@@ -236,26 +242,24 @@ export default function CreateSessionModal({
     }
   }, [dispatch, clientsStatus]);
 
-  // Focus client search input when modal loads
+  // Focus client search input
   useEffect(() => {
-    // Small delay to ensure the modal is fully rendered
     const timer = setTimeout(() => {
       if (clientSearchRef.current && !manualEntry) {
         clientSearchRef.current.focus();
       }
     }, 100);
-
     return () => clearTimeout(timer);
   }, [manualEntry]);
-  const handleSessionSubmit = async () => {
-    if (isSubmitting) return; // Prevent double submission
 
+  // Handler functions
+  const handleSessionSubmit = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
       let formattedScheduledAt = null;
       if (sessionForm.scheduled_at) {
-        // Convert from local datetime input to server timezone format
         const userTimezone = getUserTimezone();
         formattedScheduledAt = convertToServerTime(
           sessionForm.scheduled_at,
@@ -282,158 +286,61 @@ export default function CreateSessionModal({
       if (mode === "edit") {
         await dispatch(updateSession({ id: initialValues.id, ...payload }));
       } else {
-        if (sessionForm.recurring.enabled) {
-          // Handle recurring sessions
-          const sessions = [];
-          const startDate = dayjs(formattedScheduledAt);
-
-          for (let i = 0; i < sessionForm.recurring.count; i++) {
-            let sessionDate = startDate;
-            if (sessionForm.recurring.frequency === "weekly") {
-              sessionDate = startDate.add(i, "week");
-            } else if (sessionForm.recurring.frequency === "biweekly") {
-              sessionDate = startDate.add(i * 2, "week");
-            } else if (sessionForm.recurring.frequency === "monthly") {
-              sessionDate = startDate.add(i, "month");
-            }
-
-            sessions.push({
-              ...payload,
-              scheduled_at: sessionDate.format("YYYY-MM-DD HH:mm:ss"),
-            });
-          }
-
-          for (const session of sessions) {
-            await dispatch(createSession(session));
-          }
-        } else {
-          await dispatch(createSession(payload));
-        }
+        await dispatch(createSession(payload));
       }
+
       close();
     } catch (error) {
-      console.error("Error saving session:", error);
+      console.error("Session submission error:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleSessionDelete = async () => {
+    if (!initialValues?.id) return;
+    setIsDeleting(true);
+
+    try {
+      await dispatch(deleteSession(initialValues.id));
+      setShowDeleteConfirm(false);
+      close();
+    } catch (error) {
+      console.error("Delete session error:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCancelSession = () => {
     setShowCancelConfirm(true);
   };
+
   const confirmCancelSession = async () => {
-    if (initialValues?.id) {
-      try {
-        await dispatch(cancelSession(initialValues.id));
-        setShowCancelConfirm(false);
-        close();
-      } catch (error) {
-        console.error("Error cancelling session:", error);
-      }
+    if (!initialValues?.id) return;
+
+    try {
+      await dispatch(cancelSession(initialValues.id));
+      setShowCancelConfirm(false);
+      close();
+    } catch (error) {
+      console.error("Cancel session error:", error);
     }
   };
 
   const handleReinstateSession = () => {
     setShowReinstateConfirm(true);
   };
+
   const confirmReinstateSession = async () => {
-    if (initialValues?.id) {
-      try {
-        console.log("Reinstating session with data:", {
-          id: initialValues.id,
-          currentStatus: sessionForm.status,
-          newStatus: "scheduled",
-        });
+    if (!initialValues?.id) return;
 
-        // Check if any fields have changed besides status
-        const hasChanges =
-          sessionForm.first_name !== initialValues.first_name ||
-          sessionForm.last_name !== initialValues.last_name ||
-          sessionForm.email !== initialValues.email ||
-          sessionForm.phone !== initialValues.phone ||
-          sessionForm.gym !== initialValues.gym ||
-          sessionForm.rate !== initialValues.rate ||
-          sessionForm.scheduled_at !== initialValues.start_time ||
-          sessionForm.duration !== initialValues.duration;
-        if (hasChanges) {
-          console.log("Session has changes, using full update");
-          // Use full update if there are changes
-          const updatedSessionData = {
-            status: "scheduled",
-          };
-
-          // Only include fields that have actually changed
-          if (sessionForm.first_name !== initialValues.first_name) {
-            updatedSessionData.first_name = sessionForm.first_name;
-          }
-          if (sessionForm.last_name !== initialValues.last_name) {
-            updatedSessionData.last_name = sessionForm.last_name;
-          }
-          if (sessionForm.email !== initialValues.email) {
-            updatedSessionData.email = sessionForm.email;
-          }
-          if (sessionForm.phone !== initialValues.phone) {
-            updatedSessionData.phone = sessionForm.phone;
-          }
-          if (sessionForm.gym !== initialValues.gym) {
-            updatedSessionData.gym = sessionForm.gym;
-          }
-          if (sessionForm.rate !== initialValues.rate) {
-            updatedSessionData.rate = sessionForm.rate;
-          }
-          // Handle datetime changes carefully
-          if (sessionForm.scheduled_at !== initialValues.start_time) {
-            updatedSessionData.scheduled_at = sessionForm.scheduled_at;
-            updatedSessionData.duration = sessionForm.duration;
-          }
-
-          console.log("Sending full update with data:", updatedSessionData);
-          const result = await dispatch(
-            updateSession({
-              id: initialValues.id,
-              ...updatedSessionData,
-            })
-          ).unwrap();
-          console.log("Full update result:", result);
-        } else {
-          console.log("No changes detected, using simple reinstate");
-          console.log("Original start_time:", initialValues.start_time);
-          // Use simple reinstate if only status is changing
-          const result = await dispatch(
-            reinstateSession(initialValues.id)
-          ).unwrap();
-          console.log("Simple reinstate result:", result);
-          console.log("Returned start_time:", result.start_time);
-        }
-
-        // Update local form state to reflect the change
-        setSessionForm((prev) => ({
-          ...prev,
-          status: "scheduled",
-        }));
-
-        // Refresh sessions list to ensure we have the latest data
-        await dispatch(fetchSessions());
-
-        console.log("Session successfully reinstated");
-        setShowReinstateConfirm(false);
-        close();
-      } catch (error) {
-        console.error("Error reinstating session:", error);
-      }
-    }
-  };
-  const handleSessionDelete = async () => {
-    if (!initialValues?.id || mode !== "edit") return;
-
-    setIsDeleting(true);
     try {
-      await dispatch(deleteSession(initialValues.id)).unwrap();
-      setShowDeleteConfirm(false);
+      await dispatch(reinstateSession(initialValues.id));
+      setShowReinstateConfirm(false);
       close();
     } catch (error) {
-      console.error("Error deleting session:", error);
-    } finally {
-      setIsDeleting(false);
+      console.error("Reinstate session error:", error);
     }
   };
 
@@ -442,244 +349,80 @@ export default function CreateSessionModal({
   };
 
   const confirmMarkComplete = async () => {
-    if (initialValues?.id) {
-      try {
-        console.log("Marking session complete:", {
+    if (!initialValues?.id) return;
+
+    try {
+      await dispatch(
+        updateSession({
           id: initialValues.id,
-          currentStatus: sessionForm.status,
-          newStatus: "completed",
-        });
-
-        // Use simple status update to avoid datetime issues
-        const result = await dispatch(
-          updateSession({
-            id: initialValues.id,
-            status: "completed",
-          })
-        ).unwrap();
-        console.log("Mark complete result:", result);
-
-        // Update local form state to reflect the change
-        setSessionForm((prev) => ({
-          ...prev,
           status: "completed",
-        }));
-
-        // Refresh sessions list to ensure we have the latest data
-        await dispatch(fetchSessions());
-
-        console.log("Session successfully marked complete");
-        setShowCompleteConfirm(false);
-        close();
-      } catch (error) {
-        console.error("Error marking session complete:", error);
-      }
+        })
+      );
+      setShowCompleteConfirm(false);
+      close();
+    } catch (error) {
+      console.error("Complete session error:", error);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-900 rounded max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {" "}
-        {/* Header */}
-        <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
-          <div>
-            <h2 className="text-white text-xl font-bold">
-              {mode === "edit" ? "Edit Session" : "New Training Session"}
-            </h2>
-            <p className="text-zinc-400 text-sm mt-1">
-              {mode === "edit"
-                ? "Update session details"
-                : "Schedule a new training session with a client"}
-            </p>
-          </div>{" "}
-          <button
-            onClick={close}
-            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>{" "}
-        </div>{" "}
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
-          <div className="space-y-4">
-            {" "}
+    <>
+      <Modal
+        isOpen={true}
+        onClose={close}
+        size="4xl"
+        scrollBehavior="inside"
+        classNames={{
+          backdrop: "bg-black/80 backdrop-blur-sm",
+          base: "bg-zinc-950 border border-zinc-900",
+          header: "border-b border-zinc-800",
+          body: "py-6 px-8",
+          footer: "border-t border-zinc-800",
+        }}
+      >
+        <ModalContent>
+          <ModalHeader>
+            <div>
+              <h2 className="text-white text-xl font-bold">
+                {mode === "edit" ? "Edit Session" : "New Training Session"}
+              </h2>
+              <p className="text-zinc-400 text-sm mt-1">
+                {mode === "edit"
+                  ? "Update session details"
+                  : "Schedule a new training session with a client"}
+              </p>
+            </div>
+          </ModalHeader>
+
+          <ModalBody className="space-y-4">
             {/* Client Selection Section */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-zinc-300">
-                  Client Selection
-                </h3>
-                <label className="flex items-center gap-2 text-sm text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={manualEntry}
-                    onChange={(e) => setManualEntry(e.target.checked)}
-                    className="rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500"
-                  />
-                  Manual Entry
-                </label>
-              </div>
-              {/* Loading/Error States */}{" "}
-              {!manualEntry && clientsStatus === "loading" && (
-                <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
-                  <div className="flex items-center gap-2 text-blue-400 text-sm">
-                    <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                    Loading clients...
-                  </div>
-                </div>
-              )}{" "}
-              {!manualEntry &&
-                clientsStatus === "succeeded" &&
-                clientsToUse.length === 0 && (
-                  <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
-                    <div className="text-amber-400 text-sm font-medium mb-1">
-                      No clients available
-                    </div>
-                    <div className="text-amber-300/80 text-xs">
-                      You don't have any clients yet. Add clients in the Clients
-                      tab or use Manual Entry.
-                    </div>
-                  </div>
-                )}{" "}
-              {!manualEntry && clientsStatus === "failed" && (
-                <div className="mb-3 p-2 bg-zinc-900 border border-zinc-800 rounded">
-                  <div className="text-red-400 text-sm font-medium mb-1">
-                    Failed to load clients
-                  </div>
-                  <div className="text-red-300/80 text-xs mb-2">
-                    There was an error loading your clients. Please try
-                    refreshing or use Manual Entry.
-                  </div>{" "}
-                  <button
-                    onClick={() => {
-                      dispatch(clearError());
-                      dispatch(fetchClients());
+            <Card className="bg-zinc-900 border border-zinc-800">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between w-full">
+                  <h3 className="text-sm font-medium text-zinc-300">
+                    Client Selection
+                  </h3>
+                  <Switch
+                    isSelected={manualEntry}
+                    onValueChange={setManualEntry}
+                    size="sm"
+                    classNames={{
+                      base: "flex-row-reverse",
+                      wrapper: "bg-zinc-700",
+                      thumb: "bg-white",
                     }}
-                    className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded hover:bg-zinc-700 transition-colors"
                   >
-                    Retry Loading Clients
-                  </button>
+                    <span className="text-sm text-zinc-400">Manual Entry</span>
+                  </Switch>
                 </div>
-              )}
-              {/* Client Selection UI */}
-              {!manualEntry ? (
-                <div className="space-y-3">
-                  {sessionForm.client_id &&
-                  sessionForm.first_name &&
-                  sessionForm.last_name /* Selected Client Display */ ? (
-                    <div className="flex items-center justify-between p-2 bg-zinc-900 border border-zinc-800 rounded">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
-                          {sessionForm.first_name.charAt(0)}
-                          {sessionForm.last_name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-white font-medium">
-                            {sessionForm.first_name} {sessionForm.last_name}
-                          </div>
-                          <div className="text-zinc-400 text-sm">
-                            Selected Client
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSessionForm((prev) => ({
-                            ...prev,
-                            client_id: "",
-                            first_name: "",
-                            last_name: "",
-                          }));
-                          setClientSearch("");
-                        }}
-                        className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-red-400 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    /* Search Bar */
-                    <>
-                      <div className="relative">
-                        {" "}
-                        <input
-                          ref={clientSearchRef}
-                          type="text"
-                          placeholder="Search clients..."
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                          value={clientSearch}
-                          onChange={(e) => setClientSearch(e.target.value)}
-                        />{" "}
-                        <svg
-                          className="absolute right-2 top-2 w-5 h-5 text-zinc-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-                      </div>{" "}
-                      {clientSearch && (
-                        <div className="max-h-40 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded">
-                          {filteredClients.length > 0 ? (
-                            filteredClients.map((client) => (
-                              <button
-                                key={client.id}
-                                onClick={() => {
-                                  setSessionForm((prev) => ({
-                                    ...prev,
-                                    client_id: client.id,
-                                    first_name: client.first_name,
-                                    last_name: client.last_name,
-                                  }));
-                                  setClientSearch("");
-                                }}
-                                className="w-full text-left p-2 hover:bg-zinc-900 transition-colors border-b border-zinc-800 last:border-b-0"
-                              >
-                                <div className="text-white font-medium">
-                                  {client.first_name} {client.last_name}
-                                </div>
-                                <div className="text-zinc-400 text-sm">
-                                  {client.email}
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="p-2 text-zinc-400 text-center">
-                              No clients match your search
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : (
-                /* Manual Entry */ <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      First Name *
-                    </label>{" "}
-                    <input
-                      type="text"
+              </CardHeader>
+              <CardBody className="space-y-4">
+                {manualEntry ? (
+                  /* Manual Entry Mode */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="First Name"
+                      placeholder="Enter first name"
                       value={sessionForm.first_name}
                       onChange={(e) =>
                         setSessionForm((prev) => ({
@@ -687,16 +430,16 @@ export default function CreateSessionModal({
                           first_name: e.target.value,
                         }))
                       }
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                      placeholder="Enter first name"
+                      variant="bordered"
+                      classNames={{
+                        input: "text-white",
+                        inputWrapper:
+                          "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                      }}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Last Name *
-                    </label>{" "}
-                    <input
-                      type="text"
+                    <Input
+                      label="Last Name"
+                      placeholder="Enter last name"
                       value={sessionForm.last_name}
                       onChange={(e) =>
                         setSessionForm((prev) => ({
@@ -704,52 +447,177 @@ export default function CreateSessionModal({
                           last_name: e.target.value,
                         }))
                       }
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                      placeholder="Enter last name"
+                      variant="bordered"
+                      classNames={{
+                        input: "text-white",
+                        inputWrapper:
+                          "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                      }}
                     />
                   </div>
-                </div>
-              )}{" "}
-            </div>{" "}
-            {/* Show additional fields only when client is selected, manual entry is enabled, or in edit mode */}
-            {(sessionForm.client_id &&
-              sessionForm.first_name &&
-              sessionForm.last_name) ||
-            manualEntry ||
-            mode === "edit" ? (
-              <>
-                {/* Session Templates */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                    Workout Selection
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {sessionTemplates.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => applyTemplate(template)}
-                        className={`p-2 rounded border-2 transition-all text-left hover:bg-white hover:text-black group ${
-                          sessionForm.session_type === template.type
-                            ? "border-blue-500 bg-zinc-900 text-white"
-                            : "border-zinc-800 bg-zinc-900 text-white hover:border-white"
-                        }`}
-                      >
-                        <div className="font-medium text-sm group-hover:text-black">
+                ) : (
+                  /* Client Search Mode */
+                  <div className="space-y-2">
+                    {sessionForm.client_id &&
+                    sessionForm.first_name &&
+                    sessionForm.last_name ? (
+                      /* Selected Client Display */
+                      <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center">
+                            <User className="w-5 h-5 text-zinc-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">
+                              {sessionForm.first_name} {sessionForm.last_name}
+                            </div>
+                            <div className="text-sm text-zinc-400">
+                              Selected Client
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onPress={() => {
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              client_id: "",
+                              first_name: "",
+                              last_name: "",
+                            }));
+                            setClientSearch("");
+                          }}
+                          isIconOnly
+                          variant="light"
+                          color="danger"
+                          size="sm"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      /* Search Bar */
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input
+                            ref={clientSearchRef}
+                            type="text"
+                            placeholder="Search clients..."
+                            className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                            value={clientSearch}
+                            onChange={(e) => setClientSearch(e.target.value)}
+                          />
+                          <svg
+                            className="absolute right-2 top-2 w-5 h-5 text-zinc-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                        </div>
+                        {clientSearch && (
+                          <div className="max-h-40 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded">
+                            {filteredClients.length > 0 ? (
+                              filteredClients.map((client) => (
+                                <Button
+                                  key={client.id}
+                                  onPress={() => {
+                                    setSessionForm((prev) => ({
+                                      ...prev,
+                                      client_id: client.id,
+                                      first_name: client.first_name,
+                                      last_name: client.last_name,
+                                    }));
+                                    setClientSearch("");
+                                  }}
+                                  variant="light"
+                                  className="w-full text-left p-2 hover:bg-zinc-900 transition-colors border-b border-zinc-800 last:border-b-0 h-auto justify-start"
+                                >
+                                  <div>
+                                    <div className="text-white font-medium">
+                                      {client.first_name} {client.last_name}
+                                    </div>
+                                    <div className="text-zinc-400 text-sm">
+                                      {client.email}
+                                    </div>
+                                  </div>
+                                </Button>
+                              ))
+                            ) : (
+                              <div className="p-2 text-zinc-400 text-center">
+                                No clients match your search
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            {/* Session Templates */}
+            <Card className="bg-zinc-900 border border-zinc-800">
+              <CardHeader className="pb-3">
+                <h3 className="text-sm font-medium text-zinc-300">
+                  Workout Selection
+                </h3>
+              </CardHeader>
+              <CardBody>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {sessionTemplates.map((template) => (
+                    <Button
+                      key={template.id}
+                      onPress={() => applyTemplate(template)}
+                      variant={
+                        sessionForm.session_type === template.type
+                          ? "solid"
+                          : "bordered"
+                      }
+                      color={
+                        sessionForm.session_type === template.type
+                          ? "primary"
+                          : "default"
+                      }
+                      className={`p-3 h-auto transition-all text-left justify-start ${
+                        sessionForm.session_type === template.type
+                          ? "border-blue-500 bg-zinc-800 text-white"
+                          : "border-zinc-700 bg-zinc-900 text-white hover:border-white hover:bg-white hover:text-black"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium text-sm">
                           {template.name}
                         </div>
-                        <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
+                        <div className="text-xs mt-1 opacity-70">
                           {template.duration}min • ${template.rate}
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>{" "}
-                {/* Session Details */}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Session Details */}
+            <Card className="bg-zinc-900 border border-zinc-800">
+              <CardHeader className="pb-3">
+                <h3 className="text-sm font-medium text-zinc-300">
+                  Session Details
+                </h3>
+              </CardHeader>
+              <CardBody className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-zinc-300 mb-1">
                       Date & Time *
-                    </label>{" "}
+                    </label>
                     <input
                       type="datetime-local"
                       value={sessionForm.scheduled_at || ""}
@@ -761,8 +629,8 @@ export default function CreateSessionModal({
                       }
                       className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                     />
-                  </div>{" "}
-                  <div className="">
+                  </div>
+                  <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-sm font-medium text-zinc-300">
                         Duration (minutes)
@@ -771,7 +639,6 @@ export default function CreateSessionModal({
                     </div>
                     <div className="flex justify-between items-center w-full">
                       <div className="relative">
-                        {" "}
                         <input
                           type="number"
                           value={sessionForm.duration}
@@ -789,248 +656,303 @@ export default function CreateSessionModal({
                         <Clock className="absolute left-2 top-3 w-4 h-4 text-zinc-600" />
                       </div>
                       <p className="text-zinc-500">-</p>
-                      <div className="flex">
-                        <div className="flex gap-1 flex-wrap">
-                          {[30, 45, 60, 75, 90].map((duration) => (
-                            <button
-                              key={duration}
-                              type="button"
-                              onClick={() =>
-                                setSessionForm((prev) => ({
-                                  ...prev,
-                                  duration: duration,
-                                }))
-                              }
-                              className={`px-3 py-2 text-xs rounded transition-all ${
-                                sessionForm.duration === duration
-                                  ? "bg-white text-zinc-900"
-                                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                              }`}
-                            >
-                              {duration}
-                            </button>
-                          ))}
-                        </div>
+                      <div className="flex gap-1 flex-wrap">
+                        {[30, 45, 60, 75, 90].map((duration) => (
+                          <Button
+                            key={duration}
+                            onPress={() =>
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                duration: duration,
+                              }))
+                            }
+                            size="sm"
+                            variant={
+                              sessionForm.duration === duration
+                                ? "solid"
+                                : "bordered"
+                            }
+                            color={
+                              sessionForm.duration === duration
+                                ? "primary"
+                                : "default"
+                            }
+                            className={`px-3 py-2 text-xs transition-all ${
+                              sessionForm.duration === duration
+                                ? "bg-white text-zinc-900"
+                                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                            }`}
+                          >
+                            {duration}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Location
-                    </label>{" "}
-                    <select
-                      value={sessionForm.location}
-                      onChange={(e) =>
-                        setSessionForm((prev) => ({
-                          ...prev,
-                          location: e.target.value,
-                        }))
-                      }
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    >
-                      <option value="">Select location</option>
-                      {locations.map((location) => (
-                        <option key={location} value={location}>
-                          {location}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Rate (£)
-                    </label>{" "}
-                    <input
-                      type="number"
-                      value={sessionForm.rate}
-                      onChange={(e) =>
-                        setSessionForm((prev) => ({
-                          ...prev,
-                          rate: parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                      min="0"
-                      step="5"
-                    />
-                  </div>
-                </div>{" "}
-                {/* Session Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
-                    Session Notes
-                  </label>{" "}
-                  <textarea
-                    value={sessionForm.notes}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Select
+                    label="Location"
+                    placeholder="Select location"
+                    selectedKeys={
+                      sessionForm.location ? [sessionForm.location] : []
+                    }
+                    onSelectionChange={(keys) => {
+                      const selected = Array.from(keys)[0];
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        location: selected || "",
+                      }));
+                    }}
+                    variant="bordered"
+                    classNames={{
+                      trigger:
+                        "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                      value: "text-white",
+                      popoverContent: "bg-zinc-900 border-zinc-700",
+                    }}
+                  >
+                    {locations.map((location) => (
+                      <SelectItem
+                        key={location}
+                        value={location}
+                        className="text-white"
+                      >
+                        {location}
+                      </SelectItem>
+                    ))}
+                  </Select>
+
+                  <Input
+                    type="number"
+                    label="Rate ($)"
+                    placeholder="0.00"
+                    value={sessionForm.rate.toString()}
                     onChange={(e) =>
                       setSessionForm((prev) => ({
                         ...prev,
-                        notes: e.target.value,
+                        rate: parseFloat(e.target.value) || 0,
                       }))
                     }
-                    className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                    rows="3"
-                    placeholder="Add session notes, goals, or special instructions..."
-                  />{" "}
-                </div>{" "}
-              </>
-            ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded p-3 text-center">
-                <div className="text-zinc-400 text-sm">
-                  Please select a client or enable manual entry to continue with
-                  session creation
+                    variant="bordered"
+                    classNames={{
+                      input: "text-white",
+                      inputWrapper:
+                        "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                    }}
+                  />
                 </div>
-              </div>
-            )}
-            {/* Conflicts Warning */}
-            {conflicts.length > 0 && (
-              <div className="bg-zinc-900 border border-red-700 rounded p-3">
-                <div className="flex items-center gap-2 text-red-400">
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2L2 7v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7l-10-5z" />
-                  </svg>
-                  {conflicts.length} scheduling conflict(s) detected
-                </div>
-                <div className="mt-2 text-sm text-red-300">
-                  This time slot overlaps with existing sessions. Please choose
-                  a different time.
-                </div>
-              </div>
-            )}
-          </div>{" "}
-        </div>{" "}
-        {/* Footer */}
-        <div className="flex items-center justify-between pb-6 pt-4 px-8 border-t border-zinc-800 bg-zinc-900">
-          <div className="flex items-center gap-4">
-            {conflicts.length > 0 && (
-              <div className="flex items-center gap-2 text-red-400 text-sm">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2L2 7v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7l-10-5z" />
-                </svg>
-                {conflicts.length} conflict(s) detected
-              </div>
-            )}{" "}
-            {mode === "edit" && initialValues?.id && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Session
-              </button>
-            )}
-          </div>{" "}
-          <div className="flex items-center gap-3">
-            {" "}
-            {mode === "edit" ? (
-              sessionForm.status === "cancelled" ? (
-                // Show only close button for cancelled sessions
-                <button
-                  onClick={close}
-                  className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-                >
-                  Close
-                </button>
-              ) : (
-                // Show cancel session button for active sessions
-                <button
-                  onClick={handleCancelSession}
-                  className="px-6 py-2 text-red-400 hover:text-white hover:bg-red-800 rounded transition-colors"
-                >
-                  Cancel Session
-                </button>
-              )
-            ) : (
-              <button
-                onClick={close}
-                className="px-6 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-              >
-                Cancel
-              </button>
-            )}{" "}
-            {mode === "edit" && sessionForm.status === "cancelled" ? (
-              // Show reinstate button for cancelled sessions
-              <button
-                onClick={handleReinstateSession}
-                className="px-4 py-2 bg-green-800 hover:bg-green-700 text-white rounded transition-colors flex items-center gap-2"
-              >
-                <User className="w-4 h-4" />
-                Reinstate Session
-              </button>
-            ) : mode === "edit" && sessionForm.status === "scheduled" ? (
-              // Show both Mark Complete and Update buttons for scheduled sessions
-              <div className="flex gap-2">
-                <button
-                  onClick={handleMarkComplete}
-                  className="px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-2"
-                >
-                  {" "}
-                  <CheckCircle className="w-4 h-4" />
-                  Mark Complete
-                </button>
-                <button
-                  onClick={handleSessionSubmit}
-                  disabled={
-                    !sessionForm.first_name ||
-                    !sessionForm.last_name ||
-                    !sessionForm.scheduled_at ||
-                    isSubmitting
+
+                <Textarea
+                  label="Session Notes"
+                  placeholder="Add notes about this session..."
+                  value={sessionForm.notes}
+                  onChange={(e) =>
+                    setSessionForm((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
                   }
-                  className="px-4 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <User className="w-4 h-4" />
-                      Update Session
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              // Show normal create/update button for other sessions
-              <button
-                onClick={handleSessionSubmit}
-                disabled={
-                  !sessionForm.first_name ||
-                  !sessionForm.last_name ||
-                  !sessionForm.scheduled_at ||
-                  isSubmitting
-                }
-                className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white hover:border-white rounded transition-colors flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    {mode === "edit" ? "Updating..." : "Creating..."}
-                  </>
-                ) : (
-                  <>
-                    <User className="w-4 h-4" />
-                    {mode === "edit" ? "Update Session" : "Create Session"}
-                  </>
+                  variant="bordered"
+                  classNames={{
+                    input: "text-white",
+                    inputWrapper:
+                      "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                  }}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Textarea
+                    label="Equipment Needed"
+                    placeholder="List any equipment needed..."
+                    value={sessionForm.equipment_needed}
+                    onChange={(e) =>
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        equipment_needed: e.target.value,
+                      }))
+                    }
+                    variant="bordered"
+                    classNames={{
+                      input: "text-white",
+                      inputWrapper:
+                        "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                    }}
+                  />
+
+                  <Textarea
+                    label="Preparation Notes"
+                    placeholder="Any preparation notes..."
+                    value={sessionForm.preparation_notes}
+                    onChange={(e) =>
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        preparation_notes: e.target.value,
+                      }))
+                    }
+                    variant="bordered"
+                    classNames={{
+                      input: "text-white",
+                      inputWrapper:
+                        "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                    }}
+                  />
+                </div>
+
+                <Textarea
+                  label="Session Goals"
+                  placeholder="What are the goals for this session?"
+                  value={sessionForm.goals}
+                  onChange={(e) =>
+                    setSessionForm((prev) => ({
+                      ...prev,
+                      goals: e.target.value,
+                    }))
+                  }
+                  variant="bordered"
+                  classNames={{
+                    input: "text-white",
+                    inputWrapper:
+                      "bg-zinc-800 border-zinc-700 hover:border-zinc-600",
+                  }}
+                />
+
+                {/* Conflicts Display */}
+                {conflicts.length > 0 && (
+                  <Card className="bg-red-900/20 border border-red-700">
+                    <CardBody>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                        <span className="text-red-400 font-medium">
+                          Schedule Conflicts Detected
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {conflicts.map((conflict, index) => (
+                          <div key={index} className="text-sm text-red-300">
+                            •{" "}
+                            {dayjs(conflict.start_time).format(
+                              "MMM D, YYYY h:mm A"
+                            )}{" "}
+                            - {conflict.first_name} {conflict.last_name}
+                          </div>
+                        ))}
+                      </div>
+                    </CardBody>
+                  </Card>
                 )}
-              </button>
-            )}{" "}
-          </div>
-        </div>
-      </div>{" "}
-      {/* Custom Confirmation Modal */}
+              </CardBody>
+            </Card>
+          </ModalBody>
+
+          <ModalFooter>
+            <div className="flex items-center justify-between w-full">
+              <div>
+                {mode === "edit" && initialValues?.id && (
+                  <Button
+                    onPress={() => setShowDeleteConfirm(true)}
+                    color="danger"
+                    variant="light"
+                    startContent={<Trash2 className="w-4 h-4" />}
+                  >
+                    Delete Session
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {mode === "edit" ? (
+                  sessionForm.status === "cancelled" ? (
+                    // Show only close button for cancelled sessions
+                    <Button onPress={close} variant="light">
+                      Close
+                    </Button>
+                  ) : (
+                    // Show cancel session button for active sessions
+                    <Button
+                      onPress={handleCancelSession}
+                      color="danger"
+                      variant="light"
+                    >
+                      Cancel Session
+                    </Button>
+                  )
+                ) : (
+                  <Button onPress={close} variant="light">
+                    Cancel
+                  </Button>
+                )}
+
+                {mode === "edit" && sessionForm.status === "cancelled" ? (
+                  // Show reinstate button for cancelled sessions
+                  <Button
+                    onPress={handleReinstateSession}
+                    color="success"
+                    startContent={<User className="w-4 h-4" />}
+                  >
+                    Reinstate Session
+                  </Button>
+                ) : mode === "edit" && sessionForm.status === "scheduled" ? (
+                  // Show both Mark Complete and Update buttons for scheduled sessions
+                  <div className="flex gap-2">
+                    <Button
+                      onPress={handleMarkComplete}
+                      color="primary"
+                      variant="solid"
+                      startContent={<CheckCircle className="w-4 h-4" />}
+                    >
+                      Mark Complete
+                    </Button>
+                    <Button
+                      onPress={handleSessionSubmit}
+                      color="primary"
+                      isDisabled={
+                        !sessionForm.first_name ||
+                        !sessionForm.last_name ||
+                        !sessionForm.scheduled_at ||
+                        isSubmitting
+                      }
+                      isLoading={isSubmitting}
+                      startContent={
+                        !isSubmitting ? <User className="w-4 h-4" /> : null
+                      }
+                    >
+                      {isSubmitting ? "Updating..." : "Update Session"}
+                    </Button>
+                  </div>
+                ) : (
+                  // Show normal create/update button for other sessions
+                  <Button
+                    onPress={handleSessionSubmit}
+                    color="primary"
+                    isDisabled={
+                      !sessionForm.first_name ||
+                      !sessionForm.last_name ||
+                      !sessionForm.scheduled_at ||
+                      isSubmitting
+                    }
+                    isLoading={isSubmitting}
+                    startContent={
+                      !isSubmitting ? <User className="w-4 h-4" /> : null
+                    }
+                  >
+                    {isSubmitting
+                      ? mode === "edit"
+                        ? "Updating..."
+                        : "Creating..."
+                      : mode === "edit"
+                      ? "Update Session"
+                      : "Create Session"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Confirmation Modals */}
       <ConfirmationModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -1040,8 +962,8 @@ export default function CreateSessionModal({
         confirmText="Delete Session"
         variant="danger"
         isLoading={isDeleting}
-      />{" "}
-      {/* Cancel Session Confirmation Modal */}
+      />
+
       <ConfirmationModal
         isOpen={showCancelConfirm}
         onClose={() => setShowCancelConfirm(false)}
@@ -1051,7 +973,7 @@ export default function CreateSessionModal({
         confirmText="Cancel Session"
         variant="danger"
       />
-      {/* Reinstate Session Confirmation Modal */}
+
       <ConfirmationModal
         isOpen={showReinstateConfirm}
         onClose={() => setShowReinstateConfirm(false)}
@@ -1061,7 +983,7 @@ export default function CreateSessionModal({
         confirmText="Reinstate Session"
         variant="success"
       />
-      {/* Complete Session Confirmation Modal */}
+
       <ConfirmationModal
         isOpen={showCompleteConfirm}
         onClose={() => setShowCompleteConfirm(false)}
@@ -1071,6 +993,6 @@ export default function CreateSessionModal({
         confirmText="Mark as Complete"
         variant="success"
       />
-    </div>
+    </>
   );
 }

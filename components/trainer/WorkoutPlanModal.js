@@ -2,6 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { X, Plus, Dumbbell, Save, Sparkles, User, Loader } from "lucide-react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  Card,
+  CardBody,
+  CardHeader,
+  Divider,
+  Spinner,
+} from "@heroui/react";
 import axios from "@/lib/axios";
 
 const WORKOUT_TYPES = [
@@ -327,435 +344,526 @@ Please format the response as a structured workout plan that can be easily follo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-800">
-          <div className="flex items-center gap-3">
-            <Dumbbell className="text-blue-400" size={24} />
-            <h2 className="text-white text-xl font-semibold">
-              {editPlan ? "Edit Workout Plan" : "Create Workout Plan"}
-              {clientName && ` for ${clientName}`}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="5xl"
+      scrollBehavior="inside"
+      classNames={{
+        backdrop: "bg-black/50 backdrop-blur-sm",
+        base: "bg-zinc-900 border border-zinc-800",
+        header: "border-b border-zinc-800",
+        body: "py-6",
+        footer: "border-t border-zinc-800",
+      }}
+    >
+      <ModalContent>
+        <ModalHeader className="flex items-center gap-3">
+          <Dumbbell className="text-blue-400" size={24} />
+          <span className="text-white text-xl font-semibold">
+            {editPlan ? "Edit Workout Plan" : "Create Workout Plan"}
+            {clientName && ` for ${clientName}`}
+          </span>
+        </ModalHeader>
 
-        {/* Error Display */}
-        {errors.general && (
-          <div className="mx-6 mt-4 bg-red-900/20 border border-red-500 rounded-lg p-4">
-            <p className="text-red-400 text-sm">{errors.general}</p>
-          </div>
-        )}
+        <ModalBody>
+          {/* Error Display */}
+          {errors.general && (
+            <Card className="bg-red-900/20 border border-red-500">
+              <CardBody>
+                <p className="text-red-400 text-sm">{errors.general}</p>
+              </CardBody>
+            </Card>
+          )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Plan Title *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="e.g., 12-Week Strength Building Program"
-              />
-              {errors.title && (
-                <p className="text-red-400 text-sm mt-1">{errors.title}</p>
-              )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Input
+                  label="Plan Title"
+                  placeholder="e.g., 12-Week Strength Building Program"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  isRequired
+                  isInvalid={!!errors.title}
+                  errorMessage={errors.title}
+                  classNames={{
+                    base: "max-w-full",
+                    input: "text-white",
+                    inputWrapper:
+                      "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                  }}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Textarea
+                  label="Description"
+                  placeholder="Brief description of the workout plan..."
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleInputChange("description", e.target.value)
+                  }
+                  minRows={3}
+                  classNames={{
+                    base: "max-w-full",
+                    input: "text-white",
+                    inputWrapper:
+                      "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                  }}
+                />
+              </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  handleInputChange("description", e.target.value)
+            {/* Plan Configuration */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Select
+                label="Workout Type"
+                placeholder="Select workout type"
+                selectedKeys={
+                  formData.workout_type ? [formData.workout_type] : []
                 }
-                rows={3}
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Brief description of the workout plan..."
-              />
-            </div>
-          </div>
-
-          {/* Plan Configuration */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Workout Type *
-              </label>
-              <select
-                value={formData.workout_type}
-                onChange={(e) =>
-                  handleInputChange("workout_type", e.target.value)
-                }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0];
+                  handleInputChange("workout_type", selectedKey || "");
+                }}
+                isRequired
+                isInvalid={!!errors.workout_type}
+                errorMessage={errors.workout_type}
+                classNames={{
+                  base: "max-w-full",
+                  trigger:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                  value: "text-white",
+                  popoverContent: "bg-zinc-800 border-zinc-700",
+                }}
               >
-                <option value="">Select type...</option>
                 {WORKOUT_TYPES.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
+                  <SelectItem
+                    key={type.id}
+                    value={type.id}
+                    classNames={{
+                      base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-blue-600",
+                      title: "text-white",
+                      description: "text-zinc-400",
+                    }}
+                  >
+                    <div>
+                      <div className="font-medium">{type.name}</div>
+                      <div className="text-sm text-zinc-400">
+                        {type.description}
+                      </div>
+                    </div>
+                  </SelectItem>
                 ))}
-              </select>
-              {errors.workout_type && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.workout_type}
-                </p>
-              )}
-            </div>
+              </Select>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Fitness Level *
-              </label>
-              <select
-                value={formData.fitness_level}
-                onChange={(e) =>
-                  handleInputChange("fitness_level", e.target.value)
+              <Select
+                label="Fitness Level"
+                placeholder="Select fitness level"
+                selectedKeys={
+                  formData.fitness_level ? [formData.fitness_level] : []
                 }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0];
+                  handleInputChange("fitness_level", selectedKey || "");
+                }}
+                isRequired
+                isInvalid={!!errors.fitness_level}
+                errorMessage={errors.fitness_level}
+                classNames={{
+                  base: "max-w-full",
+                  trigger:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                  value: "text-white",
+                  popoverContent: "bg-zinc-800 border-zinc-700",
+                }}
               >
-                <option value="">Select level...</option>
                 {WORKOUT_LEVELS.map((level) => (
-                  <option key={level.id} value={level.id}>
-                    {level.name}
-                  </option>
+                  <SelectItem
+                    key={level.id}
+                    value={level.id}
+                    classNames={{
+                      base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-blue-600",
+                      title: "text-white",
+                      description: "text-zinc-400",
+                    }}
+                  >
+                    <div>
+                      <div className="font-medium">{level.name}</div>
+                      <div className="text-sm text-zinc-400">
+                        {level.description}
+                      </div>
+                    </div>
+                  </SelectItem>
                 ))}
-              </select>
-              {errors.fitness_level && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.fitness_level}
-                </p>
-              )}
-            </div>
+              </Select>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Equipment *
-              </label>
-              <select
-                value={formData.equipment_level}
-                onChange={(e) =>
-                  handleInputChange("equipment_level", e.target.value)
+              <Select
+                label="Equipment Level"
+                placeholder="Select equipment level"
+                selectedKeys={
+                  formData.equipment_level ? [formData.equipment_level] : []
                 }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0];
+                  handleInputChange("equipment_level", selectedKey || "");
+                }}
+                isRequired
+                isInvalid={!!errors.equipment_level}
+                errorMessage={errors.equipment_level}
+                classNames={{
+                  base: "max-w-full",
+                  trigger:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                  value: "text-white",
+                  popoverContent: "bg-zinc-800 border-zinc-700",
+                }}
               >
-                <option value="">Select equipment...</option>
                 {WORKOUT_EQUIPMENT.map((equipment) => (
-                  <option key={equipment.id} value={equipment.id}>
-                    {equipment.name}
-                  </option>
+                  <SelectItem
+                    key={equipment.id}
+                    value={equipment.id}
+                    classNames={{
+                      base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-blue-600",
+                      title: "text-white",
+                      description: "text-zinc-400",
+                    }}
+                  >
+                    <div>
+                      <div className="font-medium">{equipment.name}</div>
+                      <div className="text-sm text-zinc-400">
+                        {equipment.description}
+                      </div>
+                    </div>
+                  </SelectItem>
                 ))}
-              </select>
-              {errors.equipment_level && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.equipment_level}
-                </p>
-              )}
+              </Select>
             </div>
-          </div>
 
-          {/* Duration & Frequency */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Duration (weeks)
-              </label>
-              <input
+            {/* Duration Configuration */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                label="Duration (weeks)"
                 type="number"
-                min="1"
-                max="52"
-                value={formData.duration_weeks}
+                value={formData.duration_weeks.toString()}
                 onChange={(e) =>
                   handleInputChange(
                     "duration_weeks",
-                    parseInt(e.target.value) || 1
+                    parseInt(e.target.value) || 4
                   )
                 }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                min={1}
+                max={52}
+                classNames={{
+                  base: "max-w-full",
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                }}
               />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Sessions/Week
-              </label>
-              <input
+              <Input
+                label="Sessions per week"
                 type="number"
-                min="1"
-                max="7"
-                value={formData.sessions_per_week}
+                value={formData.sessions_per_week.toString()}
                 onChange={(e) =>
                   handleInputChange(
                     "sessions_per_week",
-                    parseInt(e.target.value) || 1
+                    parseInt(e.target.value) || 3
                   )
                 }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                min={1}
+                max={7}
+                classNames={{
+                  base: "max-w-full",
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                }}
               />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Session Duration (min)
-              </label>
-              <input
+              <Input
+                label="Session duration (minutes)"
                 type="number"
-                min="15"
-                max="180"
-                step="15"
-                value={formData.session_duration}
+                value={formData.session_duration.toString()}
                 onChange={(e) =>
                   handleInputChange(
                     "session_duration",
                     parseInt(e.target.value) || 60
                   )
                 }
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                min={15}
+                max={180}
+                classNames={{
+                  base: "max-w-full",
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                }}
               />
             </div>
-          </div>
 
-          {/* Goals & Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Goals
-              </label>
-              <textarea
+            {/* Goals and Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Textarea
+                label="Goals"
+                placeholder="Specific goals for this workout plan..."
                 value={formData.goals}
                 onChange={(e) => handleInputChange("goals", e.target.value)}
-                rows={3}
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="e.g., Build muscle mass, improve strength, lose weight..."
+                minRows={3}
+                classNames={{
+                  base: "max-w-full",
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                }}
               />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Notes
-              </label>
-              <textarea
+              <Textarea
+                label="Notes"
+                placeholder="Additional notes or instructions..."
                 value={formData.notes}
                 onChange={(e) => handleInputChange("notes", e.target.value)}
-                rows={3}
-                className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Additional notes, modifications, or instructions..."
+                minRows={3}
+                classNames={{
+                  base: "max-w-full",
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800 border-zinc-700 data-[hover=true]:border-blue-500",
+                }}
               />
             </div>
-          </div>
 
-          {/* AI Generation Button */}
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={generateWorkoutPlan}
-              disabled={generating}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generating ? (
-                <>
-                  <Loader className="animate-spin" size={20} />
-                  Generating Plan...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={20} />
-                  Generate Workout Plan with AI
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Exercise List */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Exercises</h3>
-              <button
-                type="button"
-                onClick={addExercise}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <Plus size={16} />
-                Add Exercise
-              </button>
-            </div>
-
-            {exercises.length === 0 && (
-              <div className="text-center py-8 text-zinc-400">
-                <Dumbbell className="mx-auto mb-2 opacity-50" size={48} />
-                <p>
-                  No exercises added yet. Generate a plan with AI or add
-                  exercises manually.
-                </p>
-              </div>
-            )}
-
-            {exercises.map((exercise, index) => (
-              <div
-                key={exercise.id}
-                className="bg-zinc-800 rounded-lg p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-zinc-300">
-                    Exercise {index + 1}
+            {/* AI Generation Section */}
+            <Card className="bg-zinc-800/50 border border-zinc-700">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="text-yellow-400" size={20} />
+                  <span className="text-white font-medium">
+                    AI-Powered Workout Generation
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeExercise(exercise.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
                 </div>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <p className="text-zinc-400 text-sm mb-4">
+                  Let AI generate a complete workout plan based on your
+                  configuration above.
+                </p>
+                <Button
+                  color="secondary"
+                  variant="flat"
+                  onPress={generateWorkoutPlan}
+                  isDisabled={
+                    !formData.workout_type ||
+                    !formData.fitness_level ||
+                    !formData.equipment_level ||
+                    generating
+                  }
+                  startContent={
+                    generating ? <Spinner size="sm" /> : <Sparkles size={16} />
+                  }
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+                >
+                  {generating ? "Generating..." : "Generate Workout Plan"}
+                </Button>
+              </CardBody>
+            </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="md:col-span-2">
-                    <input
-                      type="text"
-                      value={exercise.name}
-                      onChange={(e) =>
-                        updateExercise(exercise.id, "name", e.target.value)
-                      }
-                      placeholder="Exercise name"
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Day
-                    </label>
-                    <select
-                      value={exercise.day}
-                      onChange={(e) =>
-                        updateExercise(
-                          exercise.id,
-                          "day",
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    >
-                      {Array.from(
-                        { length: formData.sessions_per_week },
-                        (_, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            Day {i + 1}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Sets
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={exercise.sets}
-                      onChange={(e) =>
-                        updateExercise(
-                          exercise.id,
-                          "sets",
-                          parseInt(e.target.value) || 1
-                        )
-                      }
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Reps
-                    </label>
-                    <input
-                      type="text"
-                      value={exercise.reps}
-                      onChange={(e) =>
-                        updateExercise(exercise.id, "reps", e.target.value)
-                      }
-                      placeholder="e.g., 10-12"
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Rest
-                    </label>
-                    <input
-                      type="text"
-                      value={exercise.rest}
-                      onChange={(e) =>
-                        updateExercise(exercise.id, "rest", e.target.value)
-                      }
-                      placeholder="e.g., 60s"
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Notes
-                    </label>
-                    <input
-                      type="text"
-                      value={exercise.notes}
-                      onChange={(e) =>
-                        updateExercise(exercise.id, "notes", e.target.value)
-                      }
-                      placeholder="Form notes, modifications, etc."
-                      className="w-full p-2 rounded bg-zinc-700 text-white border border-zinc-600 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
+            {/* Exercises Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white text-lg font-medium">Exercises</h3>
+                <Button
+                  color="primary"
+                  variant="flat"
+                  onPress={addExercise}
+                  startContent={<Plus size={16} />}
+                  size="sm"
+                >
+                  Add Exercise
+                </Button>
               </div>
-            ))}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-zinc-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-zinc-400 hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader className="animate-spin" size={16} />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  {editPlan ? "Update Plan" : "Create Plan"}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {exercises.map((exercise, index) => (
+                <Card
+                  key={exercise.id}
+                  className="bg-zinc-800/50 border border-zinc-700"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-white font-medium">
+                        Exercise {index + 1}
+                      </span>
+                      <Button
+                        color="danger"
+                        variant="light"
+                        size="sm"
+                        onPress={() => removeExercise(exercise.id)}
+                        isIconOnly
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardBody className="pt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                      <div className="md:col-span-2">
+                        <Input
+                          label="Exercise Name"
+                          placeholder="e.g., Bench Press"
+                          value={exercise.name}
+                          onChange={(e) =>
+                            updateExercise(exercise.id, "name", e.target.value)
+                          }
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <Input
+                          label="Day"
+                          type="number"
+                          value={exercise.day?.toString() || "1"}
+                          onChange={(e) =>
+                            updateExercise(
+                              exercise.id,
+                              "day",
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          min={1}
+                          max={7}
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <Input
+                          label="Sets"
+                          type="number"
+                          value={exercise.sets?.toString() || "3"}
+                          onChange={(e) =>
+                            updateExercise(
+                              exercise.id,
+                              "sets",
+                              parseInt(e.target.value) || 3
+                            )
+                          }
+                          min={1}
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <Input
+                          label="Reps"
+                          placeholder="e.g., 8-12"
+                          value={exercise.reps}
+                          onChange={(e) =>
+                            updateExercise(exercise.id, "reps", e.target.value)
+                          }
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <Input
+                          label="Rest"
+                          placeholder="e.g., 60s"
+                          value={exercise.rest}
+                          onChange={(e) =>
+                            updateExercise(exercise.id, "rest", e.target.value)
+                          }
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <Input
+                          label="Weight"
+                          placeholder="e.g., 135lbs"
+                          value={exercise.weight}
+                          onChange={(e) =>
+                            updateExercise(
+                              exercise.id,
+                              "weight",
+                              e.target.value
+                            )
+                          }
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+
+                      <div className="md:col-span-4">
+                        <Input
+                          label="Notes"
+                          placeholder="Form notes, modifications, etc."
+                          value={exercise.notes}
+                          onChange={(e) =>
+                            updateExercise(exercise.id, "notes", e.target.value)
+                          }
+                          size="sm"
+                          classNames={{
+                            input: "text-white",
+                            inputWrapper:
+                              "bg-zinc-700 border-zinc-600 data-[hover=true]:border-blue-500",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+          </form>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button color="default" variant="light" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            color="primary"
+            onPress={handleSubmit}
+            isDisabled={loading}
+            startContent={loading ? <Spinner size="sm" /> : <Save size={16} />}
+          >
+            {loading ? "Saving..." : editPlan ? "Update Plan" : "Create Plan"}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }

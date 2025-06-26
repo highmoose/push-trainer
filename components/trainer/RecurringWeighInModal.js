@@ -1,8 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, Save, X, Calendar, RotateCcw } from "lucide-react";
+import { Clock, Save, RotateCcw } from "lucide-react";
 import axios from "@/lib/axios";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Select,
+  SelectItem,
+  Input,
+  Checkbox,
+  Spinner,
+} from "@heroui/react";
 
 const frequencies = [
   { value: "weekly", label: "Weekly" },
@@ -92,145 +105,162 @@ export default function RecurringWeighInModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-zinc-700">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-700">
-          <div className="flex items-center gap-3">
-            <RotateCcw className="text-purple-400" size={24} />{" "}
-            <h2 className="text-xl font-semibold text-white">
-              Recurring Check-ins for {clientName}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="2xl"
+      scrollBehavior="inside"
+      backdrop="blur"
+      classNames={{
+        base: "bg-zinc-900 border border-zinc-700",
+        header: "border-b border-zinc-700",
+        body: "py-6",
+        footer: "border-t border-zinc-700",
+      }}
+    >
+      <ModalContent>
+        <ModalHeader className="flex items-center gap-3">
+          <RotateCcw className="text-purple-400" size={24} />
+          <span className="text-xl font-semibold text-white">
+            Recurring Check-ins for {clientName}
+          </span>
+        </ModalHeader>
 
-        {success && (
-          <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 m-6 rounded-lg">
-            ✓ Recurring check-in settings saved successfully!
-          </div>
-        )}
+        <ModalBody>
+          {success && (
+            <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 rounded-lg mb-4">
+              ✓ Recurring check-in settings saved successfully!
+            </div>
+          )}
 
-        {/* Content */}
-        <div className="p-6 max-h-96 overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Enable/Disable */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="enabled"
-                checked={settings.enabled}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    enabled: e.target.checked,
-                  }))
-                }
-                className="w-4 h-4 text-purple-500 bg-zinc-800 border-zinc-600 rounded focus:ring-purple-500"
-              />
-              <label htmlFor="enabled" className="text-white font-medium">
-                Enable recurring check-in requests
-              </label>
-            </div>
+            <Checkbox
+              isSelected={settings.enabled}
+              onValueChange={(checked) =>
+                setSettings((prev) => ({ ...prev, enabled: checked }))
+              }
+              classNames={{
+                base: "max-w-full",
+                label: "text-white font-medium",
+                wrapper: "before:border-zinc-600 after:bg-purple-500",
+              }}
+            >
+              Enable recurring check-in requests
+            </Checkbox>
 
             {settings.enabled && (
               <>
                 {/* Frequency */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Frequency
-                  </label>
-                  <select
-                    value={settings.frequency}
-                    onChange={(e) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        frequency: e.target.value,
-                      }))
+                <Select
+                  label="Frequency"
+                  selectedKeys={[settings.frequency]}
+                  onSelectionChange={(keys) => {
+                    const frequency = Array.from(keys)[0];
+                    if (frequency) {
+                      setSettings((prev) => ({ ...prev, frequency }));
                     }
-                    className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-600 text-white focus:border-purple-500 focus:outline-none"
-                  >
-                    {frequencies.map((freq) => (
-                      <option key={freq.value} value={freq.value}>
-                        {freq.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  }}
+                  classNames={{
+                    label: "text-zinc-300 font-medium",
+                    trigger:
+                      "bg-zinc-800 border-zinc-600 hover:border-purple-500",
+                    value: "text-white",
+                    listbox: "bg-zinc-800",
+                    popoverContent: "bg-zinc-800 border-zinc-600",
+                  }}
+                >
+                  {frequencies.map((freq) => (
+                    <SelectItem
+                      key={freq.value}
+                      value={freq.value}
+                      className="text-white"
+                    >
+                      {freq.label}
+                    </SelectItem>
+                  ))}
+                </Select>
 
                 {/* Day Selection */}
                 {(settings.frequency === "weekly" ||
                   settings.frequency === "bi-weekly") && (
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      Day of Week
-                    </label>
-                    <select
-                      value={settings.day_of_week}
-                      onChange={(e) =>
+                  <Select
+                    label="Day of Week"
+                    selectedKeys={[settings.day_of_week.toString()]}
+                    onSelectionChange={(keys) => {
+                      const day = Array.from(keys)[0];
+                      if (day) {
                         setSettings((prev) => ({
                           ...prev,
-                          day_of_week: parseInt(e.target.value),
-                        }))
+                          day_of_week: parseInt(day),
+                        }));
                       }
-                      className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-600 text-white focus:border-purple-500 focus:outline-none"
-                    >
-                      {daysOfWeek.map((day) => (
-                        <option key={day.value} value={day.value}>
-                          {day.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    }}
+                    classNames={{
+                      label: "text-zinc-300 font-medium",
+                      trigger:
+                        "bg-zinc-800 border-zinc-600 hover:border-purple-500",
+                      value: "text-white",
+                      listbox: "bg-zinc-800",
+                      popoverContent: "bg-zinc-800 border-zinc-600",
+                    }}
+                  >
+                    {daysOfWeek.map((day) => (
+                      <SelectItem
+                        key={day.value.toString()}
+                        value={day.value.toString()}
+                        className="text-white"
+                      >
+                        {day.label}
+                      </SelectItem>
+                    ))}
+                  </Select>
                 )}
 
                 {settings.frequency === "monthly" && (
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      Day of Month
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={settings.day_of_month}
-                      onChange={(e) =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          day_of_month: parseInt(e.target.value),
-                        }))
-                      }
-                      className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-600 text-white focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-                )}
-
-                {/* Time Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    <Clock className="inline w-4 h-4 mr-1" />
-                    Send Time
-                  </label>
-                  <input
-                    type="time"
-                    value={settings.time}
+                  <Input
+                    type="number"
+                    label="Day of Month"
+                    min={1}
+                    max={31}
+                    value={settings.day_of_month.toString()}
                     onChange={(e) =>
                       setSettings((prev) => ({
                         ...prev,
-                        time: e.target.value,
+                        day_of_month: parseInt(e.target.value),
                       }))
                     }
-                    className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-600 text-white focus:border-purple-500 focus:outline-none"
-                  />{" "}
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Time when the check-in request will be sent
-                  </p>
-                </div>
+                    classNames={{
+                      label: "text-zinc-300 font-medium",
+                      inputWrapper:
+                        "bg-zinc-800 border-zinc-600 hover:border-purple-500",
+                      input: "text-white",
+                    }}
+                  />
+                )}
+
+                {/* Time Selection */}
+                <Input
+                  type="time"
+                  label={
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      Send Time
+                    </span>
+                  }
+                  value={settings.time}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, time: e.target.value }))
+                  }
+                  description="Time when the check-in request will be sent"
+                  classNames={{
+                    label: "text-zinc-300 font-medium",
+                    inputWrapper:
+                      "bg-zinc-800 border-zinc-600 hover:border-purple-500",
+                    input: "text-white",
+                    description: "text-zinc-400",
+                  }}
+                />
 
                 {/* Metrics Selection */}
                 <div>
@@ -239,54 +269,48 @@ export default function RecurringWeighInModal({
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     {availableMetrics.map((metric) => (
-                      <label
+                      <Checkbox
                         key={metric.key}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-zinc-800 border border-zinc-600 hover:border-zinc-500 cursor-pointer"
+                        isSelected={settings.metrics.includes(metric.key)}
+                        onValueChange={() => handleMetricToggle(metric.key)}
+                        classNames={{
+                          base: "max-w-full p-2 rounded-lg bg-zinc-800 border border-zinc-600 hover:border-zinc-500",
+                          label: "text-zinc-300 text-sm",
+                          wrapper: "before:border-zinc-600 after:bg-purple-500",
+                        }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={settings.metrics.includes(metric.key)}
-                          onChange={() => handleMetricToggle(metric.key)}
-                          className="w-4 h-4 text-purple-500 bg-zinc-700 border-zinc-600 rounded focus:ring-purple-500"
-                        />
-                        <span className="text-zinc-300 text-sm">
-                          {metric.label}
-                        </span>
-                      </label>
+                        {metric.label}
+                      </Checkbox>
                     ))}
                   </div>
                 </div>
               </>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <button
-                type="submit"
-                disabled={
-                  loading || !settings.enabled || settings.metrics.length === 0
-                }
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Save size={16} />
-                )}
-                Save Settings
-              </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-6 py-3 bg-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-600 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
           </form>
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            variant="light"
+            onPress={onClose}
+            className="text-zinc-300 hover:text-white"
+          >
+            Cancel
+          </Button>
+          <Button
+            color="secondary"
+            onPress={handleSubmit}
+            isDisabled={
+              loading || !settings.enabled || settings.metrics.length === 0
+            }
+            isLoading={loading}
+            startContent={!loading && <Save size={16} />}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Save Settings
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }

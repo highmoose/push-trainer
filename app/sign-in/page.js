@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { login, resetAuthStatus } from "@/redux/slices/authSlice";
+import { Input, Button } from "@heroui/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,8 +16,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
-
-  // Check for session expiration message
   const reason = searchParams.get("reason");
   const isSessionExpired = reason === "session_expired";
 
@@ -32,46 +31,41 @@ export default function LoginPage() {
     try {
       await dispatch(login({ email, password })).unwrap();
       console.log("✅ Logged in successfully!");
-      // AuthGuard will handle the redirect to dashboard
     } catch (err) {
       console.error("❌ Login failed:", err);
       setLocalError(err);
     }
   };
 
-  // Clear any previous auth errors when component mounts
   useEffect(() => {
     dispatch(resetAuthStatus());
   }, [dispatch]);
 
-  // Redirect is handled by AuthGuard, no need to manually redirect here
-
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center">
-      <div className="">
-        <div className="flex justify-between items-center gap-4 w-full">
-          <div>
-            <p className="text-xl font-bold text-white -mt-4">Account Login</p>
-            <p className="text-sm text-zinc-400 -mt-1">
-              Enter your email and password
-            </p>
-            {isSessionExpired && (
-              <p className="text-sm text-red-400 mt-2">
-                Your session expired due to inactivity. Please login again.
-              </p>
-            )}
-          </div>
+      <div className="max-w-lg w-full">
+        <div className="flex flex-col gap-2 justify-between items-center w-full">
           <Image
             src="/images/logo/push-logo-white.svg"
-            width={170}
-            height={160}
+            width={300}
+            height={200}
             alt="logo"
-            className="mb-3"
+            className="mb-6"
           />
+
+          <p className="text-3xl font-bold text-white">Welcome to Push Inc. </p>
+          <p className="text-lg text-white">
+            Don't have an account? <a className="underline">Sign up</a>
+          </p>
+          {isSessionExpired && (
+            <p className="text-sm text-red-400 ">
+              Your session expired due to inactivity. Please login again.
+            </p>
+          )}
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col items-center gap-4 bg-zinc-200 p-10 rounded"
+          className="flex flex-col items-center gap-4 p-10 rounded"
         >
           {(error || localError) && (
             <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
@@ -79,40 +73,88 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <input
+          <div className="flex flex-col gap-4 w-full">
+            <Input
+              label="Email"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              type="email"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 min-w-[300px]"
               disabled={status === "loading"}
+              autoComplete="email"
             />
-            <input
+            <Input
+              label="Password"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="Password"
-              className="bg-zinc-50 placeholder:text-sm text-zinc-500 rounded py-2 px-2 min-w-[300px]"
               disabled={status === "loading"}
+              autoComplete="current-password"
+              className="mb-4"
             />
+            <Button
+              type="submit"
+              color="primary"
+              variant="solid"
+              className="w-full text-md bg-white text-black hover:bg-zinc-100 h-14"
+              disabled={status === "loading" || !email || !password}
+            >
+              {status === "loading" ? "Logging in..." : "Login"}
+            </Button>
+            <div className="flex items-center gap-4 text-lg text-zinc-500 my-2">
+              <hr className="flex-1 border-zinc-300 dark:border-zinc-700" />
+              <span className="whitespace-nowrap">or</span>
+              <hr className="flex-1 border-zinc-300 dark:border-zinc-700" />
+            </div>
+            <div className="flex gap-4">
+              <Button
+                type="submit"
+                color="primary"
+                variant="bordered"
+                className="w-full border -1 bg-transparent text-lg border-zinc-700 text-white hover:bg-zinc-00 h-14 mb-4"
+                disabled={status === "loading" || !email || !password}
+              >
+                <Image
+                  src="/images/icons/google.svg"
+                  width={20}
+                  height={20}
+                  alt="Google"
+                  className="text-white"
+                />
+                Google
+              </Button>
+              <Button
+                type="submit"
+                color="primary"
+                variant="bordered"
+                className="w-full border -1 bg-transparent hover:bg-zinc-800 text-lg border-zinc-700 text-white  h-14 mb-4"
+                disabled={status === "loading" || !email || !password}
+              >
+                <Image
+                  src="/images/icons/apple.svg"
+                  width={20}
+                  height={20}
+                  alt="apple"
+                  className="text-white"
+                />
+                Apple
+              </Button>
+            </div>
+            <p className="mx-auto text-sm text-center text-zinc-400 max-w-xs mb-4">
+              By clicking continue, you agree to our{" "}
+              <span className="underline">Terms of Service</span> and{" "}
+              <span className="underline">Privacy Policy</span>.
+            </p>
+            <Button
+              color="primary"
+              variant="solid"
+              className=" bg-zinc-800 text-white hover:bg-zinc-700 w-fit mx-auto"
+              onClick={() => router.push("/welcome")}
+            >
+              Go back
+            </Button>
           </div>
-          <button
-            type="submit"
-            disabled={status === "loading" || !email || !password}
-            className="bg-zinc-100 hover:bg-zinc-300 disabled:bg-zinc-300 disabled:cursor-not-allowed transition duration-300 text-black rounded py-2 px-10 cursor-pointer min-w-[120px]"
-          >
-            {status === "loading" ? "Logging in..." : "Login"}
-          </button>
         </form>
-      </div>{" "}
-      <button
-        onClick={() => router.push("/welcome")}
-        className="mt-2 text-zinc-400 hover:text-white transition-colors"
-        disabled={status === "loading"}
-      >
-        Go back
-      </button>
+      </div>
     </div>
   );
 }

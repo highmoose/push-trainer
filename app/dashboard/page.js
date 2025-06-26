@@ -3,6 +3,7 @@
 import React from "react";
 import Header from "@/components/layout/header";
 import { useSelector } from "react-redux";
+import { Spinner } from "@heroui/react";
 import TrainerArea from "@role/trainer/tabs/trainerArea";
 import ClientDashboard from "@role/client/tabs/clientDashboard";
 import GymOwnerDashboard from "@role/gym-owner/tabs/gymOwnerDashboard";
@@ -13,7 +14,7 @@ export default function Dashboard() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }

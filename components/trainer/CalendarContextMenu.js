@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { User, ClipboardCheck, X } from "lucide-react";
+import { Button } from "@heroui/react";
 
 export default function CalendarContextMenu({
   isOpen,
@@ -50,12 +51,13 @@ export default function CalendarContextMenu({
         >
           {/* Menu Options */}
           <div className="">
-            <button
-              onClick={() => {
+            <Button
+              onPress={() => {
                 onCreateSession();
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-left text-white hover:text-black bg-zinc-900 hover:bg-white rounded-t group transition-colors"
+              variant="light"
+              className="w-full flex items-center gap-3 px-3 py-2 text-left text-white hover:text-black bg-zinc-900 hover:bg-white rounded-t group transition-colors h-auto justify-start"
             >
               <div className="flex items-center justify-center w-8 h-8 bg-zinc-900 group-hover:bg-zinc-900 rounded">
                 <User className="w-4 h-4 text-white " />
@@ -66,14 +68,15 @@ export default function CalendarContextMenu({
                   Schedule a training session
                 </div>
               </div>
-            </button>
+            </Button>
 
-            <button
-              onClick={() => {
+            <Button
+              onPress={() => {
                 onCreateTask();
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-left text-white hover:text-black bg-zinc-900 hover:bg-white rounded-b group transition-colors"
+              variant="light"
+              className="w-full flex items-center gap-3 px-3 py-2 text-left text-white hover:text-black bg-zinc-900 hover:bg-white rounded-b group transition-colors h-auto justify-start"
             >
               <div className="flex items-center justify-center w-8 h-8 bg-zinc-900 group-hover:bg-zinc-900 rounded">
                 <ClipboardCheck className="w-4 h-4 text-white" />
@@ -84,7 +87,7 @@ export default function CalendarContextMenu({
                   Add a personal task
                 </div>
               </div>
-            </button>
+            </Button>
           </div>
         </div>
 

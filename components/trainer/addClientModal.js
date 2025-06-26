@@ -37,6 +37,22 @@ import {
   sendClientInvite,
 } from "@redux/slices/clientSlice";
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  Tabs,
+  Tab,
+  Card,
+  CardBody,
+} from "@heroui/react";
 
 // Static tabs configuration - moved outside to prevent re-creation
 const tabs = [
@@ -54,6 +70,7 @@ function AddClientModal({ close, selectedClient = "" }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+
   // Initialize form state with stable initial values
   const [form, setForm] = useState(() => {
     if (selectedClient) {
@@ -220,26 +237,30 @@ function AddClientModal({ close, selectedClient = "" }) {
     close();
   };
   return (
-    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-900 rounded max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
-          <h2 className="text-xl font-semibold text-white">
-            {view === "select" && "Add New Client"}
-            {view === "create" &&
-              (selectedClient ? "Edit Client" : "Add Client Details")}
-            {view === "invite" && "Invite Client"}
-          </h2>
-          <button
-            onClick={close}
-            className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onOpenChange={(isOpen) => !isOpen && close()}
+      size="5xl"
+      scrollBehavior="inside"
+      classNames={{
+        base: "max-h-[90vh]",
+        body: "p-6",
+        header: "border-b border-zinc-800",
+      }}
+    >
+      <ModalContent className="bg-zinc-950 border border-zinc-900">
+        <ModalHeader className="flex items-center justify-between bg-zinc-900">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-semibold text-white">
+              {view === "select" && "Add New Client"}
+              {view === "create" &&
+                (selectedClient ? "Edit Client" : "Add Client Details")}
+              {view === "invite" && "Invite Client"}
+            </h2>
+          </div>
+        </ModalHeader>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
+        <ModalBody className="bg-zinc-900">
           {view === "select" && (
             <div className="space-y-4">
               <div>
@@ -248,43 +269,49 @@ function AddClientModal({ close, selectedClient = "" }) {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {/* Add Client Details Option */}
-                  <button
-                    onClick={() => setView("create")}
-                    className="p-3 rounded border-2 border-zinc-800 bg-zinc-900 text-white hover:border-white hover:bg-white hover:text-black transition-all text-left group"
+                  <Card
+                    isPressable
+                    onPress={() => setView("create")}
+                    className="border-2 border-zinc-800 bg-zinc-900 hover:border-white hover:bg-white group transition-all cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <UserPlus className="w-5 h-5 text-blue-400 group-hover:text-black" />
-                      <div>
-                        <div className="font-medium text-sm group-hover:text-black">
-                          Add Client Details
-                        </div>
-                        <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
-                          Manually enter client information
+                    <CardBody className="p-3">
+                      <div className="flex items-center gap-3">
+                        <UserPlus className="w-5 h-5 text-blue-400 group-hover:text-black" />
+                        <div>
+                          <div className="font-medium text-sm text-white group-hover:text-black">
+                            Add Client Details
+                          </div>
+                          <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
+                            Manually enter client information
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </CardBody>
+                  </Card>
 
                   {/* Invite Client Option */}
-                  <button
-                    onClick={async () => {
+                  <Card
+                    isPressable
+                    onPress={async () => {
                       const link = await generateInviteLink();
                       setView("invite");
                     }}
-                    className="p-3 rounded border-2 border-zinc-800 bg-zinc-900 text-white hover:border-white hover:bg-white hover:text-black transition-all text-left group"
+                    className="border-2 border-zinc-800 bg-zinc-900 hover:border-white hover:bg-white group transition-all cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <MailPlus className="w-5 h-5 text-green-400 group-hover:text-black" />
-                      <div>
-                        <div className="font-medium text-sm group-hover:text-black">
-                          Invite Client to Sign Up
-                        </div>
-                        <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
-                          Send invitation link via email
+                    <CardBody className="p-3">
+                      <div className="flex items-center gap-3">
+                        <MailPlus className="w-5 h-5 text-green-400 group-hover:text-black" />
+                        <div>
+                          <div className="font-medium text-sm text-white group-hover:text-black">
+                            Invite Client to Sign Up
+                          </div>
+                          <div className="text-zinc-400 group-hover:text-zinc-600 text-xs mt-1">
+                            Send invitation link via email
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </CardBody>
+                  </Card>
                 </div>
               </div>
             </div>
@@ -293,64 +320,80 @@ function AddClientModal({ close, selectedClient = "" }) {
           {view === "invite" && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 mb-4">
-                <button
-                  onClick={() => setView("select")}
-                  className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                <Button
+                  onPress={() => setView("select")}
+                  variant="ghost"
+                  isIconOnly
+                  className="text-zinc-400 hover:text-white"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                </button>
+                </Button>
                 <div className="text-sm text-zinc-400">Back to selection</div>
               </div>
 
               {/* Generated Link */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                  Invitation Link
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={inviteLink}
-                    readOnly
-                    className="flex-1 p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-white hover:text-black text-white rounded transition-colors flex items-center gap-2"
-                  >
-                    {linkCopied ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                    {linkCopied ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-              </div>
+              <Card className="bg-zinc-900 border border-zinc-800">
+                <CardBody className="p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Invitation Link
+                  </h3>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={inviteLink}
+                      isReadOnly
+                      className="flex-1"
+                      classNames={{
+                        input: "bg-zinc-800 text-white",
+                        inputWrapper: "bg-zinc-800 border-zinc-700",
+                      }}
+                    />
+                    <Button
+                      onPress={copyToClipboard}
+                      variant="solid"
+                      className="bg-zinc-800 hover:bg-white hover:text-black text-white"
+                    >
+                      {linkCopied ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                      {linkCopied ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
 
               {/* Email Invitation */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                  Send via Email
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="client@example.com"
-                    className="flex-1 p-2 rounded bg-zinc-800 text-white placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  />
-                  <button
-                    onClick={sendInviteEmail}
-                    disabled={emailSending}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-white hover:text-black disabled:bg-zinc-700 disabled:text-zinc-400 text-white rounded transition-colors flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    {emailSending ? "Sending..." : "Send"}
-                  </button>
-                </div>
-              </div>
+              <Card className="bg-zinc-900 border border-zinc-800">
+                <CardBody className="p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Send via Email
+                  </h3>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      value={inviteEmail}
+                      onValueChange={setInviteEmail}
+                      placeholder="client@example.com"
+                      className="flex-1"
+                      classNames={{
+                        input: "bg-zinc-800 text-white placeholder-zinc-500",
+                        inputWrapper: "bg-zinc-800 border-zinc-700",
+                      }}
+                    />
+                    <Button
+                      onPress={sendInviteEmail}
+                      isDisabled={emailSending}
+                      variant="solid"
+                      className="bg-zinc-800 hover:bg-white hover:text-black text-white disabled:bg-zinc-700 disabled:text-zinc-400"
+                    >
+                      <Send className="w-4 h-4" />
+                      {emailSending ? "Sending..." : "Send"}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
             </div>
           )}
 
@@ -359,377 +402,458 @@ function AddClientModal({ close, selectedClient = "" }) {
               {/* Back Navigation - only show if not editing existing client */}
               {!selectedClient && (
                 <div className="flex items-center gap-3 mb-4">
-                  <button
-                    onClick={() => setView("select")}
-                    className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                  <Button
+                    onPress={() => setView("select")}
+                    variant="ghost"
+                    isIconOnly
+                    className="text-zinc-400 hover:text-white"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                  </button>
+                  </Button>
                   <div className="text-sm text-zinc-400">Back to selection</div>
                 </div>
               )}
 
-              {/* Tab Navigation */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                  Client Information
-                </h3>
-                <div className="flex space-x-1 bg-zinc-800 rounded p-1">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-medium transition-all ${
-                          activeTab === tab.id
-                            ? "bg-blue-500 text-white"
-                            : "text-zinc-400 hover:text-white hover:bg-zinc-700"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Client Information Tabs */}
+              <Card className="bg-zinc-900 border border-zinc-800">
+                <CardBody className="p-3">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                    Client Information
+                  </h3>
+
+                  <Tabs
+                    selectedKey={activeTab}
+                    onSelectionChange={setActiveTab}
+                    variant="solid"
+                    color="primary"
+                    classNames={{
+                      tabList: "bg-zinc-800",
+                      cursor: "bg-blue-500",
+                      tab: "text-zinc-400 data-[selected=true]:text-white",
+                      tabContent: "group-data-[selected=true]:text-white",
+                    }}
+                  >
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <Tab
+                          key={tab.id}
+                          title={
+                            <div className="flex items-center gap-2">
+                              <Icon className="w-4 h-4" />
+                              {tab.label}
+                            </div>
+                          }
+                        />
+                      );
+                    })}
+                  </Tabs>
+                </CardBody>
+              </Card>
 
               {/* Tab Content */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {activeTab === "basic" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          First Name*
-                        </label>
-                        <input
+              <Card className="bg-zinc-900 border border-zinc-800">
+                <CardBody className="p-3">
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {activeTab === "basic" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
                           type="text"
+                          label="First Name"
                           name="firstName"
                           value={form.firstName}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                          required
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, firstName: value }))
+                          }
+                          isRequired
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Last Name
-                        </label>
-                        <input
+                        <Input
                           type="text"
+                          label="Last Name"
                           name="lastName"
                           value={form.lastName}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, lastName: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Email*
-                        </label>
-                        <input
+                        <Input
                           type="email"
+                          label="Email"
                           name="email"
                           value={form.email}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                          required
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, email: value }))
+                          }
+                          isRequired
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Phone
-                        </label>
-                        <input
+                        <Input
                           type="tel"
+                          label="Phone"
                           name="phone"
                           value={form.phone}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, phone: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Date of Birth
-                        </label>
-                        <input
+                        <Input
                           type="date"
+                          label="Date of Birth"
                           name="dateOfBirth"
                           value={form.dateOfBirth}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, dateOfBirth: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Address
-                        </label>
-                        <input
+                        <Input
                           type="text"
+                          label="Address"
                           name="address"
                           value={form.address}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, address: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Gym
-                        </label>
-                        <input
+                        <Input
                           type="text"
+                          label="Gym"
                           name="gym"
                           value={form.gym}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, gym: value }))
+                          }
+                          className="md:col-span-2"
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activeTab === "fitness" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Height (cm)
-                        </label>
-                        <input
+                    {activeTab === "fitness" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
                           type="number"
+                          label="Height (cm)"
                           name="height"
                           value={form.height}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, height: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Weight (kg)
-                        </label>
-                        <input
+                        <Input
                           type="number"
+                          label="Weight (kg)"
                           name="weight"
                           value={form.weight}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, weight: value }))
+                          }
+                          classNames={{
+                            input: "bg-zinc-800 text-white",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Fitness Goals
-                        </label>{" "}
-                        <select
-                          name="fitnessGoals"
-                          value={form.fitnessGoals}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        <Select
+                          label="Fitness Goals"
+                          placeholder="Select goal..."
+                          selectedKeys={
+                            form.fitnessGoals ? [form.fitnessGoals] : []
+                          }
+                          onSelectionChange={(keys) => {
+                            const selectedValue = Array.from(keys)[0];
+                            setForm((prev) => ({
+                              ...prev,
+                              fitnessGoals: selectedValue || "",
+                            }));
+                          }}
+                          classNames={{
+                            trigger: "bg-zinc-800 border-zinc-700",
+                            value: "text-white",
+                            label: "text-zinc-300",
+                            listboxWrapper: "bg-zinc-800",
+                            popoverContent: "bg-zinc-800",
+                          }}
                         >
-                          <option value="" className="bg-zinc-800">
-                            Select goal...
-                          </option>
-                          <option value="weight_loss" className="bg-zinc-800">
+                          <SelectItem key="weight_loss" className="text-white">
                             Weight Loss
-                          </option>
-                          <option value="muscle_gain" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="muscle_gain" className="text-white">
                             Muscle Gain
-                          </option>
-                          <option
-                            value="general_fitness"
-                            className="bg-zinc-800"
+                          </SelectItem>
+                          <SelectItem
+                            key="general_fitness"
+                            className="text-white"
                           >
                             General Fitness
-                          </option>
-                          <option value="strength" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="strength" className="text-white">
                             Strength Training
-                          </option>
-                          <option value="endurance" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="endurance" className="text-white">
                             Endurance
-                          </option>
-                          <option value="flexibility" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="flexibility" className="text-white">
                             Flexibility
-                          </option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Fitness Experience
-                        </label>{" "}
-                        <select
-                          name="fitnessExperience"
-                          value={form.fitnessExperience}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          </SelectItem>
+                        </Select>
+                        <Select
+                          label="Fitness Experience"
+                          placeholder="Select experience..."
+                          selectedKeys={
+                            form.fitnessExperience
+                              ? [form.fitnessExperience]
+                              : []
+                          }
+                          onSelectionChange={(keys) => {
+                            const selectedValue = Array.from(keys)[0];
+                            setForm((prev) => ({
+                              ...prev,
+                              fitnessExperience: selectedValue || "",
+                            }));
+                          }}
+                          classNames={{
+                            trigger: "bg-zinc-800 border-zinc-700",
+                            value: "text-white",
+                            label: "text-zinc-300",
+                            listboxWrapper: "bg-zinc-800",
+                            popoverContent: "bg-zinc-800",
+                          }}
                         >
-                          <option value="" className="bg-zinc-800">
-                            Select experience...
-                          </option>
-                          <option value="beginner" className="bg-zinc-800">
+                          <SelectItem key="beginner" className="text-white">
                             Beginner (0-6 months)
-                          </option>
-                          <option value="intermediate" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="intermediate" className="text-white">
                             Intermediate (6 months - 2 years)
-                          </option>
-                          <option value="advanced" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="advanced" className="text-white">
                             Advanced (2+ years)
-                          </option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Fitness Level
-                        </label>{" "}
-                        <select
-                          name="fitnessLevel"
-                          value={form.fitnessLevel}
-                          onChange={handleChange}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          </SelectItem>
+                        </Select>
+                        <Select
+                          label="Fitness Level"
+                          placeholder="Select level..."
+                          selectedKeys={
+                            form.fitnessLevel ? [form.fitnessLevel] : []
+                          }
+                          onSelectionChange={(keys) => {
+                            const selectedValue = Array.from(keys)[0];
+                            setForm((prev) => ({
+                              ...prev,
+                              fitnessLevel: selectedValue || "",
+                            }));
+                          }}
+                          className="md:col-span-2"
+                          classNames={{
+                            trigger: "bg-zinc-800 border-zinc-700",
+                            value: "text-white",
+                            label: "text-zinc-300",
+                            listboxWrapper: "bg-zinc-800",
+                            popoverContent: "bg-zinc-800",
+                          }}
                         >
-                          <option value="" className="bg-zinc-800">
-                            Select level...
-                          </option>
-                          <option value="sedentary" className="bg-zinc-800">
+                          <SelectItem key="sedentary" className="text-white">
                             Sedentary
-                          </option>
-                          <option
-                            value="lightly_active"
-                            className="bg-zinc-800"
+                          </SelectItem>
+                          <SelectItem
+                            key="lightly_active"
+                            className="text-white"
                           >
                             Lightly Active
-                          </option>
-                          <option
-                            value="moderately_active"
-                            className="bg-zinc-800"
+                          </SelectItem>
+                          <SelectItem
+                            key="moderately_active"
+                            className="text-white"
                           >
                             Moderately Active
-                          </option>
-                          <option value="very_active" className="bg-zinc-800">
+                          </SelectItem>
+                          <SelectItem key="very_active" className="text-white">
                             Very Active
-                          </option>
-                          <option
-                            value="extremely_active"
-                            className="bg-zinc-800"
+                          </SelectItem>
+                          <SelectItem
+                            key="extremely_active"
+                            className="text-white"
                           >
                             Extremely Active
-                          </option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Measurements
-                        </label>{" "}
-                        <textarea
+                          </SelectItem>
+                        </Select>
+                        <Textarea
+                          label="Measurements"
                           name="measurements"
                           value={form.measurements}
-                          onChange={handleChange}
-                          rows="3"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              measurements: value,
+                            }))
+                          }
                           placeholder="e.g., Chest: 100cm, Waist: 80cm, Arms: 35cm..."
+                          rows={3}
+                          className="md:col-span-2"
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activeTab === "nutrition" && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Food Likes
-                        </label>{" "}
-                        <textarea
+                    {activeTab === "nutrition" && (
+                      <div className="space-y-4">
+                        <Textarea
+                          label="Food Likes"
                           name="foodLikes"
                           value={form.foodLikes}
-                          onChange={handleChange}
-                          rows="3"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, foodLikes: value }))
+                          }
                           placeholder="Foods the client enjoys eating..."
+                          rows={3}
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Food Dislikes
-                        </label>{" "}
-                        <textarea
+                        <Textarea
+                          label="Food Dislikes"
                           name="foodDislikes"
                           value={form.foodDislikes}
-                          onChange={handleChange}
-                          rows="3"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              foodDislikes: value,
+                            }))
+                          }
                           placeholder="Foods the client wants to avoid..."
+                          rows={3}
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Allergies
-                        </label>{" "}
-                        <textarea
+                        <Textarea
+                          label="Allergies"
                           name="allergies"
                           value={form.allergies}
-                          onChange={handleChange}
-                          rows="3"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, allergies: value }))
+                          }
                           placeholder="Any food allergies or intolerances..."
+                          rows={3}
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Medical Conditions
-                        </label>{" "}
-                        <textarea
+                        <Textarea
+                          label="Medical Conditions"
                           name="medicalConditions"
                           value={form.medicalConditions}
-                          onChange={handleChange}
-                          rows="3"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              medicalConditions: value,
+                            }))
+                          }
                           placeholder="Any medical conditions that may affect diet or exercise..."
+                          rows={3}
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activeTab === "additional" && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Notes
-                        </label>{" "}
-                        <textarea
+                    {activeTab === "additional" && (
+                      <div className="space-y-4">
+                        <Textarea
+                          label="Notes"
                           name="notes"
                           value={form.notes}
-                          onChange={handleChange}
-                          rows="6"
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                          onValueChange={(value) =>
+                            setForm((prev) => ({ ...prev, notes: value }))
+                          }
                           placeholder="Additional notes about the client..."
+                          rows={6}
+                          classNames={{
+                            input: "bg-zinc-800 text-white resize-none",
+                            inputWrapper: "bg-zinc-800 border-zinc-700",
+                            label: "text-zinc-300",
+                          }}
                         />
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer with Action Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-800 bg-zinc-900">
-                <button
-                  onClick={selectedClient ? close : () => setView("select")}
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  {selectedClient ? "Cancel" : "Back"}
-                </button>
-                <button
-                  onClick={
-                    selectedClient ? handleUpdateClient : handleCreateClient
-                  }
-                  className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black text-white rounded transition-colors flex items-center gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  {selectedClient ? "Update Client" : "Create Client"}
-                </button>
-              </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+
+        {view === "create" && (
+          <ModalFooter className="bg-zinc-900 border-t border-zinc-800">
+            <Button
+              onPress={selectedClient ? close : () => setView("select")}
+              variant="ghost"
+              className="text-zinc-400 hover:text-white"
+            >
+              {selectedClient ? "Cancel" : "Back"}
+            </Button>
+            <Button
+              onPress={selectedClient ? handleUpdateClient : handleCreateClient}
+              color="primary"
+              className="bg-zinc-800 hover:bg-white hover:text-black text-white"
+            >
+              <User className="w-4 h-4" />
+              {selectedClient ? "Update Client" : "Create Client"}
+            </Button>
+          </ModalFooter>
+        )}
+      </ModalContent>
+    </Modal>
   );
 }
 
