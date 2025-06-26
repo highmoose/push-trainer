@@ -728,13 +728,13 @@ export default function TrainerCalendarPage() {
         {" "}
         <div
           ref={hoverLineRef}
-          className="absolute left-[50px] right-0 border-t border-dashed border-zinc-500 z-40 pointer-events-none "
-          style={{ display: "none" }} // hidden by default
+          className="absolute right-0 border-t border-dashed border-zinc-500 z-40 pointer-events-none"
+          style={{ left: "50px", display: "none" }} // hidden by default
         />
         {hoveredLine !== null && (
           <div
-            className="absolute left-[50px] right-0 border-t border-dashed border-zinc-500 z-40 pointer-events-none"
-            style={{ top: hoveredLine }}
+            className="absolute right-0 border-t border-dashed border-zinc-500 z-40 pointer-events-none"
+            style={{ top: hoveredLine, left: "50px" }}
           />
         )}{" "}
         {/* Cross-day drag indicator */}
@@ -761,7 +761,10 @@ export default function TrainerCalendarPage() {
               }}
             />
           )}
-        <div className="grid grid-cols-[50px_repeat(7,minmax(0,1fr))] pb-4 ">
+        <div
+          className="grid pb-4"
+          style={{ gridTemplateColumns: "50px repeat(7, minmax(0, 1fr))" }}
+        >
           {/* Header row */}
           <div className="text-xs text-zinc-400 p-2 "></div>
           {days.map((day, idx) => (
@@ -778,14 +781,18 @@ export default function TrainerCalendarPage() {
             <div key={`hour-row-${hour}`} className="contents">
               {" "}
               {/* Time label column */}
-              <div className="text-[11px] text-end text-zinc-500 -mt-3 px-2 py-1 bg-zinc-900/50">
+              <div
+                className="text-end text-zinc-500 -mt-3 px-2 py-1 bg-zinc-900/50"
+                style={{ fontSize: "11px" }}
+              >
                 {dayjs().hour(hour).minute(0).format("h A")}
               </div>
               {days.map((day, i) => {
                 return (
                   <div
                     key={`cell-${day.toString()}-${hour}`}
-                    className="time-grid-cell relative border-b border-l border-zinc-800/60 h-[60px] bg-zinc-900/50"
+                    className="time-grid-cell relative border-b border-l border-zinc-800/60 bg-zinc-900/50"
+                    style={{ height: "60px" }}
                   >
                     {" "}
                     {/* Invisible 15-minute hover zones */}
@@ -805,12 +812,12 @@ export default function TrainerCalendarPage() {
                       return (
                         <div
                           key={`hover-${idx}`}
-                          className={`absolute inset-x-0 h-[15px] z-0 transition-all duration-200 ${
+                          className={`absolute inset-x-0 z-0 transition-all duration-200 ${
                             isSelected
                               ? "bg-white/5 border border-zinc-100 border-dashed rounded-sm"
                               : "hover:bg-zinc-700/30"
                           }`}
-                          style={{ top }}
+                          style={{ top, height: "15px" }}
                           onMouseEnter={(e) => {
                             // Don't show hover line when dragging or resizing
                             if (
@@ -1108,7 +1115,7 @@ export default function TrainerCalendarPage() {
                         return (
                           <div
                             key={`task-${task.id}`}
-                            className={`calendar-task absolute mx-1 text-xs p-2 rounded shadow cursor-grab z-10 group border-l-[2.3px] bg-zinc-800 hover:bg-zinc-700 text-gray-100 ${
+                            className={`calendar-task absolute mx-1 text-xs p-2 rounded shadow cursor-grab z-10 group bg-zinc-800 hover:bg-zinc-700 text-gray-100 border-l-2 border-l-blue-400 ${
                               isDraggingTask && task.id === draggingTask?.id
                                 ? "dragging"
                                 : ""
