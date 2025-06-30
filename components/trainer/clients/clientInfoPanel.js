@@ -247,22 +247,12 @@ export default function ClientInfoPanel({ selectedClient, client }) {
                             height={300}
                           />
                         </div>
-
-                        {/* Chart Legend/Label */}
-                        <div className="absolute top-4 left-4 bg-emerald-500/20 backdrop-blur-sm rounded px-2 py-1">
-                          <span className="text-xs text-emerald-400 font-medium">
-                            $113k
-                          </span>
-                          <span className="text-xs text-zinc-400 ml-1">
-                            +12%
-                          </span>
-                        </div>
                       </div>
                     </div>
                     {/* Right Metrics Panels */}
                     <div className="w-1/3 flex flex-col justify-between gap-2 p-8">
                       <div className="flex gap-2 grow">
-                        <div className="bg-white/30 w-1/2 p-8 rounded-[30px] flex flex-col">
+                        <div className="bg-white/30 w-1/2 p-8 rounded-[30px] flex flex-col justify-between">
                           <div className="w-full flex items-center justify-between">
                             <p className="text-white text-3xl">Weight</p>
                             <div className="w-14 h-14 rounded-full flex items-center justify-center bg-black/10">

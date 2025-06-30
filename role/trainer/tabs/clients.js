@@ -31,10 +31,7 @@ export default function Clients() {
   const [weighInRequestModalOpen, setWeighInRequestModalOpen] = useState(false);
   const [recurringWeighInModalOpen, setRecurringWeighInModalOpen] =
     useState(false);
-  const [timeRange, setTimeRange] = useState("30d");
-  const [activeTab, setActiveTab] = useState("progress");
 
-  // Update selectedClient when clients are loaded
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
       const firstClient = clients[0];
@@ -73,7 +70,10 @@ export default function Clients() {
       <div className="sticky top-0 z-10 bg-opacity-100 ">
         <div className="flex flex-col flex-1 h-screen">
           <ClientInfoPanel selectedClient={selectedClient} />
-          <ClientCarousel clients={clients} />
+          <ClientCarousel
+            clients={clients}
+            setAddClientModalOpen={setAddClientModalOpen}
+          />
         </div>
       </div>
       {/* Modals */}
