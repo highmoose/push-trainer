@@ -6,7 +6,11 @@ import React, { useState } from "react";
 import ClientCard from "./clientCard";
 import { Input, Button } from "@heroui/react";
 
-export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
+export default function ClientCarousel({
+  onClick,
+  setAddClientModalOpen,
+  setSelectedClient,
+}) {
   const [searchString, setSearchString] = useState("");
   const scrollContainerRef = React.useRef(null);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -136,7 +140,7 @@ export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
   }, [checkScrollability, filteredClients]);
 
   return (
-    <div className="w-full  border-r border-zinc-800 flex flex-col bg-black/20">
+    <div className="w-full  border-r border-zinc-800 flex flex-col bg-black/20 h-[400px]">
       <div className="flex px-4 items-center justify-between gap-4 py-6 border-zinc-800 ">
         <div className="flex gap-2 items-center ">
           <Input
@@ -146,7 +150,7 @@ export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
             className="w-[400px]"
             classNames={{
               input: "bg-transparent",
-              inputWrapper: "bg-panel rounded-xl border-none",
+              inputWrapper: "bg-panel rounded-d border-none h-12",
             }}
             startContent={
               <div className="pointer-events-none flex items-center">
@@ -169,7 +173,7 @@ export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
 
           <Button
             onClick={() => setAddClientModalOpen(true)}
-            className="bg-panel rounded-xl"
+            className="bg-panel rounded-d h-12 px-6"
           >
             <Plus size={16} /> Add Client
           </Button>
@@ -210,14 +214,7 @@ export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
             </button>
           </div>
         )}
-
-        {loading && (
-          <div className="flex w-fit px-4 text-center text-zinc-400">
-            <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="w-full">Loading clients...</p>
-          </div>
-        )}
-      </div>{" "}
+      </div>
       <div
         ref={scrollContainerRef}
         className="flex pl-4 gap-2 pb-4 overflow-x-auto overflow-y-hidden scrollbar-dark z-10 scroll-smooth mb-10 cursor-grab select-none"
@@ -261,9 +258,20 @@ export default function ClientCarousel({ onClick, setAddClientModalOpen }) {
           </div>
         )}
 
-        {filteredClients.map((client) => (
-          <ClientCard key={client.id} client={client} onClick={onClick} />
-        ))}
+        {loading && (
+          <div className="flex  h-full mx-auto self-item-center px-4 text-center text-zinc-400">
+            <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="w-full">Loading clients...</p>
+          </div>
+        )}
+
+        {!loading && (
+          <>
+            {filteredClients.map((client) => (
+              <ClientCard key={client.id} client={client} onClick={onClick} />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

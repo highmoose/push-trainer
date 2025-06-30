@@ -724,7 +724,7 @@ export default function TrainerCalendarPage() {
     );
 
     return (
-      <div ref={calendarRef} className="relative h-0 ">
+      <div ref={calendarRef} className="relative h-full">
         {" "}
         <div
           ref={hoverLineRef}
@@ -1328,7 +1328,7 @@ export default function TrainerCalendarPage() {
     );
   };
   return (
-    <div className="w-full h-full flex bg-zinc-900 text-white overflow-hidden rounded">
+    <div className="w-full h-full mt-28 flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Professional Trainer Sidebar */}
       <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
         <div className="flex flex-col w-full">

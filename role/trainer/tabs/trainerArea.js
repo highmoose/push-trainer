@@ -39,7 +39,7 @@ export default function trainerDashboard() {
     }
   }, [user, authUserId]); // Remove fetchConversations from dependencies
   return (
-    <div className="relative flex flex-col w-full h-screen justify-between overflow-hidden">
+    <div className="relative flex flex-col w-full minh-screen justify-between overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
       <div className="absolute s w-full overflow-hidden">
         {" "}
