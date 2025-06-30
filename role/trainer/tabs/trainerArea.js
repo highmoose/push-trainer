@@ -39,9 +39,9 @@ export default function trainerDashboard() {
     }
   }, [user, authUserId]); // Remove fetchConversations from dependencies
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
+    <div className="relative flex flex-col w-full  overflow-hidden">
       <Header showTab={showTab} setShowTab={setShowTab} />
-      <div className="flex-1 w-full px-8 pb-8 overflow-hidden">
+      <div className="absolute s w-full overflow-hidden">
         {" "}
         {/* Menu Tabs  */}
         {showTab === "dashboard" && <Dashboard />}

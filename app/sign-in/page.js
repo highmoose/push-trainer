@@ -43,18 +43,18 @@ export default function LoginPage() {
 
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center">
-      <div className="max-w-lg w-full">
+      <div className="max-w-md w-full">
         <div className="flex flex-col gap-2 justify-between items-center w-full">
           <Image
             src="/images/logo/push-logo-white.svg"
-            width={300}
+            width={200}
             height={200}
             alt="logo"
             className="mb-6"
           />
 
-          <p className="text-3xl font-bold text-white">Welcome to Push Inc. </p>
-          <p className="text-lg text-white">
+          <p className="text-2xl font-bold text-white">Welcome to Push Inc. </p>
+          <p className="text-md text-white">
             Don't have an account? <a className="underline">Sign up</a>
           </p>
           {isSessionExpired && (
@@ -65,7 +65,7 @@ export default function LoginPage() {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col items-center gap-4 p-10 rounded"
+          className="flex flex-col items-center gap-4 mx-10 my-6 rounded"
         >
           {(error || localError) && (
             <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
@@ -81,6 +81,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
               autoComplete="email"
+              size="sm"
             />
             <Input
               label="Password"
@@ -90,17 +91,18 @@ export default function LoginPage() {
               disabled={status === "loading"}
               autoComplete="current-password"
               className="mb-4"
+              size="sm"
             />
             <Button
               type="submit"
               color="primary"
               variant="solid"
-              className="w-full text-md bg-white text-black hover:bg-zinc-100 h-14"
+              className="w-full  bg-white text-black hover:bg-zinc-100 h-12 rounded-lg"
               disabled={status === "loading" || !email || !password}
             >
               {status === "loading" ? "Logging in..." : "Login"}
             </Button>
-            <div className="flex items-center gap-4 text-lg text-zinc-500 my-2">
+            <div className="flex items-center gap-4 text-lg text-zinc-500 ">
               <hr className="flex-1 border-zinc-300 dark:border-zinc-700" />
               <span className="whitespace-nowrap">or</span>
               <hr className="flex-1 border-zinc-300 dark:border-zinc-700" />
@@ -110,8 +112,9 @@ export default function LoginPage() {
                 type="submit"
                 color="primary"
                 variant="bordered"
-                className="w-full border -1 bg-transparent text-lg border-zinc-700 text-white hover:bg-zinc-00 h-14 mb-4"
+                className="w-full border  bg-transparent hover:bg-zinc-800 border-zinc-700 text-white  h-12 mb-4"
                 disabled={status === "loading" || !email || !password}
+                size="sm"
               >
                 <Image
                   src="/images/icons/google.svg"
@@ -126,8 +129,9 @@ export default function LoginPage() {
                 type="submit"
                 color="primary"
                 variant="bordered"
-                className="w-full border -1 bg-transparent hover:bg-zinc-800 text-lg border-zinc-700 text-white  h-14 mb-4"
+                className="w-full border  bg-transparent hover:bg-zinc-800 border-zinc-700 text-white  h-12 mb-4"
                 disabled={status === "loading" || !email || !password}
+                size="sm"
               >
                 <Image
                   src="/images/icons/apple.svg"
@@ -139,7 +143,7 @@ export default function LoginPage() {
                 Apple
               </Button>
             </div>
-            <p className="mx-auto text-sm text-center text-zinc-400 max-w-xs mb-4">
+            <p className="mx-auto text-xs text-center text-zinc-400 max-w-xs  mb-2">
               By clicking continue, you agree to our{" "}
               <span className="underline">Terms of Service</span> and{" "}
               <span className="underline">Privacy Policy</span>.
@@ -149,6 +153,7 @@ export default function LoginPage() {
               variant="solid"
               className=" bg-zinc-800 text-white hover:bg-zinc-700 w-fit mx-auto"
               onClick={() => router.push("/welcome")}
+              size="md"
             >
               Go back
             </Button>

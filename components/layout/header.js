@@ -10,10 +10,12 @@ import {
   NavbarBrand,
   NavbarContent,
   NavbarItem,
+  Tabs,
+  Tab,
 } from "@heroui/react";
 import NotificationBadge from "@/components/common/NotificationBadge";
 
-export default function Header({ setShowTab }) {
+export default function Header({ setShowTab, currentTab }) {
   const dispatch = useDispatch();
   const router = useRouter();
 
@@ -28,25 +30,31 @@ export default function Header({ setShowTab }) {
       console.error("Logout failed:", err);
     }
   };
-  const trainerMenu = [
-    { label: "Dashboard" },
-    { label: "Messages" },
-    { label: "Planner" },
-    { label: "Clients" },
-    { label: "Workouts" },
-    { label: "Check-Ins" },
-    { label: "Team" },
-    { label: "Metrics" },
-    { label: "Nutrition" },
+
+  const trainerTabs = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "messages", label: "Messages" },
+    { id: "planner", label: "Planner" },
+    { id: "clients", label: "Clients" },
+    { id: "workouts", label: "Workouts" },
+    { id: "check-ins", label: "Check-Ins" },
+    { id: "team", label: "Team" },
+    { id: "metrics", label: "Metrics" },
+    { id: "nutrition", label: "Nutrition" },
   ];
-  const clientMenu = [
-    { label: "Quick Stats" },
-    { label: "Messages" },
-    { label: "Timeline" },
-    { label: "Diet Plan" },
-    { label: "Workout Plan" },
-    { label: "Goal Tracker" },
+
+  const clientTabs = [
+    { id: "quick stats", label: "Quick Stats" },
+    { id: "messages", label: "Messages" },
+    { id: "timeline", label: "Timeline" },
+    { id: "diet plan", label: "Diet Plan" },
+    { id: "workout plan", label: "Workout Plan" },
+    { id: "goal tracker", label: "Goal Tracker" },
   ];
+
+  const handleTabChange = (key) => {
+    setShowTab(key);
+  };
 
   // Potentionally convert to a megamenu
   // Clients dropdown has clients images in a carousel to select from in menu dropdown
@@ -55,8 +63,8 @@ export default function Header({ setShowTab }) {
     <Navbar
       maxWidth="full"
       classNames={{
-        base: "bg-black/95 backdrop-blur-md",
-        wrapper: "px-8 py-4",
+        base: "bg-transparent backdrop-blur-none ",
+        wrapper: "px-8 py-16",
       }}
     >
       <NavbarBrand>
@@ -70,49 +78,54 @@ export default function Header({ setShowTab }) {
 
       <NavbarContent className="hidden md:flex gap-2" justify="center">
         {user?.role === "trainer" && (
-          <>
-            {trainerMenu.map((item, index) => (
-              <NavbarItem key={index}>
-                <Button
-                  onPress={() => setShowTab(item.label.toLowerCase())}
-                  variant="ghost"
-                  className="text-white hover:bg-zinc-800 font-semibold transition-colors"
-                  size="md"
-                >
-                  {item.label}
-                </Button>
-              </NavbarItem>
-            ))}
-          </>
+          <Tabs
+            aria-label="Trainer navigation"
+            items={trainerTabs}
+            selectedKey={currentTab}
+            onSelectionChange={handleTabChange}
+            radius="full"
+            color="white"
+            classNames={{
+              tabList:
+                " w-full relative rounded-none p-1 bg-white/30 backdrop-blur-md rounded-full",
+              cursor: "w-full bg-white",
+              tab: "max-w-fit px-6 py-6 group-data-[selected=true]:text-black group-data-[selected=true]:font-semibold group-data-[selected=true]:shadow-md group-data-[selected=true]:rounded-full",
+              tabContent:
+                "text-white font-semibold  group-data-[selected=true]:text-white group-data-[selected=true]:text-black data-[selected=true]:text-black",
+            }}
+          >
+            {(item) => <Tab key={item.id} title={item.label} />}
+          </Tabs>
         )}
         {user?.role === "client" && (
-          <>
-            {clientMenu.map((item, index) => (
-              <NavbarItem key={index}>
-                <Button
-                  onPress={() => setShowTab(item.label.toLowerCase())}
-                  variant="ghost"
-                  className="text-white hover:bg-zinc-800 font-semibold transition-colors"
-                  size="md"
-                >
-                  {item.label}
-                </Button>
-              </NavbarItem>
-            ))}
-          </>
+          <Tabs
+            aria-label="Client navigation"
+            items={clientTabs}
+            selectedKey={currentTab}
+            onSelectionChange={handleTabChange}
+            classNames={{
+              tabList: "gap-6 w-full relative rounded-none p-0",
+              cursor: "w-full bg-white",
+              tab: "max-w-fit px-4 h-12",
+              tabContent:
+                "group-data-[selected=true]:text-white text-zinc-400 font-semibold",
+            }}
+          >
+            {(item) => <Tab key={item.id} title={item.label} />}
+          </Tabs>
         )}
       </NavbarContent>
 
       <NavbarContent justify="end">
         <NavbarItem>
-          <Button
-            isIconOnly
+          <div
+            // isIconOnly
             variant="ghost"
             className="text-white hover:bg-zinc-800"
             size="md"
           >
             <NotificationBadge />
-          </Button>
+          </div>
         </NavbarItem>
         <NavbarItem>
           <Button

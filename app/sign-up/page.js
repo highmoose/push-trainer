@@ -52,14 +52,14 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-2 justify-between items-center w-full">
           <Image
             src="/images/logo/push-logo-white.svg"
-            width={300}
+            width={200}
             height={200}
             alt="logo"
             className="mb-6"
           />
 
-          <p className="text-3xl font-bold text-white">Create Account</p>
-          <p className="text-lg text-white">
+          <p className="text-2xl font-bold text-white">Create Account</p>
+          <p className="text-md text-white">
             Already have an account?{" "}
             <a className="underline" onClick={() => router.push("/sign-in")}>
               Sign in
@@ -68,7 +68,7 @@ export default function RegisterPage() {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col items-center gap-4 p-10 rounded"
+          className="flex flex-col items-center gap-4 mx-10 my-6 rounded"
         >
           {error && (
             <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
@@ -77,45 +77,55 @@ export default function RegisterPage() {
           )}
 
           <div className="flex flex-col gap-4 w-full">
-            <Input
-              label="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              autoComplete="given-name"
-            />
-            <Input
-              label="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              autoComplete="family-name"
-            />
+            <div className="flex gap-3">
+              <Input
+                label="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+                size="sm"
+              />
+              <Input
+                label="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
+                size="sm"
+              />
+            </div>
             <Input
               label="Email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              size="sm"
             />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-            <Input
-              label="Confirm Password"
-              type="password"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              autoComplete="new-password"
-              className="mb-4"
-            />
+            <div className="flex gap-3">
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                size="sm"
+              />
+              <Input
+                label="Confirm Password"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                autoComplete="new-password"
+                className="mb-4"
+                size="sm"
+              />
+            </div>
             <Select
               label="Role"
               selectedKeys={[role]}
               onSelectionChange={(keys) => setRole(Array.from(keys)[0])}
               className="mb-4"
+              size="sm"
             >
               <SelectItem key="client" value="client">
                 Client
@@ -131,7 +141,7 @@ export default function RegisterPage() {
               type="submit"
               color="primary"
               variant="solid"
-              className="w-full bg-white text-black hover:bg-zinc-100 h-14"
+              className="w-full bg-white text-black hover:bg-zinc-100 h-12 rounded-lg"
               disabled={
                 !firstName ||
                 !lastName ||
@@ -144,7 +154,7 @@ export default function RegisterPage() {
               Create Account
             </Button>
 
-            <p className="mx-auto text-sm text-center text-zinc-400 max-w-xs mb-4">
+            <p className="mx-auto text-xs text-center text-zinc-400 max-w-xs mb-2">
               By clicking continue, you agree to our{" "}
               <span className="underline">Terms of Service</span> and{" "}
               <span className="underline">Privacy Policy</span>.
@@ -154,6 +164,7 @@ export default function RegisterPage() {
               variant="solid"
               className="bg-zinc-800 text-white hover:bg-zinc-700 w-fit mx-auto"
               onClick={() => router.push("/welcome")}
+              size="md"
             >
               Go back
             </Button>
