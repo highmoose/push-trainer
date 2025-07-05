@@ -10,7 +10,6 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import ChartClient from "@/components/common/chart/ChartClient";
 import ClientTimeline from "@/components/trainer/ClientTimeline";
 import { Button } from "@heroui/react";
 

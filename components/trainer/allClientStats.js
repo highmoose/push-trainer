@@ -1,13 +1,6 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 
-const ChartClient = dynamic(
-  () => import("@/components/common/chart/ChartClient"),
-  {
-    ssr: false,
-  }
-);
-
 const series = [
   {
     name: " You",

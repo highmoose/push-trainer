@@ -16,12 +16,6 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import ClientTopChart from "@/components/trainer/clients/clientTopChart";
 
-// Dynamic chart imports for better performance
-const ChartClient = dynamic(
-  () => import("@/components/common/chart/ChartClient"),
-  { ssr: false }
-);
-
 export default function Clients() {
   const { clients, loading, error, fetchClients } = useClients();
   const [selectedClient, setSelectedClient] = useState(null);
@@ -64,11 +58,14 @@ export default function Clients() {
           />
           <div className="flex w-full h-full">
             <div
-              onClick={() => setExpandTimeline(!expandTimeline)}
-              className={`bg-zinc-800 h-full transition-all duration-700 ${
+              onMouseEnter={() => setExpandTimeline(true)}
+              onMouseLeave={() => setExpandTimeline(false)}
+              className={`bg-zinc-800 h-full transition-all delay-100 duration-700  ${
                 expandTimeline ? "w-1/3" : "w-[100px]"
               } `}
-            ></div>
+            >
+              <p className="text-sm items-center"> Click to open timeline</p>
+            </div>
             <div className="flex flex-col w-full h-full">
               <div className="flex w-full h-1/2">
                 <div className="flex w-2/3 ">
@@ -97,8 +94,8 @@ export default function Clients() {
                 </div>
               </div>
               <div className="flex w-full h-1/2">
-                <div className="flex w-2/3 bg-yellow-500"></div>
-                <div className="flex w-1/3 flex-1 bg-blue-500"></div>
+                <div className="flex w-2/3 bg-zinc-900"></div>
+                <div className="flex w-1/3 flex-1 bg-white"></div>
               </div>
             </div>
           </div>

@@ -11,13 +11,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const ChartClient = dynamic(
-  () => import("@/components/common/chart/ChartClient"),
-  {
-    ssr: false,
-  }
-);
-
 export default function InstantMessagingChat({
   user,
   messages,
@@ -83,24 +76,6 @@ export default function InstantMessagingChat({
   const renderConversationItem = (item, index) => {
     const isMe = item.senderId === authUserId;
     return <MessageItem key={item.id} item={item} isMe={isMe} />;
-  };
-
-  const chartOptions = {
-    chart: { id: "basic-bar", toolbar: { show: false } },
-    legend: { show: false },
-    grid: {
-      padding: { top: -20, bottom: -20, left: 1, right: 10 },
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: false } },
-    },
-    colors: ["#EEEEEE", "#FF4560"],
-    stroke: { curve: "smooth", width: 2 },
-    xaxis: {
-      labels: { show: false },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: { show: false },
   };
 
   return (
@@ -195,12 +170,6 @@ export default function InstantMessagingChat({
         </div>
         {/* Chart */}
         <div className="p-8 bg-zinc-900 rounded-lg">
-          <ChartClient
-            options={chartOptions}
-            series={engagement}
-            type="line"
-            height={60}
-          />
           <div className="flex justify-between">
             <p className="text-xs font-bold text-zinc-500">Engagement</p>
             <div className="flex items-center gap-2">

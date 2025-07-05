@@ -16,12 +16,7 @@ import CreateWeighInRequestModal from "../trainer/CreateWeighInRequestModal";
 import WeighInRequestResponseModal from "../client/WeighInRequestResponseModal";
 import { addMessage, updateWeighInRequestStatus, acceptWeighInRequest, declineWeighInRequest, completeWeighInRequest } from "@/redux/slices/messagingSlice";
 
-const ChartClient = dynamic(
-  () => import("@/components/common/chart/ChartClient"),
-  {
-    ssr: false,
-  }
-);
+
 
 export default function InstantMessagingChat({
   user,
@@ -182,24 +177,7 @@ export default function InstantMessagingChat({
     }
   };
 
-  const chartOptions = {
-    chart: { id: "basic-bar", toolbar: { show: false } },
-    legend: { show: false },
-    grid: {
-      padding: { top: -20, bottom: -20, left: 1, right: 10 },
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: false } },
-    },
-    colors: ["#EEEEEE", "#FF4560"],
-    stroke: { curve: "smooth", width: 2 },
-    xaxis: {
-      labels: { show: false },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: { show: false },
-  };
-
+ 
   return (
     <div className="flex-1 flex items-center w-full gap-4">
       <div className="flex flex-col gap-1 w-[400px] h-[770px]">
@@ -311,19 +289,7 @@ export default function InstantMessagingChat({
 
         {/* Chart */}
         <div className="p-8 bg-zinc-900 rounded-lg">
-          <ChartClient
-            options={chartOptions}
-            series={engagement}
-            type="line"
-            height={60}
-          />
-          <div className="flex justify-between">
-            <p className="text-xs font-bold text-zinc-500">Engagement</p>
-            <div className="flex items-center gap-2">
-              <Dot colour="#FF4560" label="You" />
-              <Dot colour="#EEEEEE" label="Client" />
-            </div>
-          </div>
+        
         </div>
       </div>
 

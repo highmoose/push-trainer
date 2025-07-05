@@ -4,13 +4,6 @@ import { Apple, ChartPie, Dumbbell, NotebookPen } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
-const ChartClient = dynamic(
-  () => import("@/components/common/chart/ChartClient"),
-  {
-    ssr: false,
-  }
-);
-
 const series = [
   {
     name: " You",
