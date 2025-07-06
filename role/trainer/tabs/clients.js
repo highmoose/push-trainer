@@ -12,6 +12,7 @@ import { useClients } from "@/hooks/clients";
 import ClientTopChart from "@/components/trainer/clients/clientTopChart";
 import ClientImageCard from "@/components/trainer/clients/clientImageCard";
 import ClientGoalChart from "@/components/trainer/clients/clientGoalChart";
+import ClientActivePlans from "@/components/trainer/clients/clientActivePlans";
 
 export default function Clients() {
   const { clients, loading, error, fetchClients } = useClients();
@@ -27,13 +28,15 @@ export default function Clients() {
 
   const [expandTimeline, setExpandTimeline] = useState(false);
 
-  console.log("selectedClient: 111", selectedClient);
-
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
       const firstClient = clients[0];
     }
   }, [clients, selectedClient]);
+
+  useEffect(() => {
+    setSelectedClient(clients[0]);
+  }, [clients]);
 
   console.log("Selected Client:", selectedClient);
 
@@ -81,7 +84,9 @@ export default function Clients() {
               <div className="flex w-full h-1/2">
                 <div className="flex w-3/4 h-full bg-zinc-900">
                   <div className="flex w-1/2 h-full bg-black"></div>
-                  <div className="flex w-1/2 h-full bg-zinc-900"></div>
+                  <div className="flex w-1/2 h-full ">
+                    <ClientActivePlans selectedClient={selectedClient} />
+                  </div>
                 </div>
                 <div className="flex w-1/4 ">
                   <ClientGoalChart selectedClient={selectedClient} />

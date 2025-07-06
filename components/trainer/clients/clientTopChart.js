@@ -265,13 +265,30 @@ export default function ClientTopChart({ setSelectedClient }) {
   return (
     <div className="flex flex-col justify-between w-full bg-zinc-900/50 backdrop-blur-sm  min-w-0">
       <div className="px-6 pt-6 pb-4 flex justify-between items-start">
-        <div>
-          <h3 className="text-white text-lg font-semibold mb-1">
-            Client Progress Overview
-          </h3>
-          <p className="text-zinc-400 text-sm">
-            Track key metrics over the past 12 months
-          </p>
+        <div className="flex flex-wrap gap-12">
+          <div>
+            <p className="text-zinc-500 text-sm">Weight </p>
+            <p className="text-white font-semibold text-4xl">
+              110<span className="text-xl pl-0.5">kg</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-zinc-500 text-sm">Body Fat </p>
+            <p className="text-white font-semibold text-4xl">
+              15<span className="text-xl pl-0.5">%</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-zinc-500 text-sm">Energy & Mood</p>
+            <p className="text-white font-semibold text-4xl">
+              8<span className="text-xl pl-0.5">/10</span>
+            </p>
+          </div>
+
+          <div>
+            <p className="text-zinc-500 text-sm">Engagement</p>
+            <p className="text-white font-semibold text-4xl">High</p>
+          </div>
         </div>
 
         {/* Date Range Select */}
