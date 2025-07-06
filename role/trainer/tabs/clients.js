@@ -13,6 +13,8 @@ import ClientTopChart from "@/components/trainer/clients/clientTopChart";
 import ClientImageCard from "@/components/trainer/clients/clientImageCard";
 import ClientGoalChart from "@/components/trainer/clients/clientGoalChart";
 import ClientActivePlans from "@/components/trainer/clients/clientActivePlans";
+import ClientActivityLog from "@/components/trainer/clients/clientActivityLog";
+import ClientTimeline from "@/components/trainer/clients/clientTimeline";
 
 export default function Clients() {
   const { clients, loading, error, fetchClients } = useClients();
@@ -25,8 +27,6 @@ export default function Clients() {
   const [weighInRequestModalOpen, setWeighInRequestModalOpen] = useState(false);
   const [recurringWeighInModalOpen, setRecurringWeighInModalOpen] =
     useState(false);
-
-  const [expandTimeline, setExpandTimeline] = useState(false);
 
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
@@ -61,15 +61,7 @@ export default function Clients() {
             selectedClient={selectedClient}
           />
           <div className="flex w-full h-full">
-            <div
-              onMouseEnter={() => setExpandTimeline(true)}
-              onMouseLeave={() => setExpandTimeline(false)}
-              className={`bg-zinc-800 h-full transition-all delay-100 duration-700  ${
-                expandTimeline ? "w-1/3" : "w-[100px]"
-              } `}
-            >
-              <p className="text-sm items-center"> Click to open timeline</p>
-            </div>
+            <ClientTimeline selectedClient={selectedClient} />
             <div className="flex flex-col w-full h-full">
               {/* Top row */}
               <div className="flex w-full h-1/2">
@@ -83,9 +75,11 @@ export default function Clients() {
               {/* Bottom row */}
               <div className="flex w-full h-1/2">
                 <div className="flex w-3/4 h-full bg-zinc-900">
-                  <div className="flex w-1/2 h-full bg-black"></div>
                   <div className="flex w-1/2 h-full ">
                     <ClientActivePlans selectedClient={selectedClient} />
+                  </div>
+                  <div className="flex w-1/2 h-full bg-black">
+                    <ClientActivityLog selectedClient={selectedClient} />
                   </div>
                 </div>
                 <div className="flex w-1/4 ">

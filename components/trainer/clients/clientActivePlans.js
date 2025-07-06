@@ -1,58 +1,82 @@
 import { Clock, Dumbbell, Utensils } from "lucide-react";
 import React from "react";
 
+// Progress bar component that calculates percentage based on dates
+const ProgressBar = ({ startDate, endDate }) => {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Calculate total duration and elapsed time
+  const totalDuration = end.getTime() - start.getTime();
+  const elapsedTime = now.getTime() - start.getTime();
+
+  // Calculate percentage (0-100)
+  let percentage = Math.max(
+    0,
+    Math.min(100, (elapsedTime / totalDuration) * 100)
+  );
+
+  // Progress bar always green, but text color changes based on percentage
+  const barColor = "bg-lime-500";
+  const bgColor = "bg-lime-500/20";
+
+  // Determine text color for days remaining based on percentage
+  let daysRemainingColor = "text-zinc-400"; // Default
+
+  if (percentage >= 95) {
+    daysRemainingColor = "text-red-400";
+  } else if (percentage >= 90) {
+    daysRemainingColor = "text-orange-400";
+  }
+
+  return (
+    <div className="w-full mt-2">
+      <div
+        className={`w-full h-1.5 bg-zinc-800/50 rounded-full overflow-hidden`}
+      >
+        <div
+          className={`h-full ${barColor} transition-all duration-300 rounded-full`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs mt-1">
+        <span className="text-zinc-400">
+          {Math.round(percentage)}% complete
+        </span>
+        <span className={daysRemainingColor}>
+          {Math.max(0, Math.round(100 - percentage))} days remaining
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export default function ClientActivePlans({ selectedClient }) {
   return (
     <div className="w-full h-full p-6 bg-zinc-900/50">
-      <div className="flex w-full items-center  gap-6 border border-zinc-800">
-        <Clock className="w-10 h-10 text-white" />
+      <div className="flex w-full items-center p-6 gap-6 ">
+        {/* <Clock className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <div className="w-full flex justify-between">
-            <p>Check-in Plan</p>
-            <div className=" flex justify-between">
-              <div className="px-2 py-1 text-xs bg-zinc-800 text-lime-500">
-                Active
-              </div>
-            </div>
-          </div>
-          <p>This is a the workout plan name</p>
-          <div className="px-2 py-1 text-sm opacity-30">
-            Assigned 9 days ago
-          </div>
+          <p className="text-zinc-500 text-sm">Check-in schedule </p>
+          <p className="font-semibold">This is a the workout plan name</p>
+          <ProgressBar startDate="2025-06-27" endDate="2025-08-01" />
         </div>
       </div>
-      <div className="flex w-full items-center  gap-6 border border-zinc-800">
-        <Dumbbell className="w-10 h-10 text-white" />
+      <div className="flex w-full items-center p-6 gap-6 ">
+        {/* <Dumbbell className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <div className="w-full flex justify-between">
-            <p>Training Plan</p>
-            <div className=" flex justify-between">
-              <div className="px-2 py-1 text-xs bg-zinc-800 text-lime-500">
-                Active
-              </div>
-            </div>
-          </div>
-          <p>This is a the workout plan name</p>
-          <div className="px-2 py-1 text-sm opacity-30">
-            Assigned 9 days ago
-          </div>
+          <p className="text-zinc-500 text-sm">Training Plan</p>
+          <p className="font-semibold">This is a the workout plan name</p>
+          <ProgressBar startDate="2025-06-20" endDate="2025-07-15" />
         </div>
       </div>
-      <div className="flex w-full items-center  gap-6 border border-zinc-800">
-        <Utensils className="w-10 h-10 text-white" />
+      <div className="flex w-full items-center p-6 gap-6 ">
+        {/* <Utensils className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <div className="w-full flex justify-between">
-            <p>Nutrition Plan</p>
-            <div className=" flex justify-between">
-              <div className="px-2 py-1 text-xs bg-zinc-800 text-lime-500">
-                Active
-              </div>
-            </div>
-          </div>
-          <p>This is a the workout plan name</p>
-          <div className="px-2 py-1 text-sm opacity-30">
-            Assigned 9 days ago
-          </div>
+          <p className="text-zinc-500 text-sm">Nutrition Plan</p>
+          <p className="font-semibold">This is a the workout plan name</p>
+          <ProgressBar startDate="2025-06-01" endDate="2025-07-08" />
         </div>
       </div>
     </div>

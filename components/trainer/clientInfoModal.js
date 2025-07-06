@@ -15,7 +15,7 @@ import {
 } from "@heroui/react";
 import LinkStatusBadge from "../common/LinkStatusBadge";
 import AddClientMetricsModal from "./AddClientMetricsModal";
-import ClientTimeline from "./ClientTimeline";
+import ClientTimeline from "./ClientTimelineOld";
 import { useState } from "react";
 
 export default function ClientInfoModal({ close, client }) {

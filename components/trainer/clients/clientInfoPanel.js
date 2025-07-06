@@ -10,7 +10,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import ClientTimeline from "@/components/trainer/ClientTimeline";
+import ClientTimeline from "@/components/trainer/ClientTimelineOld";
 import { Button } from "@heroui/react";
 
 export default function ClientInfoPanel({ selectedClient, client }) {

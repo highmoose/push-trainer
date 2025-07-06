@@ -315,7 +315,7 @@ export default function ClientTopChart({ setSelectedClient }) {
                   className="data-[hover=true]:bg-zinc-700 rounded-none"
                   textValue={seriesItem.name}
                 >
-                  <div className="flex items-center justify-between w-full py-1">
+                  <div className="flex items-center justify-between w-full ">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded-none"
@@ -329,8 +329,8 @@ export default function ClientTopChart({ setSelectedClient }) {
                       onValueChange={() => toggleSeries(seriesItem.key)}
                       classNames={{
                         base: "flex-shrink-0",
-                        wrapper: "bg-zinc-600 rounded-sm w-[36px] h-5",
-                        thumb: "bg-white rounded-none w-3 h-3",
+                        wrapper: "bg-zinc-600 rounded-sm w-[34px] h-4",
+                        thumb: "bg-white rounded-none w-2.5 h-2.5",
                       }}
                     />
                   </div>
