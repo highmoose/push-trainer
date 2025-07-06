@@ -10,10 +10,27 @@ import { scaleOrdinal } from "@visx/scale";
 import { localPoint } from "@visx/event";
 import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip";
 import { bisector } from "d3-array";
+import {
+  Select,
+  SelectItem,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Button,
+  Switch,
+} from "@heroui/react";
 
-export default function ClientTopChart() {
+export default function ClientTopChart({ setSelectedClient }) {
   const containerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 350 });
+  const [selectedDateRange, setSelectedDateRange] = useState("12months");
+  const [visibleSeries, setVisibleSeries] = useState({
+    weight: true,
+    bodyFat: true,
+    muscle: true,
+    endurance: true,
+  });
 
   const {
     tooltipData,
@@ -24,36 +41,52 @@ export default function ClientTopChart() {
     hideTooltip,
   } = useTooltip();
 
-  // Update dimensions when container resizes
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
         const { width } = containerRef.current.getBoundingClientRect();
         setDimensions({
-          width: width || 800, // Use full container width, fallback to 800
+          width: width || 800,
           height: 350,
         });
       }
     };
 
-    // Initial measurement
     updateDimensions();
 
-    // Update on window resize
     window.addEventListener("resize", updateDimensions);
 
-    // Update when component mounts (for proper initial sizing)
+    let resizeObserver;
+    if (containerRef.current && window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(() => {
+        updateDimensions();
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+
     const timer = setTimeout(updateDimensions, 100);
+    const intervalTimer = setInterval(updateDimensions, 500);
 
     return () => {
       window.removeEventListener("resize", updateDimensions);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       clearTimeout(timer);
+      clearInterval(intervalTimer);
     };
   }, []);
 
-  // Bisector for finding the closest data point
   const bisectDate = bisector((d) => d.date).left;
-  // Mock data with extreme variation and realistic fitness journey patterns
+
+  // Date range options
+  const dateRangeOptions = [
+    { key: "3months", label: "Last 3 Months" },
+    { key: "6months", label: "Last 6 Months" },
+    { key: "12months", label: "Last 12 Months" },
+    { key: "2years", label: "Last 2 Years" },
+  ];
+
   const data = [
     {
       month: "Jan",
@@ -153,10 +186,9 @@ export default function ClientTopChart() {
     },
   ];
 
-  // Chart dimensions - truly responsive to container width
   const width = dimensions.width;
   const height = dimensions.height;
-  const margin = { top: 20, right: 0, bottom: 40, left: 0 }; // Remove left/right margins
+  const margin = { top: 20, right: 0, bottom: 40, left: 0 };
   const xMax = Math.max(width - margin.left - margin.right, 0);
   const yMax = height - margin.top - margin.bottom;
 
@@ -174,34 +206,41 @@ export default function ClientTopChart() {
     ],
   });
 
-  // Series configuration - all lines green
   const series = [
-    { key: "weight", color: "#10b981", name: "Weight (lbs)" },
-    { key: "bodyFat", color: "#10b981", name: "Body Fat (%)" },
-    { key: "muscle", color: "#10b981", name: "Muscle (lbs)" },
-    { key: "endurance", color: "#10b981", name: "Endurance" },
+    { key: "weight", color: "#4BB760", name: "Weight (lbs)" },
+    { key: "bodyFat", color: "#7BB646", name: "Body Fat (%)" },
+    { key: "muscle", color: "#9EB533", name: "Muscle (lbs)" },
+    { key: "endurance", color: "#C6B41C", name: "Endurance" },
   ];
 
-  // Legend scale
+  // Filter series based on visibility
+  const activeSeries = series.filter((s) => visibleSeries[s.key]);
+
   const legendScale = scaleOrdinal({
-    domain: series.map((s) => s.name),
-    range: series.map((s) => s.color),
+    domain: activeSeries.map((s) => s.name),
+    range: activeSeries.map((s) => s.color),
   });
 
-  // Tooltip styles
+  // Helper function to toggle series visibility
+  const toggleSeries = (key) => {
+    setVisibleSeries((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   const tooltipStyles = {
     ...defaultStyles,
     background: "rgba(0, 0, 0, 0.9)",
     border: "1px solid #374151",
     color: "white",
-    borderRadius: "4px",
+    borderRadius: "0px",
   };
 
-  // Handle mouse move for tooltip
   const handleTooltip = useCallback(
     (event) => {
       const { x } = localPoint(event) || { x: 0 };
-      const x0 = xScale.invert(x - margin.left);
+      const x0 = xScale.invert(x);
       const index = bisectDate(data, x0, 1);
       const d0 = data[index - 1];
       const d1 = data[index];
@@ -212,29 +251,116 @@ export default function ClientTopChart() {
             ? d1
             : d0;
       }
-      showTooltip({
-        tooltipData: d,
-        tooltipLeft: x,
-        tooltipTop: yScale(d.weight),
-      });
+      if (d) {
+        showTooltip({
+          tooltipData: d,
+          tooltipLeft: x + margin.left,
+          tooltipTop: yScale(d.weight),
+        });
+      }
     },
     [showTooltip, xScale, yScale, data, margin.left]
   );
 
   return (
-    <div className="flex flex-col justify-between w-full bg-zinc-900/50 rounded-lg backdrop-blur-sm border border-zinc-800">
-      <div className="px-6 pt-6 pb-4">
-        <h3 className="text-white text-lg font-semibold mb-1">
-          Client Progress Overview
-        </h3>
-        <p className="text-zinc-400 text-sm">
-          Track key metrics over the past 12 months
-        </p>
+    <div className="flex flex-col justify-between w-full bg-zinc-900/50 backdrop-blur-sm  min-w-0">
+      <div className="px-6 pt-6 pb-4 flex justify-between items-start">
+        <div>
+          <h3 className="text-white text-lg font-semibold mb-1">
+            Client Progress Overview
+          </h3>
+          <p className="text-zinc-400 text-sm">
+            Track key metrics over the past 12 months
+          </p>
+        </div>
+
+        {/* Date Range Select */}
+        <div className="flex gap-3">
+          {/* Data Toggle Dropdown */}
+          <Dropdown>
+            <DropdownTrigger>
+              <Button
+                variant="bordered"
+                size="sm"
+                className="border-none bg-zinc-800/50 text-zinc-200 data-[hover=true]:border-zinc-500 rounded-none"
+              >
+                Toggle Data
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label="Data series toggles"
+              closeOnSelect={false}
+              className="bg-zinc-800 border-zinc-600 rounded-none"
+            >
+              {series.map((seriesItem) => (
+                <DropdownItem
+                  key={seriesItem.key}
+                  className="data-[hover=true]:bg-zinc-700 rounded-none"
+                  textValue={seriesItem.name}
+                >
+                  <div className="flex items-center justify-between w-full py-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-none"
+                        style={{ backgroundColor: seriesItem.color }}
+                      />
+                      <span className="text-zinc-200">{seriesItem.name}</span>
+                    </div>
+                    <Switch
+                      size="sm"
+                      isSelected={visibleSeries[seriesItem.key]}
+                      onValueChange={() => toggleSeries(seriesItem.key)}
+                      classNames={{
+                        base: "flex-shrink-0",
+                        wrapper: "bg-zinc-600 rounded-sm w-[36px] h-5",
+                        thumb: "bg-white rounded-none w-3 h-3",
+                      }}
+                    />
+                  </div>
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </Dropdown>
+
+          {/* Date Range Select */}
+          <div className="min-w-[180px]">
+            <Select
+              selectedKeys={new Set([selectedDateRange])}
+              onSelectionChange={(keys) => {
+                const selectedKey = Array.from(keys)[0];
+                setSelectedDateRange(selectedKey);
+              }}
+              size="sm"
+              variant="bordered"
+              classNames={{
+                base: "max-w-xs",
+                trigger:
+                  "border-none bg-zinc-800/50 data-[hover=true]:border-zinc-500 rounded-none",
+                value: "text-zinc-200",
+                popoverContent: "bg-zinc-800 border-zinc-600 rounded-none",
+              }}
+              placeholder="Select date range"
+            >
+              {dateRangeOptions.map((option) => (
+                <SelectItem
+                  key={option.key}
+                  value={option.key}
+                  classNames={{
+                    base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-zinc-700 rounded-none",
+                    title: "text-zinc-200",
+                  }}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </Select>
+          </div>
+        </div>
       </div>
 
       <div
         ref={containerRef}
-        className="w-full relative"
+        className="w-full relative min-w-0 flex-shrink"
         style={{ padding: 0, margin: 0 }}
       >
         <svg
@@ -245,7 +371,7 @@ export default function ClientTopChart() {
         >
           {/* Define gradients for each line */}
           <defs>
-            {series.map((s, index) => (
+            {activeSeries.map((s, index) => (
               <linearGradient
                 key={s.key}
                 id={`gradient-${s.key}`}
@@ -254,22 +380,28 @@ export default function ClientTopChart() {
                 x2="0%"
                 y2="100%"
               >
-                <stop offset="0%" stopColor={s.color} stopOpacity="0.6" />
-                <stop offset="100%" stopColor={s.color} stopOpacity="0.1" />
+                <stop offset="0%" stopColor={s.color} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={s.color} stopOpacity="0" />
               </linearGradient>
             ))}
           </defs>
 
-          <rect
-            width={width}
-            height={height}
-            fill="transparent"
+          <rect width={width} height={height} fill="transparent" />
+          <Group
+            left={margin.left}
+            top={margin.top}
             onTouchStart={handleTooltip}
             onTouchMove={handleTooltip}
             onMouseMove={handleTooltip}
             onMouseLeave={() => hideTooltip()}
-          />
-          <Group left={margin.left} top={margin.top}>
+          >
+            {/* Invisible overlay for better tooltip interaction */}
+            <rect
+              width={xMax}
+              height={yMax}
+              fill="transparent"
+              style={{ pointerEvents: "all" }}
+            />
             {/* Grid */}
             <GridRows
               scale={yScale}
@@ -283,11 +415,11 @@ export default function ClientTopChart() {
               width={xMax}
               height={yMax}
               stroke="#374151"
-              strokeOpacity={0.3}
+              strokeOpacity={0}
             />
 
             {/* Area fills with gradient */}
-            {series.map((s) => (
+            {activeSeries.map((s) => (
               <AreaClosed
                 key={`area-${s.key}`}
                 data={data}
@@ -301,7 +433,7 @@ export default function ClientTopChart() {
             ))}
 
             {/* Lines */}
-            {series.map((s) => (
+            {activeSeries.map((s) => (
               <LinePath
                 key={s.key}
                 curve={curveMonotoneX}
@@ -327,7 +459,7 @@ export default function ClientTopChart() {
                   strokeOpacity={0.5}
                   strokeDasharray="4,2"
                 />
-                {series.map((s) => (
+                {activeSeries.map((s) => (
                   <circle
                     key={s.key}
                     cx={xScale(tooltipData.date)}
@@ -368,7 +500,7 @@ export default function ClientTopChart() {
           >
             <div>
               <div className="font-semibold mb-2">{tooltipData.month} 2024</div>
-              {series.map((s) => (
+              {activeSeries.map((s) => (
                 <div
                   key={s.key}
                   className="flex items-center justify-between gap-4 mb-1"

@@ -1,45 +1,59 @@
 import { Plus } from "lucide-react";
 import React, { useState } from "react";
-import { Input, Button } from "@heroui/react";
+import { Select, SelectItem, Button } from "@heroui/react";
 
-export default function ClientCarousel({ setAddClientModalOpen }) {
-  const [searchString, setSearchString] = useState("");
+export default function clientTopBar({
+  clients,
+  setAddClientModalOpen,
+  setSelectedClient,
+  selectedClient,
+}) {
+  const handleSelectionChange = (keys) => {
+    const selectedKey = Array.from(keys)[0];
+    const client = clients.find((c) => String(c.id) === String(selectedKey));
+    setSelectedClient(client || null);
+  };
 
   return (
     <div className="w-full  border-r border-zinc-800 flex flex-col bg-zinc-950">
-      <div className="flex px-4 items-center justify-between gap-4 py-6 border-zinc-800 ">
+      <div className="flex  items-center justify-between gap-4 py-6 border-zinc-800 ">
         <div className="flex gap-4 items-center ">
-          <Input
-            placeholder="Search clients..."
-            value={searchString}
-            onChange={(e) => setSearchString(e.target.value)}
+          <Select
+            placeholder="Select a client..."
+            selectedKeys={
+              selectedClient ? new Set([String(selectedClient.id)]) : new Set()
+            }
+            onSelectionChange={handleSelectionChange}
             className="w-[400px]"
             classNames={{
-              input: "bg-transparent",
-              inputWrapper: "bg-chip rounded-none border-none h-12",
+              trigger: "bg-chip rounded-none border-none h-12",
+              value: "text-white",
+              popoverContent: "bg-zinc-900 border-zinc-700 rounded-none",
             }}
-            startContent={
-              <div className="pointer-events-none flex items-center">
-                <svg
-                  className="w-4 h-4 text-zinc-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+          >
+            {clients && clients.length > 0 ? (
+              clients.map((client) => (
+                <SelectItem
+                  key={String(client.id)}
+                  textValue={`${client.first_name || ""} ${
+                    client.last_name || ""
+                  }`}
+                  className="text-white"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-            }
-          />
+                  {client.first_name || "Unknown"}{" "}
+                  {client.last_name || "Client"}
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem key="no-clients" textValue="No clients available">
+                No clients available
+              </SelectItem>
+            )}
+          </Select>
 
           <Button
             onClick={() => setAddClientModalOpen(true)}
-            className="bg-chip rounded-none h-12 px-6"
+            className="bg-chip rounded-none h-12 px-6 "
           >
             <Plus size={16} /> Add Client
           </Button>

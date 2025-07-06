@@ -3,18 +3,15 @@
 import CreateWeighInRequestModal from "@/components/trainer/CreateWeighInRequestModal";
 import AddClientMetricsModal from "@/components/trainer/AddClientMetricsModal";
 import RecurringWeighInModal from "@/components/trainer/RecurringWeighInModal";
-import ClientInfoPanel from "@/components/trainer/clients/clientInfoPanel";
-import ClientCarousel from "@/components/trainer/clients/clientCarousel";
 import DeleteClientModal from "@/components/trainer/deleteClientModal";
 import ClientInfoModal from "@/components/trainer/clientInfoModal";
 import ClientTopBar from "@/components/trainer/clients/clientTopBar";
 import AddClientModal from "@/components/trainer/addClientModal";
 import React, { useState, useEffect } from "react";
 import { useClients } from "@/hooks/clients";
-import { Plus, Users } from "lucide-react";
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import ClientTopChart from "@/components/trainer/clients/clientTopChart";
+import ClientImageCard from "@/components/trainer/clients/clientImageCard";
+import ClientGoalChart from "@/components/trainer/clients/clientGoalChart";
 
 export default function Clients() {
   const { clients, loading, error, fetchClients } = useClients();
@@ -29,6 +26,8 @@ export default function Clients() {
     useState(false);
 
   const [expandTimeline, setExpandTimeline] = useState(false);
+
+  console.log("selectedClient: 111", selectedClient);
 
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
@@ -55,6 +54,8 @@ export default function Clients() {
           <ClientTopBar
             clients={clients}
             setAddClientModalOpen={setAddClientModalOpen}
+            setSelectedClient={setSelectedClient}
+            selectedClient={selectedClient}
           />
           <div className="flex w-full h-full">
             <div
@@ -67,40 +68,27 @@ export default function Clients() {
               <p className="text-sm items-center"> Click to open timeline</p>
             </div>
             <div className="flex flex-col w-full h-full">
+              {/* Top row */}
               <div className="flex w-full h-1/2">
-                <div className="flex w-2/3 ">
-                  <ClientTopChart />
+                <div className="flex w-3/4 ">
+                  <ClientTopChart selectedClient={selectedClient} />
                 </div>
-                <div className="flex relative w-1/3 flex-1 bg-white">
-                  <Image
-                    src="/images/placeholder/profile-image-placeholder-2.png"
-                    width={500}
-                    height={750}
-                    alt="logo"
-                    className="object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/60 to-transparent z-50"></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-4 z-50">
-                    <h2 className="text-4xl font-bold text-white">
-                      {selectedClient?.first_name}
-                    </h2>
-                    <h2 className="text-4xl font-bold text-white -mt-3">
-                      {selectedClient?.last_name}
-                    </h2>
-                    <p className="text-sm text-white">
-                      {selectedClient?.email}
-                    </p>
-                  </div>
+                <div className="flex relative w-1/4 flex-1 bg-white">
+                  <ClientImageCard selectedClient={selectedClient} />
                 </div>
               </div>
+              {/* Bottom row */}
               <div className="flex w-full h-1/2">
-                <div className="flex w-2/3 bg-zinc-900"></div>
-                <div className="flex w-1/3 flex-1 bg-white"></div>
+                <div className="flex w-3/4 h-full bg-zinc-900">
+                  <div className="flex w-1/2 h-full bg-black"></div>
+                  <div className="flex w-1/2 h-full bg-zinc-900"></div>
+                </div>
+                <div className="flex w-1/4 ">
+                  <ClientGoalChart selectedClient={selectedClient} />
+                </div>
               </div>
             </div>
           </div>
-
-          {/* <ClientInfoPanel selectedClient={selectedClient} /> */}
         </div>
       </div>
       {/* Modals */}
