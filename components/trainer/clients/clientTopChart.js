@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
 import { LinePath, AreaClosed } from "@visx/shape";
 import { Group } from "@visx/group";
 import { scaleTime, scaleLinear } from "@visx/scale";
@@ -192,20 +198,6 @@ export default function ClientTopChart({ setSelectedClient }) {
   const xMax = Math.max(width - margin.left - margin.right, 0);
   const yMax = height - margin.top - margin.bottom;
 
-  // Scales
-  const xScale = scaleTime({
-    range: [0, xMax],
-    domain: [data[0].date, data[data.length - 1].date],
-  });
-
-  const yScale = scaleLinear({
-    range: [yMax, 0],
-    domain: [
-      0,
-      Math.max(...data.map((d) => Math.max(d.weight, d.muscle, d.endurance))),
-    ],
-  });
-
   const series = [
     { key: "weight", color: "#4BB760", name: "Weight (lbs)" },
     { key: "bodyFat", color: "#7BB646", name: "Body Fat (%)" },
@@ -216,12 +208,43 @@ export default function ClientTopChart({ setSelectedClient }) {
   // Filter series based on visibility
   const activeSeries = series.filter((s) => visibleSeries[s.key]);
 
+  // Scales
+  const xScale = scaleTime({
+    range: [0, xMax],
+    domain: [data[0].date, data[data.length - 1].date],
+  });
+
+  // Calculate dynamic y-scale domain based on visible series with memoization
+  const { minVisibleValue, maxVisibleValue } = useMemo(() => {
+    const values = [];
+    data.forEach((d) => {
+      activeSeries.forEach((s) => {
+        values.push(d[s.key]);
+      });
+    });
+
+    return {
+      minVisibleValue: values.length > 0 ? Math.min(...values) : 0,
+      maxVisibleValue: values.length > 0 ? Math.max(...values) : 100,
+    };
+  }, [activeSeries, data]);
+
+  const newDomain = useMemo(
+    () => [Math.max(0, minVisibleValue * 0.9), maxVisibleValue * 1.1],
+    [minVisibleValue, maxVisibleValue]
+  );
+
+  const yScale = scaleLinear({
+    range: [yMax, 0],
+    domain: newDomain,
+  });
+
   const legendScale = scaleOrdinal({
     domain: activeSeries.map((s) => s.name),
     range: activeSeries.map((s) => s.color),
   });
 
-  // Helper function to toggle series visibility
+  // Helper function to toggle series visibility with animation
   const toggleSeries = (key) => {
     setVisibleSeries((prev) => ({
       ...prev,
@@ -329,8 +352,9 @@ export default function ClientTopChart({ setSelectedClient }) {
                       onValueChange={() => toggleSeries(seriesItem.key)}
                       classNames={{
                         base: "flex-shrink-0",
-                        wrapper: "bg-zinc-600 rounded-sm w-[34px] h-4",
-                        thumb: "bg-white rounded-none w-2.5 h-2.5",
+                        wrapper: "bg-zinc-600  w-[34px] h-4",
+                        thumb:
+                          "bg-white  w-2.5 h-2.5 shadow-sm shadow-black/50",
                       }}
                     />
                   </div>
@@ -386,8 +410,24 @@ export default function ClientTopChart({ setSelectedClient }) {
           className="w-full block"
           style={{ padding: 0, margin: 0, display: "block" }}
         >
-          {/* Define gradients for each line */}
+          {/* Add CSS for smooth transitions */}
           <defs>
+            <style>
+              {`
+                .chart-path {
+                  transition: d 0.2s ease-in-out;
+                }
+                .chart-area {
+                  transition: d 0.2s ease-in-out;
+                }
+                .chart-circle {
+                  transition: cy 0.2s ease-in-out;
+                }
+                .chart-grid {
+                  transition: all 0.2s ease-in-out;
+                }
+              `}
+            </style>
             {activeSeries.map((s, index) => (
               <linearGradient
                 key={s.key}
@@ -426,6 +466,7 @@ export default function ClientTopChart({ setSelectedClient }) {
               height={yMax}
               stroke="#374151"
               strokeOpacity={0.3}
+              className="chart-grid"
             />
             <GridColumns
               scale={xScale}
@@ -446,6 +487,7 @@ export default function ClientTopChart({ setSelectedClient }) {
                 strokeWidth={0}
                 fill={`url(#gradient-${s.key})`}
                 curve={curveMonotoneX}
+                className="chart-area"
               />
             ))}
 
@@ -460,6 +502,7 @@ export default function ClientTopChart({ setSelectedClient }) {
                 stroke={s.color}
                 strokeWidth={3}
                 strokeOpacity={0.8}
+                className="chart-path"
               />
             ))}
 
@@ -486,6 +529,7 @@ export default function ClientTopChart({ setSelectedClient }) {
                     stroke="white"
                     strokeWidth={2}
                     style={{ pointerEvents: "none" }}
+                    className="chart-circle"
                   />
                 ))}
               </g>
