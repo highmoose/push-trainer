@@ -28,7 +28,7 @@ const eventIcons = {
 
 const eventColors = {
   metric_entry: "bg-blue-500",
-  metrics_update: "bg-zinc-500",
+  metrics_update: "bg-zinc-700",
   photo_upload: "bg-purple-500",
   session: "bg-green-500",
   weigh_in_request: "bg-yellow-500",
@@ -49,6 +49,8 @@ export default function ClientTimeline({ selectedClient }) {
   const [dragStart, setDragStart] = useState(0);
   const [dragStartOffset, setDragStartOffset] = useState(0);
   const timelineRef = useRef(null);
+
+  console.log("Timeline Data:", timelineData);
 
   // Handle timeline expansion with delayed text fade-in
   useEffect(() => {
@@ -343,7 +345,7 @@ export default function ClientTimeline({ selectedClient }) {
                       <div
                         className={`${
                           expandTimeline ? "w-full" : "w-6"
-                        } h-6  ${squareColor} transition-all duration-700 flex items-center ${
+                        } h-6  ${squareColor} transition-all duration-700 flex rounded items-center ${
                           expandTimeline
                             ? "justify-between px-3"
                             : "justify-center"
@@ -369,7 +371,7 @@ export default function ClientTimeline({ selectedClient }) {
                                   ? "text-white"
                                   : day.isFuture
                                   ? "text-zinc-200"
-                                  : "text-zinc-200"
+                                  : "text-zinc-100"
                               }`}
                             >
                               {formatDate(day.date)}
@@ -387,7 +389,7 @@ export default function ClientTimeline({ selectedClient }) {
                         )}
                         {expandTimeline && (
                           <span
-                            className={`text-xs text-zinc-200 transition-opacity duration-1000 ${
+                            className={`text-xs text-zinc-100 transition-opacity duration-1000 ${
                               showTodayLabel ? "opacity-100" : "opacity-0"
                             }`}
                           >

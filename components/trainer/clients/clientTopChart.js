@@ -37,6 +37,9 @@ export default function ClientTopChart({ setSelectedClient }) {
     muscle: true,
     endurance: true,
   });
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationProgress, setAnimationProgress] = useState(1);
+  const [previousDomain, setPreviousDomain] = useState(null);
 
   const {
     tooltipData,
@@ -229,14 +232,12 @@ export default function ClientTopChart({ setSelectedClient }) {
     };
   }, [activeSeries, data]);
 
-  const newDomain = useMemo(
-    () => [Math.max(0, minVisibleValue * 0.9), maxVisibleValue * 1.1],
-    [minVisibleValue, maxVisibleValue]
-  );
-
   const yScale = scaleLinear({
     range: [yMax, 0],
-    domain: newDomain,
+    domain: [
+      Math.max(0, minVisibleValue * 0.95), // Reduced padding below minimum (was 0.9)
+      maxVisibleValue * 1.05, // Reduced padding above maximum (was 1.1)
+    ],
   });
 
   const legendScale = scaleOrdinal({
@@ -246,10 +247,16 @@ export default function ClientTopChart({ setSelectedClient }) {
 
   // Helper function to toggle series visibility with animation
   const toggleSeries = (key) => {
+    setIsAnimating(true);
     setVisibleSeries((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
+
+    // Reset animation state after transition
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 500);
   };
 
   const tooltipStyles = {
@@ -410,24 +417,8 @@ export default function ClientTopChart({ setSelectedClient }) {
           className="w-full block"
           style={{ padding: 0, margin: 0, display: "block" }}
         >
-          {/* Add CSS for smooth transitions */}
+          {/* Define gradients for each line */}
           <defs>
-            <style>
-              {`
-                .chart-path {
-                  transition: d 0.2s ease-in-out;
-                }
-                .chart-area {
-                  transition: d 0.2s ease-in-out;
-                }
-                .chart-circle {
-                  transition: cy 0.2s ease-in-out;
-                }
-                .chart-grid {
-                  transition: all 0.2s ease-in-out;
-                }
-              `}
-            </style>
             {activeSeries.map((s, index) => (
               <linearGradient
                 key={s.key}
@@ -451,6 +442,11 @@ export default function ClientTopChart({ setSelectedClient }) {
             onTouchMove={handleTooltip}
             onMouseMove={handleTooltip}
             onMouseLeave={() => hideTooltip()}
+            style={{
+              transition: isAnimating
+                ? "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
+                : "none",
+            }}
           >
             {/* Invisible overlay for better tooltip interaction */}
             <rect
@@ -466,7 +462,6 @@ export default function ClientTopChart({ setSelectedClient }) {
               height={yMax}
               stroke="#374151"
               strokeOpacity={0.3}
-              className="chart-grid"
             />
             <GridColumns
               scale={xScale}
@@ -487,7 +482,11 @@ export default function ClientTopChart({ setSelectedClient }) {
                 strokeWidth={0}
                 fill={`url(#gradient-${s.key})`}
                 curve={curveMonotoneX}
-                className="chart-area"
+                style={{
+                  transition: isAnimating
+                    ? "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
+                    : "none",
+                }}
               />
             ))}
 
@@ -502,7 +501,11 @@ export default function ClientTopChart({ setSelectedClient }) {
                 stroke={s.color}
                 strokeWidth={3}
                 strokeOpacity={0.8}
-                className="chart-path"
+                style={{
+                  transition: isAnimating
+                    ? "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
+                    : "none",
+                }}
               />
             ))}
 
@@ -529,7 +532,6 @@ export default function ClientTopChart({ setSelectedClient }) {
                     stroke="white"
                     strokeWidth={2}
                     style={{ pointerEvents: "none" }}
-                    className="chart-circle"
                   />
                 ))}
               </g>
