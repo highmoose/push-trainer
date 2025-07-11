@@ -15,7 +15,7 @@ export default function clientTopBar({
   };
 
   return (
-    <div className="w-full  border-r border-zinc-800 flex flex-col bg-zinc-950">
+    <div className="w-full  border-r border-zinc-800 flex flex-col bg-panel">
       <div className="flex  items-center justify-between gap-4 py-6 border-zinc-800 ">
         <div className="flex gap-4 items-center ">
           <Select

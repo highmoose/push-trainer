@@ -1,3 +1,4 @@
+import Button from "@/components/common/button";
 import {
   Clock,
   Dumbbell,
@@ -51,16 +52,17 @@ export default function ClientActivityLog({ selectedClient }) {
   ];
 
   return (
-    <div className="w-full h-full bg-zinc-900 p-6">
-      <div className="p-6">
-        {!selectedClient ? (
-          <div className="flex flex-col items-center justify-center h-32 text-zinc-500">
-            <User className="w-8 h-8 mb-2 opacity-50" />
-            <p className="text-xs text-center">Select a client</p>
-          </div>
-        ) : (
-          <div className="">
-            <p className="text-zinc-500 text-sm">Client activity log</p>
+    <div className="flex-1 p-10 flex flex-col h-full bg-zinc-900">
+      <p className="text-xl font-thin">Activity</p>
+
+      {!selectedClient ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-zinc-500">
+          <User className="w-8 h-8 mb-2 opacity-50" />
+          <p className="text-xs text-center">No client activity</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 flex flex-col gap-2 mt-6">
             {activities.map((activity) => {
               const IconComponent = activity.icon;
               return (
@@ -68,7 +70,7 @@ export default function ClientActivityLog({ selectedClient }) {
                   key={activity.id}
                   className="flex items-center gap-3 py-1 px-1 rounded hover:bg-zinc-700/50 transition-colors"
                 >
-                  <div className="p-1.5 rounded">
+                  <div className=" rounded">
                     <IconComponent size={16} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -81,8 +83,12 @@ export default function ClientActivityLog({ selectedClient }) {
               );
             })}
           </div>
-        )}
-      </div>
+
+          <div className="flex w-full justify-start mt-6">
+            <Button variant="secondary">View activity details</Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import Button from "@/components/common/button";
 import { Clock, Dumbbell, Utensils } from "lucide-react";
 import React from "react";
 
@@ -33,15 +34,15 @@ const ProgressBar = ({ startDate, endDate }) => {
   return (
     <div className="w-full mt-2">
       <div
-        className={`w-full h-1.5 bg-zinc-800/50 rounded-full overflow-hidden`}
+        className={`w-full h-1 mb-2 bg-zinc-800/50 rounded-full overflow-hidden `}
       >
         <div
-          className={`h-full ${barColor} transition-all duration-300 rounded-full`}
+          className={`h-full  ${barColor} transition-all duration-300 rounded-full`}
           style={{ width: `${percentage}%` }}
         />
       </div>
       <div className="flex justify-between text-xs mt-1">
-        <span className="text-zinc-400">
+        <span className="text-zinc-600">
           {Math.round(percentage)}% complete
         </span>
         <span className={daysRemainingColor}>
@@ -54,30 +55,33 @@ const ProgressBar = ({ startDate, endDate }) => {
 
 export default function ClientActivePlans({ selectedClient }) {
   return (
-    <div className="w-full h-full p-6 bg-zinc-900/50">
-      <div className="flex w-full items-center p-6 gap-6 ">
+    <div
+      className="flex-1 bg-zinc-900 flex flex-col justify-between
+     p-10"
+    >
+      <p className="text-xl font-thin ">Active Plans</p>
+      <div className="flex flex-col justify-betwee gap-6 ">
         {/* <Clock className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <p className="text-zinc-500 text-sm">Check-in schedule </p>
-          <p className="font-semibold">This is a the workout plan name</p>
+          <p className="text-zinc-600 ">Check-in schedule </p>
+          <p className="text-sm">This is a the workout plan name</p>
           <ProgressBar startDate="2025-06-27" endDate="2025-08-01" />
         </div>
-      </div>
-      <div className="flex w-full items-center p-6 gap-6 ">
         {/* <Dumbbell className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <p className="text-zinc-500 text-sm">Training Plan</p>
-          <p className="font-semibold">This is a the workout plan name</p>
+          <p className="text-zinc-600 ">Training Plan</p>
+          <p className="text-sm">This is a the workout plan name</p>
           <ProgressBar startDate="2025-06-20" endDate="2025-07-15" />
         </div>
-      </div>
-      <div className="flex w-full items-center p-6 gap-6 ">
         {/* <Utensils className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <p className="text-zinc-500 text-sm">Nutrition Plan</p>
-          <p className="font-semibold">This is a the workout plan name</p>
+          <p className="text-zinc-600 ">Nutrition Plan</p>
+          <p className="text-sm">This is a the workout plan name</p>
           <ProgressBar startDate="2025-06-01" endDate="2025-07-08" />
         </div>
+      </div>
+      <div className="flex w-full justify-start">
+        <Button variant="secondary">View active plans</Button>
       </div>
     </div>
   );

@@ -312,7 +312,7 @@ export default function ClientTimeline({ selectedClient }) {
     <div
       onMouseEnter={() => setExpandTimeline(true)}
       onMouseLeave={() => setExpandTimeline(false)}
-      className={`bg-zinc-900/50 h-full transition-all duration-700 relative overflow-hidden ${
+      className={`bg-zinc-900 h-full transition-all duration-700 relative rounded-3xl overflow-hidden  ${
         expandTimeline ? "w-1/3" : "w-[100px]"
       }`}
     >
@@ -352,7 +352,14 @@ export default function ClientTimeline({ selectedClient }) {
                         }`}
                       >
                         {day.isToday && !expandTimeline && (
-                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                          <span className="text-xs font-medium text-white border border-white rounded-full w-5 h-5 flex items-center justify-center">
+                            {day.date.getDate()}
+                          </span>
+                        )}
+                        {!expandTimeline && !day.isToday && (
+                          <span className="text-xs font-medium text-white">
+                            {day.date.getDate()}
+                          </span>
                         )}
                         {expandTimeline && (
                           <div
@@ -399,9 +406,17 @@ export default function ClientTimeline({ selectedClient }) {
                         )}
                       </div>
                     ) : (
-                      /* Empty days - keep as circles always */
+                      /* Empty days - show day number in circle */
                       <div className="w-6 h-6 flex items-center justify-center">
-                        <div className="w-1 h-1 bg-zinc-600 rounded-full"></div>
+                        {day.isToday ? (
+                          <span className="text-xs font-medium text-lime-500  w-5 h-5 flex items-center justify-center">
+                            {day.date.getDate()}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-zinc-700">
+                            {day.date.getDate()}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -437,10 +452,10 @@ export default function ClientTimeline({ selectedClient }) {
             )}
             {/* Today line */}
             <div
-              className={`absolute h-[2px] bg-zinc-600 opacity-50 transition-width duration-700 ${
+              className={`absolute h-[1px] bg-zinc-600 opacity-50 transition-width duration-700 ${
                 expandTimeline
-                  ? "left-6 right-6"
-                  : "left-1/2 transform -translate-x-1/2 w-10"
+                  ? "w-full"
+                  : "left-1/2 transform -translate-x-1/2 w-full"
               }`}
               style={{ top: `${topPosition}px` }}
             ></div>

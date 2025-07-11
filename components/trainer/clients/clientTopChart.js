@@ -293,31 +293,37 @@ export default function ClientTopChart({ setSelectedClient }) {
   );
 
   return (
-    <div className="flex flex-col justify-between w-full bg-zinc-900/50 backdrop-blur-sm  min-w-0">
-      <div className="px-6 pt-6 pb-4 flex justify-between items-start">
-        <div className="flex flex-wrap gap-12">
-          <div>
-            <p className="text-zinc-500 text-sm">Weight </p>
-            <p className="text-white font-semibold text-4xl">
-              110<span className="text-xl pl-0.5">kg</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-zinc-500 text-sm">Body Fat </p>
-            <p className="text-white font-semibold text-4xl">
-              15<span className="text-xl pl-0.5">%</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-zinc-500 text-sm">Energy & Mood</p>
-            <p className="text-white font-semibold text-4xl">
-              8<span className="text-xl pl-0.5">/10</span>
-            </p>
-          </div>
+    <div className="flex flex-col justify-between w-full bg-zinc-900  min-w-0">
+      <div className="flex pt-10 px-10 justify-between">
+        <div>
+          <p className="text-xl font-thin mb-6 ">Client Statistics</p>
 
-          <div>
-            <p className="text-zinc-500 text-sm">Engagement</p>
-            <p className="text-white font-semibold text-4xl">High</p>
+          <div className=" flex justify-between items-start">
+            <div className="flex flex-wrap gap-12">
+              <div>
+                <p className="text-zinc-500 text-sm">Weight</p>
+                <p className="text-white text-4xl">
+                  110<span className="text-3xl pl-0.5">kg</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-sm">Body Fat</p>
+                <p className="text-white text-4xl">
+                  15<span className="text-3xl pl-0.5">%</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-sm">Energy & Mood</p>
+                <p className="text-white text-4xl">
+                  8<span className="text-3xl pl-0.5">/10</span>
+                </p>
+              </div>
+
+              <div>
+                <p className="text-zinc-500 text-sm">Engagement</p>
+                <p className="text-white text-4xl">High</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -371,7 +377,7 @@ export default function ClientTopChart({ setSelectedClient }) {
           </Dropdown>
 
           {/* Date Range Select */}
-          <div className="min-w-[180px]">
+          <div className="min-w-[180px] ">
             <Select
               selectedKeys={new Set([selectedDateRange])}
               onSelectionChange={(keys) => {
@@ -408,7 +414,7 @@ export default function ClientTopChart({ setSelectedClient }) {
 
       <div
         ref={containerRef}
-        className="w-full relative min-w-0 flex-shrink"
+        className="w-full relative min-w-0 flex-shrink "
         style={{ padding: 0, margin: 0 }}
       >
         <svg

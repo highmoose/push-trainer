@@ -11,8 +11,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: ["var(--font-saira)", "sans-serif"],
       },
     },
   },
@@ -72,9 +71,9 @@ module.exports = {
               DEFAULT: "#27272a",
               foreground: "#ffffff",
             },
-            panel: "#141417",
+            panel: "#131313",
             chip: "#1a1c1f",
-            primary: "#baf05d",
+            primary: "#a6e6e8",
           },
         },
       },

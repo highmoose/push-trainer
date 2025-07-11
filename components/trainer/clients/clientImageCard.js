@@ -14,10 +14,8 @@ export default function ClientImageCard({ selectedClient }) {
       />
       <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/60 to-transparent "></div>
       <div className="absolute bottom-0 left-0 right-0 p-4 z-50">
-        <h2 className="text-4xl font-bold text-white">
-          {selectedClient?.first_name}
-        </h2>
-        <h2 className="text-4xl font-bold text-white -mt-2">
+        <h2 className="text-4xl  text-white">{selectedClient?.first_name}</h2>
+        <h2 className="text-4xl  text-white -mt-2">
           {selectedClient?.last_name}
         </h2>
         <p className="text-sm text-white">{selectedClient?.email}</p>

@@ -110,7 +110,7 @@ export default function Dashboard() {
 
   const AlertCard = ({ type, message, timestamp, action }) => (
     <div
-      className={`bg-zinc-900 rounded-lg p-4 border-l-4 ${
+      className={`bg-zinc-900 rounded-3xl p-4 border-l-4 ${
         type === "warning"
           ? "border-yellow-500"
           : type === "success"

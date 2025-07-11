@@ -51,38 +51,38 @@ export default function Clients() {
   };
 
   return (
-    <div className=" flex-1 w-full">
+    <div className=" flex-1 w-full ">
       <div className="flex">
-        <div className="flex flex-col flex-1 h-screen">
+        <div className="flex flex-col flex-1 h-screen gap-1 pr-1 pb-1">
           <ClientTopBar
             clients={clients}
             setAddClientModalOpen={setAddClientModalOpen}
             setSelectedClient={setSelectedClient}
             selectedClient={selectedClient}
           />
-          <div className="flex w-full h-full">
+          <div className="flex w-full h-full gap-2 p-2">
             <ClientTimeline selectedClient={selectedClient} />
-            <div className="flex flex-col w-full h-full">
+            <div className="flex flex-col w-full h-full gap-2">
               {/* Top row */}
-              <div className="flex w-full h-1/2">
-                <div className="flex w-3/4 ">
+              <div className="flex w-full h-1/2 gap-2">
+                <div className="flex w-3/4 overflow-hidden rounded-3xl">
                   <ClientTopChart selectedClient={selectedClient} />
                 </div>
-                <div className="flex relative w-1/4 flex-1 bg-white">
+                <div className="flex relative w-1/4 bg-panel overflow-hidden rounded-3xl ">
                   <ClientImageCard selectedClient={selectedClient} />
                 </div>
               </div>
               {/* Bottom row */}
-              <div className="flex w-full h-1/2">
-                <div className="flex w-3/4 h-full bg-zinc-900">
-                  <div className="flex w-1/2 h-full ">
+              <div className="flex w-full h-1/2 gap-2">
+                <div className="flex w-3/4 h-full  overflow-hidden  gap-2">
+                  <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl ">
                     <ClientActivePlans selectedClient={selectedClient} />
                   </div>
-                  <div className="flex w-1/2 h-full bg-black">
+                  <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl">
                     <ClientActivityLog selectedClient={selectedClient} />
                   </div>
                 </div>
-                <div className="flex w-1/4 ">
+                <div className="flex w-1/4 overflow-hidden rounded-3xl">
                   <ClientGoalChart selectedClient={selectedClient} />
                 </div>
               </div>

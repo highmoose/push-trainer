@@ -1,6 +1,7 @@
 import React from "react";
 import { Group } from "@visx/group";
 import { Arc } from "@visx/shape";
+import Button from "@/components/common/button";
 
 export default function ClientGoalChart({ client, progress = 70 }) {
   // Chart dimensions
@@ -22,12 +23,10 @@ export default function ClientGoalChart({ client, progress = 70 }) {
   const endCircleY = Math.sin(adjustedEndAngle) * middleRadius;
 
   return (
-    <div className="flex flex-col w-full items-center justify-center p-6 bg-zinc-900/50 rounded-lg backdrop-blur-sm ">
-      <h3 className="text-white text-lg font-semibold mb-6">
-        Progress to Goal
-      </h3>
+    <div className="flex flex-col w-full p-10 bg-zinc-900 backdrop-blur-sm ">
+      <p className="text-xl font-thin ">Goal Progress</p>
 
-      <div className="relative">
+      <div className="flex h-full relative items-center justify-center">
         <svg width={size} height={size}>
           <defs>
             <linearGradient
@@ -88,6 +87,9 @@ export default function ClientGoalChart({ client, progress = 70 }) {
             {progress}%
           </span>
         </div>
+      </div>
+      <div className="flex w-full justify-start mt-6">
+        <Button variant="secondary">View Progress map</Button>
       </div>
     </div>
   );
