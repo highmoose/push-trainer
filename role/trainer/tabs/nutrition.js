@@ -19,6 +19,7 @@ import {
   Utensils,
   TrendingUp,
   Zap,
+  X,
 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import {
@@ -28,7 +29,7 @@ import {
 } from "@/components/trainer/nutrition";
 import { DataTable } from "@/components/common/tables";
 import Button from "@/components/common/button";
-import { Input, Tabs, Tab, Switch, AvatarGroup, Avatar } from "@heroui/react";
+import { Input, Tabs, Tab, AvatarGroup, Avatar, Select, SelectItem } from "@heroui/react";
 import Image from "next/image";
 import { Group } from "@visx/group";
 import { LinePath, AreaClosed } from "@visx/shape";
@@ -127,12 +128,11 @@ export default function Nutrition() {
 
   // State
   const [selectedClient, setSelectedClient] = useState(null);
-  const [showAllPlans, setShowAllPlans] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
-  const [clientFilter, setClientFilter] = useState(""); // New client filter state
-  const [viewMode, setViewMode] = useState("list"); // New view mode state
+  const [clientFilter, setClientFilter] = useState(""); // Client filter state
+  const [viewMode, setViewMode] = useState("list"); // View mode state
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -516,20 +516,12 @@ export default function Nutrition() {
     },
   ];
 
-  // Display plans based on selection
+  // Display plans - show all plans by default, apply filters
   const displayPlans = useMemo(() => {
-    let plans = showAllPlans
-      ? activeDietPlans
-      : selectedClient
-      ? activeDietPlans.filter((plan) => plan.client_id === selectedClient.id)
-      : [];
+    let plans = [...activeDietPlans];
 
     // Add generating plans to the list
-    const relevantGeneratingPlans = showAllPlans
-      ? generatingPlans
-      : selectedClient
-      ? generatingPlans.filter((plan) => plan.client_id === selectedClient.id)
-      : [];
+    const relevantGeneratingPlans = [...generatingPlans];
 
     // Combine actual plans with generating plans
     plans = [...relevantGeneratingPlans, ...plans];
@@ -572,21 +564,19 @@ export default function Nutrition() {
     return plans;
   }, [
     activeDietPlans,
-    selectedClient,
-    showAllPlans,
     searchTerm,
     sortBy,
     sortOrder,
     generatingPlans,
-    clientFilter, // Add clientFilter to dependencies
+    clientFilter,
   ]);
 
-  // Initialize with first client if available
+  // Initialize with first client if available (removed dependency on showAllPlans)
   useEffect(() => {
-    if (clients.length > 0 && !selectedClient && !showAllPlans) {
+    if (clients.length > 0 && !selectedClient) {
       setSelectedClient(clients[0]);
     }
-  }, [clients, selectedClient, showAllPlans]);
+  }, [clients, selectedClient]);
   // Fetch data on mount
   useEffect(() => {
     fetchClients();
@@ -700,6 +690,45 @@ export default function Nutrition() {
     }
   };
 
+  // Clear/reset all filters
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setClientFilter("");
+    setSortBy("created_at");
+    setSortOrder("desc");
+  };
+
+  // Get selected client name for search placeholder
+  const selectedClientName = clientFilter 
+    ? clients.find(client => client.id === parseInt(clientFilter))?.first_name + " " + 
+      clients.find(client => client.id === parseInt(clientFilter))?.last_name
+    : null;
+
+  // Generate search placeholder text
+  const searchPlaceholder = selectedClientName 
+    ? `Searching ${selectedClientName} plans...`
+    : "Search by plan name or client...";
+
+  // Combined sort options
+  const sortOptions = [
+    { value: "created_at-desc", label: "Newest First" },
+    { value: "created_at-asc", label: "Oldest First" },
+    { value: "updated_at-desc", label: "Recently Updated" },
+    { value: "updated_at-asc", label: "Least Recently Updated" },
+    { value: "title-asc", label: "Title A-Z" },
+    { value: "title-desc", label: "Title Z-A" },
+  ];
+
+  // Handle combined sort change
+  const handleSortChange = (value) => {
+    const [field, order] = value.split("-");
+    setSortBy(field);
+    setSortOrder(order);
+  };
+
+  // Get current sort value
+  const currentSortValue = `${sortBy}-${sortOrder}`;
+
   return (
     <>
       <div className="relative h-screen flex flex-col bg-gradient-to-br from-zinc-900 via-black to-zinc-900 text-white overflow-hidden rounded">
@@ -756,88 +785,106 @@ export default function Nutrition() {
         <div className="flex-1 flex flex-col w-full mx-auto z-10 min-h-0">
           {/* Enhanced Search & Filter Bar */}
           <div className="p-4 mb-6 flex-shrink-0">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-              {/* Search Input */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search by plan name or client..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full max-w-[500px] pl-12 pr-4 py-3 bg-zinc-800/50 border-0 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-0 transition-all duration-200"
-                />
-              </div>
-
-              {/* Filter Controls */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* View Mode Toggle using Hero UI Switch */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-zinc-400">List View</span>
-                  <Switch
-                    size="sm"
-                    isSelected={viewMode === "grid"}
-                    onValueChange={(checked) =>
-                      setViewMode(checked ? "grid" : "list")
-                    }
-                    classNames={{
-                      base: "bg-zinc-800/50",
-                      wrapper: "group-data-[selected=true]:bg-zinc-600",
-                      thumb: "bg-white group-data-[selected=true]:bg-white",
-                    }}
+            <div className="flex items-center gap-3 w-full">
+              {/* Left Side: Search, Client Select, Clear Button */}
+              <div className="flex items-center gap-2">
+                {/* Search Input */}
+                <div className="relative w-80">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4 z-10" />
+                  <input
+                    type="text"
+                    placeholder={searchPlaceholder}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2.5 bg-zinc-800/50 border-0 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-0 transition-all duration-200 text-sm"
                   />
-                  <span className="text-sm text-zinc-400">Grid View</span>
                 </div>
 
-                <button
-                  onClick={() => setShowAllPlans(!showAllPlans)}
-                  className={`px-4 py-2.5 text-sm font-medium rounded-lg border-0 transition-all duration-200 ${
-                    showAllPlans
-                      ? "bg-gradient-to-r from-zinc-600 to-zinc-600 text-white shadow-lg"
-                      : "bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50"
-                  }`}
+                {/* Client Filter Dropdown */}
+                <Select
+                  placeholder="All Clients"
+                  selectedKeys={clientFilter ? [clientFilter] : []}
+                  onSelectionChange={(keys) => setClientFilter(Array.from(keys)[0] || "")}
+                  className="w-52"
+                  size="sm"
+                  variant="flat"
+                  renderValue={(items) => {
+                    if (items.length === 0) return "All Clients";
+                    const selectedClient = clients.find(client => client.id.toString() === items[0].key);
+                    return selectedClient ? `${selectedClient.first_name} ${selectedClient.last_name}` : "All Clients";
+                  }}
+                  classNames={{
+                    trigger: "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
+                    value: "text-white text-sm",
+                    listbox: "bg-zinc-800 text-white",
+                    popoverContent: "bg-zinc-800 border border-zinc-700",
+                  }}
                 >
-                  {showAllPlans ? "All Plans" : "Client Plans"}
-                </button>
-
-                <select
-                  value={clientFilter}
-                  onChange={(e) => setClientFilter(e.target.value)}
-                  className="px-3 py-2.5 bg-zinc-800/50 border-0 rounded-lg text-white text-sm focus:outline-none focus:ring-0 transition-all duration-200 min-w-[160px]"
-                >
-                  <option value="">All Clients</option>
+                  <SelectItem key="" value="">All Clients</SelectItem>
                   {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
+                    <SelectItem key={client.id} value={client.id.toString()}>
                       {client.first_name} {client.last_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                </Select>
 
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-2.5 bg-zinc-800/50 border-0 rounded-lg text-white text-sm focus:outline-none focus:ring-0 transition-all duration-200"
-                >
-                  <option value="created_at">Created Date</option>
-                  <option value="updated_at">Updated Date</option>
-                  <option value="title">Title</option>
-                </select>
+                {/* Clear Filters Button - Only show if filters are active */}
+                {(searchTerm || clientFilter) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="p-2.5 bg-zinc-800/50 border-0 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-all duration-200 flex items-center justify-center h-10 w-10"
+                    title="Clear all filters"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-                <button
-                  onClick={() =>
-                    setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-                  }
-                  className="p-2.5 bg-zinc-800/50 border-0 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-all duration-200"
-                  title={`Sort ${
-                    sortOrder === "asc" ? "Descending" : "Ascending"
-                  }`}
+              {/* Spacer */}
+              <div className="flex-1"></div>
+
+              {/* Right Side: Sort Dropdown and View Mode Tabs */}
+              <div className="flex items-center gap-2">
+                {/* Combined Sort Dropdown */}
+                <Select
+                  placeholder="Sort by"
+                  selectedKeys={[currentSortValue]}
+                  onSelectionChange={(keys) => handleSortChange(Array.from(keys)[0])}
+                  className="w-52"
+                  size="sm"
+                  variant="flat"
+                  classNames={{
+                    trigger: "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
+                    value: "text-white text-sm",
+                    listbox: "bg-zinc-800 text-white",
+                    popoverContent: "bg-zinc-800 border border-zinc-700",
+                  }}
                 >
-                  {sortOrder === "asc" ? (
-                    <SortAsc className="w-4 h-4" />
-                  ) : (
-                    <SortDesc className="w-4 h-4" />
-                  )}
-                </button>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+
+                {/* View Mode Tabs */}
+                <Tabs
+                  selectedKey={viewMode}
+                  onSelectionChange={setViewMode}
+                  variant="solid"
+                  color="default"
+                  size="sm"
+                  classNames={{
+                    base: "bg-zinc-800/50 rounded-lg p-0.5 h-10",
+                    tabList: "gap-0.5 h-full",
+                    tab: "px-3 py-1.5 h-full",
+                    tabContent: "text-zinc-400 group-data-[selected=true]:text-white text-xs font-medium",
+                    cursor: "bg-zinc-600",
+                  }}
+                >
+                  <Tab key="list" title="List" />
+                  <Tab key="grid" title="Grid" />
+                </Tabs>
               </div>
             </div>
           </div>
@@ -847,13 +894,9 @@ export default function Nutrition() {
             <DataTable
               data={displayPlans}
               columns={tableColumns}
-              loading={clientsLoading && !selectedClient && !showAllPlans}
+              loading={clientsLoading || dietPlansLoading}
               emptyMessage="No nutrition plans found"
-              emptyDescription={
-                !showAllPlans && selectedClient
-                  ? `Create a personalized nutrition plan for ${selectedClient.first_name} to get started`
-                  : "Create your first AI-powered nutrition plan to help your clients achieve their health goals"
-              }
+              emptyDescription="Create your first AI-powered nutrition plan to help your clients achieve their health goals"
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               showViewToggle={false}

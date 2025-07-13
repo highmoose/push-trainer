@@ -147,7 +147,7 @@ export default function DataTable({
         // Grid View
         <div className="space-y-6">
           {/* Header with view toggle */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-6">
             <h3 className="text-lg font-medium text-white">
               {data.length} {data.length === 1 ? "item" : "items"}
             </h3>
@@ -180,7 +180,7 @@ export default function DataTable({
           </div>
 
           {/* Grid Items */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-6">
             {data.map((row, rowIndex) => (
               <div
                 key={row.id || rowIndex}
