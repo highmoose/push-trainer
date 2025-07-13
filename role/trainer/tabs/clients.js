@@ -53,14 +53,16 @@ export default function Clients() {
   return (
     <div className=" flex-1 w-full ">
       <div className="flex">
-        <div className="flex flex-col flex-1 h-screen gap-1 pr-1 pb-1">
-          <ClientTopBar
-            clients={clients}
-            setAddClientModalOpen={setAddClientModalOpen}
-            setSelectedClient={setSelectedClient}
-            selectedClient={selectedClient}
-          />
-          <div className="flex w-full h-full gap-2 p-2">
+        <div className="flex flex-col flex-1 h-screen ">
+          <div className="p-2">
+            <ClientTopBar
+              clients={clients}
+              setAddClientModalOpen={setAddClientModalOpen}
+              setSelectedClient={setSelectedClient}
+              selectedClient={selectedClient}
+            />
+          </div>
+          <div className="flex w-full h-full gap-2  px-2 pb-2">
             <ClientTimeline selectedClient={selectedClient} />
             <div className="flex flex-col w-full h-full gap-2">
               {/* Top row */}

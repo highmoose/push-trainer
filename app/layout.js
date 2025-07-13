@@ -1,23 +1,23 @@
 "use client";
 
-import { Saira } from "next/font/google";
+import { Onest } from "next/font/google";
 import { Provider as ReduxProvider } from "react-redux";
 import store from "@redux/store";
 import AuthHydration from "@redux/store/AuthHydration";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const saira = Saira({
-  variable: "--font-saira",
+const onest = Onest({
+  variable: "--font-onest",
   subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   display: "swap",
 });
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full dark">
-      <body className={`${saira.variable} antialiased h-full font-sans`}>
+      <body className={`${onest.variable} antialiased h-full font-sans`}>
         <ReduxProvider store={store}>
           <AuthHydration />
           <Providers>

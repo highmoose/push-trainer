@@ -47,7 +47,7 @@ export default function Header({ setShowTab, currentTab }) {
     setShowTab(key);
   };
   return (
-    <div className="w-[120px] bg-panel">
+    <div className="w-[120px] bg-[#121214]">
       <div className="flex flex-col h-full items-center justify-between px-6 py-8">
         <div>
           <Image

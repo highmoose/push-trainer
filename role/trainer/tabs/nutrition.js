@@ -1,504 +1,108 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useClients } from "@/hooks/clients";
 import { useDietPlans } from "@/hooks/diet";
 import {
   ChefHat,
-  Target,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Search,
-  Sparkles,
-  AlertCircle,
-  X,
   Eye,
   Plus,
   BookOpen,
-  Settings,
   SortAsc,
   SortDesc,
-  Grid,
-  List,
-  Utensils,
   Loader,
   Trash2,
+  User,
+  Calendar,
+  Target,
+  Utensils,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
+import {
+  CreatePlanModal,
+  PlanDetailsModal,
+  sampleDietPlans,
+} from "@/components/trainer/nutrition";
+import { DataTable } from "@/components/common/tables";
+import Button from "@/components/common/button";
+import { Input, Tabs, Tab, Switch, AvatarGroup, Avatar } from "@heroui/react";
+import Image from "next/image";
+import { Group } from "@visx/group";
+import { LinePath, AreaClosed } from "@visx/shape";
+import { scaleLinear } from "@visx/scale";
+import { LinearGradient } from "@visx/gradient";
+import { curveMonotoneX } from "@visx/curve";
 
-// Meal Plan Display Component with enhanced formatting
-const MealPlanDisplay = ({ aiResponse, items }) => {
-  const [mealData, setMealData] = useState(null);
-  const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null);
+// VSX Chart Component for Calorie Distribution
+const VSXCalorieChart = ({
+  data,
+  width = 140,
+  height = 50,
+  color = "#3b82f6",
+  chartId = "default",
+}) => {
+  if (!data || data.length === 0) return null;
 
-  useEffect(() => {
-    console.log("=== MealPlanDisplay Debug ===");
-    console.log("Raw aiResponse:", aiResponse);
-    console.log("Items array:", items);
-    console.log("aiResponse type:", typeof aiResponse);
+  const maxCalories = Math.max(...data.map((d) => d.calories));
+  const minCalories = Math.min(...data.map((d) => d.calories));
 
-    try {
-      let parsedData;
-      let debugSteps = [];
+  const xScale = scaleLinear({
+    domain: [0, data.length - 1],
+    range: [10, width - 10],
+  });
 
-      // First, try to use the items array if available
-      if (items && Array.isArray(items) && items.length > 0) {
-        debugSteps.push("Using items array from API");
+  const yScale = scaleLinear({
+    domain: [minCalories * 0.9, maxCalories * 1.1],
+    range: [height - 10, 10],
+  });
 
-        // Convert items array to the expected meal format
-        const mealsFromItems = items.map((item) => ({
-          name: item.meal_name,
-          type: item.meal_type,
-          order: item.meal_order,
-          ingredients: JSON.parse(item.ingredients || "[]"),
-          instructions: item.instructions,
-          calories: item.calories,
-          protein: item.protein,
-          carbs: item.carbs,
-          fats: item.fats,
-        }));
+  const points = data.map((d, i) => ({
+    x: xScale(i),
+    y: yScale(d.calories),
+  }));
 
-        // Calculate daily totals
-        const dailyTotals = items.reduce(
-          (totals, item) => ({
-            calories: totals.calories + (item.calories || 0),
-            protein: totals.protein + (item.protein || 0),
-            carbs: totals.carbs + (item.carbs || 0),
-            fats: totals.fats + (item.fats || 0),
-          }),
-          { calories: 0, protein: 0, carbs: 0, fats: 0 }
-        );
+  const gradientId = `area-gradient-${chartId}`;
 
-        parsedData = {
-          meals: mealsFromItems,
-          daily_totals: dailyTotals,
-        };
-
-        debugSteps.push(
-          `Successfully converted ${items.length} items to meal format`
-        );
-        console.log("Converted items to meals:", parsedData);
-      }
-      // Fallback to parsing aiResponse if items are not available
-      else if (typeof aiResponse === "string") {
-        debugSteps.push("Input is string");
-
-        // Parse the OpenAI response structure
-        try {
-          const openAiResponse = JSON.parse(aiResponse);
-          debugSteps.push("Successfully parsed OpenAI response structure");
-          console.log("OpenAI response structure:", openAiResponse);
-
-          if (
-            openAiResponse.choices &&
-            openAiResponse.choices[0] &&
-            openAiResponse.choices[0].message
-          ) {
-            const content = openAiResponse.choices[0].message.content;
-            debugSteps.push("Found content in choices[0].message.content");
-            console.log("Raw content:", content); // Parse the content (which is a JSON string with escaped characters)
-            try {
-              // Clean up markdown formatting before parsing
-              let cleanContent = content;
-              cleanContent = cleanContent.replace(/```json\s*/g, "");
-              cleanContent = cleanContent.replace(/```\s*$/g, "");
-              cleanContent = cleanContent.trim();
-
-              debugSteps.push("Cleaned markdown formatting from content");
-              console.log("Cleaned content:", cleanContent);
-
-              parsedData = JSON.parse(cleanContent);
-              debugSteps.push("Successfully parsed content as JSON");
-              console.log("Final parsed meal data:", parsedData);
-            } catch (contentParseError) {
-              debugSteps.push(
-                `Content JSON parse failed: ${contentParseError.message}`
-              );
-              console.log("Content that failed to parse:", content);
-
-              // Try one more fallback without the original content cleaning
-              try {
-                // More aggressive cleaning
-                let aggressiveClean = content;
-                aggressiveClean = aggressiveClean.replace(/```[a-z]*\s*/g, "");
-                aggressiveClean = aggressiveClean.replace(/```\s*/g, "");
-                aggressiveClean = aggressiveClean.trim();
-
-                parsedData = JSON.parse(aggressiveClean);
-                debugSteps.push("Successfully parsed with aggressive cleaning");
-                console.log("Aggressively cleaned and parsed:", parsedData);
-              } catch (aggressiveError) {
-                debugSteps.push(
-                  `Aggressive cleaning also failed: ${aggressiveError.message}`
-                );
-              }
-            }
-          } else {
-            debugSteps.push("No valid choices/message structure found");
-          }
-        } catch (openAiParseError) {
-          debugSteps.push(
-            `OpenAI structure parse failed: ${openAiParseError.message}`
-          );
-
-          // Fallback: try to parse as direct JSON
-          try {
-            parsedData = JSON.parse(aiResponse);
-            debugSteps.push("Successfully parsed as direct JSON (fallback)");
-            console.log("Direct JSON parse result:", parsedData);
-          } catch (directParseError) {
-            debugSteps.push(
-              `Direct JSON parse also failed: ${directParseError.message}`
-            );
-          }
-        }
-      } else if (typeof aiResponse === "object" && aiResponse !== null) {
-        debugSteps.push("Input is object");
-        parsedData = aiResponse;
-      }
-
-      setDebugInfo({
-        steps: debugSteps,
-        rawData: aiResponse,
-        parsedData: parsedData,
-        hasMeals: parsedData && parsedData.meals ? parsedData.meals.length : 0,
-      });
-      if (parsedData && parsedData.meals && Array.isArray(parsedData.meals)) {
-        // Normalize and validate the meal data
-        const normalizedData = {
-          ...parsedData,
-          meals: parsedData.meals.map((meal) => ({
-            ...meal,
-            ingredients: meal.ingredients
-              ? meal.ingredients.map((ingredient) => {
-                  // Ensure each ingredient is properly formatted
-                  if (typeof ingredient === "string") {
-                    // Convert string to object format for consistency
-                    return { name: ingredient, amount: null };
-                  } else if (
-                    typeof ingredient === "object" &&
-                    ingredient.name
-                  ) {
-                    // Ensure amount exists
-                    return {
-                      name: ingredient.name,
-                      amount: ingredient.amount || null,
-                    };
-                  } else {
-                    // Fallback for malformed ingredients
-                    return { name: String(ingredient), amount: null };
-                  }
-                })
-              : [],
-          })),
-        };
-
-        console.log("✅ Valid meal data found:", normalizedData);
-        setMealData(normalizedData);
-        setError(null);
-      } else {
-        console.log("❌ Invalid meal plan format:", parsedData);
-        setError("Invalid meal plan format - no meals array found");
-      }
-    } catch (err) {
-      console.error("❌ Error parsing meal plan:", err);
-      setError(`Failed to parse meal plan data: ${err.message}`);
-      setDebugInfo({
-        steps: [`Fatal error: ${err.message}`],
-        rawData: aiResponse,
-        parsedData: null,
-        hasMeals: 0,
-      });
-    }
-  }, [aiResponse, items]);
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <div className="text-center text-red-400 py-4">
-          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-          <p className="font-semibold">{error}</p>
-        </div>
-
-        {/* Detailed Debug Information */}
-        <div className="bg-zinc-900/80 border border-zinc-700 rounded-lg p-4">
-          <h4 className="text-zinc-300 font-semibold mb-3 flex items-center">
-            <Settings className="w-4 h-4 mr-2" />
-            Debug Information
-          </h4>
-
-          {debugInfo && (
-            <div className="space-y-3 text-sm">
-              <div>
-                <div className="text-zinc-400 mb-1">Parse Steps:</div>
-                <ul className="list-disc list-inside space-y-1 text-zinc-500">
-                  {debugInfo.steps.map((step, idx) => (
-                    <li key={idx}>{step}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <div className="text-zinc-400 mb-1">
-                  Data Type: {typeof debugInfo.rawData}
-                </div>
-                <div className="text-zinc-400 mb-1">
-                  Meals Found: {debugInfo.hasMeals}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-zinc-400 mb-1">Raw Data Preview:</div>
-                <pre className="p-2 bg-zinc-800 rounded text-zinc-400 overflow-x-auto max-h-32">
-                  {typeof debugInfo.rawData === "string"
-                    ? debugInfo.rawData.substring(0, 500) +
-                      (debugInfo.rawData.length > 500 ? "..." : "")
-                    : JSON.stringify(debugInfo.rawData, null, 2)}
-                </pre>
-              </div>
-
-              {debugInfo.parsedData && (
-                <div>
-                  <div className="text-zinc-400 mb-1">
-                    Parsed Data Structure:
-                  </div>
-                  <pre className="p-2 bg-zinc-800 rounded text-zinc-400 overflow-x-auto max-h-32">
-                    {JSON.stringify(debugInfo.parsedData, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (!mealData) {
-    return (
-      <div className="text-center text-zinc-500 py-4">
-        <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-        <p>Loading meal plan...</p>
-      </div>
-    );
-  }
-
-  const getMealTypeIcon = (type) => {
-    switch (type.toLowerCase()) {
-      case "breakfast":
-        return "🌅";
-      case "lunch":
-        return "☀️";
-      case "dinner":
-        return "🌙";
-      case "snack":
-        return "🍎";
-      default:
-        return "🍽️";
-    }
-  };
-
-  const getMealTypeColor = (type) => {
-    switch (type.toLowerCase()) {
-      case "breakfast":
-        return "text-orange-400 border-orange-400/30 bg-orange-400/10";
-      case "lunch":
-        return "text-yellow-400 border-yellow-400/30 bg-yellow-400/10";
-      case "dinner":
-        return "text-blue-400 border-blue-400/30 bg-blue-400/10";
-      case "snack":
-        return "text-green-400 border-green-400/30 bg-green-400/10";
-      default:
-        return "text-zinc-400 border-zinc-400/30 bg-zinc-400/10";
-    }
-  };
   return (
-    <div className="space-y-3 px-2">
-      {/* Daily Totals Summary */}
-      {mealData.daily_totals && (
-        <div className="flex items-center justify-between bg-zinc-700 rounded p-4 shadow-lg mb-4">
-          <h3 className="text-base font-bold text-zinc-200 flex items-center gap-2 ">
-            <Target className="w-5 h-5 text-zinc-400" />
-            Daily Nutritional Goals
-          </h3>
-          <div className="flex gap-10">
-            <div className="text-center">
-              <div className="text-lg font-bold text-zinc-100">
-                {mealData.daily_totals.calories}
-              </div>
-              <div className="text-xs text-zinc-400">Calories</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-zinc-100">
-                {mealData.daily_totals.protein}g
-              </div>
-              <div className="text-xs text-zinc-400">Protein</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-zinc-100">
-                {mealData.daily_totals.carbs}g
-              </div>
-              <div className="text-xs text-zinc-400">Carbs</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-zinc-100">
-                {mealData.daily_totals.fats}g
-              </div>
-              <div className="text-xs text-zinc-400">Fats</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Meals */}
-      <div className="space-y-4  rounded shadow-xl">
-        <h3 className="text-base font-bold text-zinc-200 flex items-center gap-2 mb-4">
-          <Utensils className="w-5 h-5 text-zinc-400" />
-          Meal Plan
-        </h3>
-
-        {mealData.meals
-          .sort((a, b) => a.order - b.order)
-          .map((meal, index) => (
-            <div key={index} className="bg-zinc-800  rounded shadow-lg p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {/* <span className="text-zinc-400">
-                    {getMealTypeIcon(meal.type)}
-                  </span> */}
-                  <div>
-                    <h4 className="font-semibold text-zinc-100 text-base mb-0.5">
-                      {meal.name}
-                    </h4>
-                    <span className="text-sm text-zinc-400 capitalize">
-                      {meal.type}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-zinc-100">
-                    {meal.calories} cal
-                  </div>
-                  <div className="text-sm text-zinc-500 mt-0.5">
-                    Protein: {meal.protein}g · Carbs: {meal.carbs}g · Fats:{" "}
-                    {meal.fats}g
-                  </div>
-                </div>
-              </div>
-              <div className="mb-3">
-                <h5 className="text-sm font-semibold text-zinc-300 mb-1">
-                  Ingredients
-                </h5>
-                <div className="flex flex-wrap gap-2">
-                  {meal.ingredients.map((ingredient, idx) => {
-                    const ingredientName =
-                      typeof ingredient === "object"
-                        ? ingredient.name
-                        : ingredient;
-                    const ingredientAmount =
-                      typeof ingredient === "object" ? ingredient.amount : null;
-
-                    return (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 px-2 py-1.5 bg-zinc-700 rounded-md text-sm"
-                      >
-                        <span className="w-1 h-1 bg-zinc-500 rounded-full"></span>
-                        <span className="text-zinc-300">{ingredientName}</span>
-                        {ingredientAmount ? (
-                          <span className="text-zinc-400 bg-zinc-800 rounded px-1  text-[12px] ml-1">
-                            {ingredientAmount}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-500 italic text-[10px] ml-1">
-                            amount not specified
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h5 className="text-sm font-semibold text-zinc-300 mb-1">
-                  Instructions
-                </h5>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  {meal.instructions}
-                </p>
-              </div>
-            </div>
-          ))}
-      </div>
+    <div className="flex items-center justify-center">
+      <svg width={width} height={height}>
+        <defs>
+          <LinearGradient
+            id={gradientId}
+            from={color}
+            to={color}
+            fromOpacity={0.3}
+            toOpacity={0}
+          />
+        </defs>
+        <Group>
+          {/* Area with gradient */}
+          <AreaClosed
+            data={points}
+            x={(d) => d.x}
+            y={(d) => d.y}
+            yScale={yScale}
+            fill={`url(#${gradientId})`}
+            curve={curveMonotoneX}
+          />
+          {/* Smooth line */}
+          <LinePath
+            data={points}
+            x={(d) => d.x}
+            y={(d) => d.y}
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+            curve={curveMonotoneX}
+          />
+        </Group>
+      </svg>
     </div>
   );
 };
-
-// Diet plan types with descriptions
-const DIET_PLAN_TYPES = [
-  {
-    id: "aggressive_cut",
-    name: "Aggressive Weight Cut",
-    description: "Rapid fat loss with significant caloric deficit",
-    icon: TrendingDown,
-    color: "red",
-  },
-  {
-    id: "moderate_cut",
-    name: "Moderate Weight Cut",
-    description: "Steady fat loss with moderate caloric deficit",
-    icon: TrendingDown,
-    color: "orange",
-  },
-  {
-    id: "maintain",
-    name: "Maintenance",
-    description: "Maintain current weight and composition",
-    icon: Minus,
-    color: "blue",
-  },
-  {
-    id: "recomp",
-    name: "Body Recomposition",
-    description: "Simultaneously lose fat and gain muscle",
-    icon: Target,
-    color: "purple",
-  },
-  {
-    id: "lean_bulk",
-    name: "Lean Bulk",
-    description: "Muscle gain with minimal fat gain",
-    icon: TrendingUp,
-    color: "green",
-  },
-  {
-    id: "aggressive_bulk",
-    name: "Aggressive Muscle Gain",
-    description: "Rapid muscle gain with significant caloric surplus",
-    icon: TrendingUp,
-    color: "emerald",
-  },
-];
-
-const MEAL_COMPLEXITY = [
-  {
-    id: "simple",
-    name: "Simple",
-    description: "Quick and easy meals with minimal prep",
-  },
-  {
-    id: "moderate",
-    name: "Moderate",
-    description: "Balanced complexity with some cooking required",
-  },
-  {
-    id: "complex",
-    name: "Complex",
-    description: "Advanced meals with detailed preparation",
-  },
-];
 
 export default function Nutrition() {
   const {
@@ -518,58 +122,18 @@ export default function Nutrition() {
     fetchDietPlans,
   } = useDietPlans();
 
-  // Sample data for testing
-  const sampleDietPlans = [
-    {
-      id: 1,
-      title: "Weight Loss Plan - Sarah",
-      client_name: "Sarah Johnson",
-      client_id: 1,
-      plan_type: "moderate_cut",
-      meals_per_day: 4,
-      meal_complexity: "simple",
-      created_at: "2024-01-15T10:00:00Z",
-      updated_at: "2024-01-15T10:00:00Z",
-      is_favorite: false,
-      is_archived: false,
-      ai_response: JSON.stringify({
-        id: "chatcmpl-sample1",
-        object: "chat.completion",
-        created: 1750287440,
-        model: "gpt-3.5-turbo-0125",
-        choices: [
-          {
-            index: 0,
-            message: {
-              role: "assistant",
-              content:
-                '{\n  "meals": [\n    {\n      "name": "Protein-Packed Breakfast Bowl",\n      "type": "breakfast",\n      "order": 1,\n      "ingredients": [{"name": "egg whites", "amount": "4 large"}, {"name": "spinach", "amount": "1 cup"}, {"name": "quinoa", "amount": "1/2 cup cooked"}, {"name": "cherry tomatoes", "amount": "1/2 cup"}, {"name": "avocado", "amount": "1/4 medium"}],\n      "instructions": "Scramble egg whites with spinach, serve with quinoa, cherry tomatoes, and sliced avocado.",\n      "calories": 400,\n      "protein": 25,\n      "carbs": 45,\n      "fats": 15\n    }\n  ],\n  "daily_totals": {\n    "calories": 1600,\n    "protein": 110,\n    "carbs": 120,\n    "fats": 75\n  }\n}',
-              refusal: null,
-              annotations: [],
-            },
-            logprobs: null,
-            finish_reason: "stop",
-          },
-        ],
-        usage: {
-          prompt_tokens: 241,
-          completion_tokens: 496,
-          total_tokens: 737,
-        },
-      }),
-    },
-  ];
-
   // Use sample data if no real data is available
   const activeDietPlans = dietPlans.length > 0 ? dietPlans : sampleDietPlans;
 
   // State
   const [selectedClient, setSelectedClient] = useState(null);
-  const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [showAllPlans, setShowAllPlans] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [clientFilter, setClientFilter] = useState(""); // New client filter state
+  const [viewMode, setViewMode] = useState("list"); // New view mode state
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPlanDetailModal, setShowPlanDetailModal] = useState(false);
@@ -577,28 +141,381 @@ export default function Nutrition() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
 
-  // Form states
-  const [selectedClientForForm, setSelectedClientForForm] = useState(null);
-  const [planTitle, setPlanTitle] = useState("");
-  const [planType, setPlanType] = useState("");
-  const [mealsPerDay, setMealsPerDay] = useState(4);
-  const [mealComplexity, setMealComplexity] = useState("moderate");
-  const [customCalories, setCustomCalories] = useState("");
-  const [useCustomCalories, setUseCustomCalories] = useState(false);
-  const [additionalNotes, setAdditionalNotes] = useState("");
-  const [aiProvider, setAiProvider] = useState("openai");
-  const [generatingPlans, setGeneratingPlans] = useState([]); // Track plans being generated
+  // Track plans being generated
+  const [generatingPlans, setGeneratingPlans] = useState([]);
 
-  // Filtered clients
-  const filteredClients = useMemo(() => {
-    return clients.filter(
-      (client) =>
-        `${client.first_name} ${client.last_name}`
-          .toLowerCase()
-          .includes(clientSearchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
-    );
-  }, [clients, clientSearchTerm]);
+  // Quick plan name input state
+  const [quickPlanName, setQuickPlanName] = useState("");
+
+  // Table column definitions
+  const tableColumns = [
+    {
+      key: "name",
+      label: "Plan",
+      icon: ChefHat,
+      className: "w-1/4", // Increased from 20% to 25% of width
+      render: (value, row) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-500/20 to-zinc-600/20 flex items-center justify-center border border-zinc-600/30">
+            <img
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                row.title || "Plan"
+              )}&size=40&background=random&color=fff&format=svg`}
+              alt="Plan"
+              className="w-8 h-8 rounded-full"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="font-semibold text-white flex items-center gap-2">
+              <span className="truncate">{row.title}</span>
+              {row.isGenerating && (
+                <span className="inline-flex items-center gap-1 text-xs text-zinc-400 font-normal bg-zinc-500/10 px-2 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-pulse"></div>
+                  Generating...
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-zinc-400 truncate">
+              {row.client_name || "Generic Plan"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "macros",
+      label: "Macros",
+      icon: Target,
+      className: "w-1/6", // ~16.7% of width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">Calculating...</div>;
+        }
+
+        // Extract nutritional data from ai_response
+        const getNutritionalData = (row) => {
+          try {
+            if (!row.ai_response) {
+              return null;
+            }
+
+            const aiResponse =
+              typeof row.ai_response === "string"
+                ? JSON.parse(row.ai_response)
+                : row.ai_response;
+
+            const content = aiResponse.choices?.[0]?.message?.content;
+            if (!content) return null;
+
+            const nutritionData = JSON.parse(content);
+            return nutritionData.daily_totals;
+          } catch (error) {
+            console.error("Error parsing nutritional data:", error);
+            return null;
+          }
+        };
+
+        const nutritionalData = getNutritionalData(row);
+
+        // Fallback to mock data if no real data available - always in grams
+        const getMacros = (planType) => {
+          // Calculate grams based on calories and percentages
+          const calories =
+            planType === "weight_loss" || planType === "moderate_cut"
+              ? 1800
+              : planType === "muscle_gain" || planType === "bulk"
+              ? 2800
+              : 2200;
+          const proteinCals =
+            calories *
+            (planType === "weight_loss" || planType === "moderate_cut"
+              ? 0.4
+              : planType === "muscle_gain" || planType === "bulk"
+              ? 0.3
+              : 0.25);
+          const carbsCals =
+            calories *
+            (planType === "weight_loss" || planType === "moderate_cut"
+              ? 0.3
+              : planType === "muscle_gain" || planType === "bulk"
+              ? 0.45
+              : 0.4);
+          const fatsCals =
+            calories *
+            (planType === "weight_loss" || planType === "moderate_cut"
+              ? 0.3
+              : planType === "muscle_gain" || planType === "bulk"
+              ? 0.25
+              : 0.35);
+
+          return {
+            protein: `${Math.round(proteinCals / 4)}g`,
+            carbs: `${Math.round(carbsCals / 4)}g`,
+            fats: `${Math.round(fatsCals / 9)}g`,
+          };
+        };
+
+        let macros;
+
+        if (nutritionalData) {
+          // Use real data from diet plan - always show in grams
+          macros = {
+            protein: `${nutritionalData.protein}g`,
+            carbs: `${nutritionalData.carbs}g`,
+            fats: `${nutritionalData.fats}g`,
+          };
+        } else {
+          // Fallback to mock data
+          macros = getMacros(row.plan_type);
+        }
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <span className="text-zinc-400">P: {macros.protein}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-zinc-400">C: {macros.carbs}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                <span className="text-zinc-400">F: {macros.fats}</span>
+              </div>
+            </div>
+            <div className="text-xs text-zinc-500 capitalize">
+              {row.plan_type?.replace("_", " ")}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "calories",
+      label: "Calories & Distribution",
+      icon: Zap,
+      className: "w-1/4", // 25% of width for the main content
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">Calculating...</div>;
+        }
+
+        // Extract nutritional data from ai_response
+        const getNutritionalData = (row) => {
+          try {
+            if (!row.ai_response) {
+              return null;
+            }
+
+            const aiResponse =
+              typeof row.ai_response === "string"
+                ? JSON.parse(row.ai_response)
+                : row.ai_response;
+
+            const content = aiResponse.choices?.[0]?.message?.content;
+            if (!content) return null;
+
+            const nutritionData = JSON.parse(content);
+            return nutritionData.daily_totals;
+          } catch (error) {
+            console.error("Error parsing nutritional data:", error);
+            return null;
+          }
+        };
+
+        const nutritionalData = getNutritionalData(row);
+
+        // Fallback to mock data if no real data available
+        const getCalories = (planType) => {
+          switch (planType) {
+            case "weight_loss":
+            case "moderate_cut":
+              return { daily: 1800, range: "1600-2000" };
+            case "muscle_gain":
+            case "bulk":
+              return { daily: 2800, range: "2600-3000" };
+            case "maintenance":
+              return { daily: 2200, range: "2000-2400" };
+            default:
+              return { daily: 2200, range: "2000-2400" };
+          }
+        };
+
+        let calories;
+
+        if (nutritionalData) {
+          // Use real data from diet plan
+          const dailyCalories = nutritionalData.calories;
+          const rangeMin = Math.round(dailyCalories * 0.9);
+          const rangeMax = Math.round(dailyCalories * 1.1);
+
+          calories = {
+            daily: dailyCalories,
+            range: `${rangeMin}-${rangeMax}`,
+          };
+        } else {
+          // Fallback to mock data
+          calories = getCalories(row.plan_type);
+        }
+
+        // Get chart data
+        const chartData = createCalorieChartData(row);
+        let finalChartData = chartData;
+
+        if (!chartData) {
+          // Fallback chart data for non-AI plans (deterministic based on row data)
+          const mealCount = row.meals_per_day || 3;
+          const avgCalories =
+            row.plan_type === "weight_loss"
+              ? 600
+              : row.plan_type === "muscle_gain"
+              ? 900
+              : 730;
+
+          // Use row ID or title hash for deterministic random-like data
+          const seed = row.id || row.title?.length || 0;
+          const pseudoRandom = (index) => {
+            const x = Math.sin(seed + index) * 10000;
+            return x - Math.floor(x);
+          };
+
+          finalChartData = Array.from({ length: mealCount }, (_, i) => ({
+            name: `Meal ${i + 1}`,
+            calories: Math.round(avgCalories + (pseudoRandom(i) * 200 - 100)),
+            index: i + 1,
+          }));
+        }
+
+        return (
+          <div className="flex items-center gap-3">
+            <div className="text-left">
+              <div className="text-white font-semibold text-lg">
+                {calories.daily.toLocaleString()} cal
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <VSXCalorieChart
+                data={finalChartData}
+                width={140}
+                height={56}
+                chartId={`chart-${
+                  row.id ||
+                  row.title?.replace(/\s+/g, "-").toLowerCase() ||
+                  "default"
+                }`}
+              />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "meals_per_day",
+      label: "Meals",
+      icon: Utensils,
+      className: "w-1/12", // ~8.3% of width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">-</div>;
+        }
+        return (
+          <div className="flex justify-start">
+            <div className="text-white font-semibold bg-zinc-500/20 px-2 py-1 rounded-full text-sm w-fit">
+              {value || 3}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "created_at",
+      label: "Created",
+      icon: Calendar,
+      className: "w-1/6", // ~16.7% of width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">Just now</div>;
+        }
+        return (
+          <div className="text-sm">
+            <div className="text-white font-medium">
+              {new Date(value).toLocaleDateString()}
+            </div>
+            <div className="text-zinc-400 text-xs">
+              {new Date(value).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "client_name",
+      label: "Assigned to",
+      icon: User,
+      className: "w-1/6", // ~16.7% of width
+      render: (value, row) => {
+        // For now, we'll show a single assigned user and placeholder for multiple assignments
+        // In the future, this could be enhanced to show multiple assigned users
+        const assignedUsers = [
+          {
+            id: row.client_id || 1,
+            name: value || "Generic",
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              value || "Generic"
+            )}&size=32&background=random&color=fff&format=svg`,
+          },
+        ];
+
+        if (assignedUsers.length === 1) {
+          return (
+            <div className="flex items-center gap-2">
+              <Avatar
+                src={assignedUsers[0].avatar}
+                alt={assignedUsers[0].name}
+                size="sm"
+                className="w-6 h-6"
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-2">
+            <AvatarGroup
+              isBordered
+              max={3}
+              size="sm"
+              classNames={{
+                base: "gap-2",
+                count: "text-xs bg-zinc-700 text-zinc-300",
+              }}
+            >
+              {assignedUsers.map((user) => (
+                <Avatar
+                  key={user.id}
+                  src={user.avatar}
+                  alt={user.name}
+                  size="sm"
+                  className="w-6 h-6"
+                />
+              ))}
+            </AvatarGroup>
+            {assignedUsers.length > 3 && (
+              <span className="text-zinc-400 text-xs">
+                +{assignedUsers.length - 3}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   // Display plans based on selection
   const displayPlans = useMemo(() => {
     let plans = showAllPlans
@@ -624,7 +541,18 @@ export default function Nutrition() {
           plan.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           plan.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    } // Sort plans (create a copy to avoid mutating read-only array)
+    }
+
+    // Apply client filter
+    if (clientFilter) {
+      plans = plans.filter(
+        (plan) =>
+          plan.client_id === parseInt(clientFilter) ||
+          plan.client_name?.toLowerCase().includes(clientFilter.toLowerCase())
+      );
+    }
+
+    // Sort plans (create a copy to avoid mutating read-only array)
     plans = [...plans].sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
@@ -650,6 +578,7 @@ export default function Nutrition() {
     sortBy,
     sortOrder,
     generatingPlans,
+    clientFilter, // Add clientFilter to dependencies
   ]);
 
   // Initialize with first client if available
@@ -676,139 +605,33 @@ export default function Nutrition() {
     // TODO: Implement fetchPlanDetails in useDietPlans hook if needed for additional details
     console.log("Using plan data directly:", plan);
   };
-  // Generate enhanced diet plan prompt with client data
-  const buildClientAwarePrompt = () => {
-    const client = selectedClientForForm || selectedClient;
-    const selectedPlanType = DIET_PLAN_TYPES.find((p) => p.id === planType);
 
-    let prompt = `Create a comprehensive ${
-      selectedPlanType?.name || planType
-    } diet plan with the following specifications:\n\n`;
-
-    // Plan specifications
-    prompt += `PLAN REQUIREMENTS:\n`;
-    prompt += `- Goal: ${selectedPlanType?.name || planType} - ${
-      selectedPlanType?.description || ""
-    }\n`;
-    prompt += `- Meals per day: ${mealsPerDay}\n`;
-    prompt += `- Meal complexity: ${mealComplexity}\n`;
-
-    if (useCustomCalories && customCalories) {
-      prompt += `- Target daily calories: ${customCalories}\n`;
-    }
-
-    // Client-specific information
-    if (client) {
-      prompt += `\nCLIENT PROFILE:\n`;
-      prompt += `- Name: ${client.first_name} ${client.last_name}\n`;
-
-      if (client.height) {
-        prompt += `- Height: ${client.height} cm\n`;
-      }
-
-      if (client.weight) {
-        prompt += `- Weight: ${client.weight} kg\n`;
-      }
-
-      if (client.fitness_level) {
-        prompt += `- Activity Level: ${client.fitness_level.replace(
-          "_",
-          " "
-        )}\n`;
-      }
-
-      if (client.allergies && client.allergies.trim()) {
-        prompt += `- ALLERGIES (CRITICAL): ${client.allergies}\n`;
-      }
-
-      if (client.food_likes && client.food_likes.trim()) {
-        prompt += `- Food Preferences: ${client.food_likes}\n`;
-      }
-
-      if (client.food_dislikes && client.food_dislikes.trim()) {
-        prompt += `- Foods to Avoid: ${client.food_dislikes}\n`;
-      }
-
-      if (client.medical_conditions && client.medical_conditions.trim()) {
-        prompt += `- Medical Considerations: ${client.medical_conditions}\n`;
-      }
-    }
-
-    // Additional notes
-    if (additionalNotes && additionalNotes.trim()) {
-      prompt += `\nADDITIONAL REQUIREMENTS:\n${additionalNotes}\n`;
-    }
-
-    // Output format requirements
-    prompt += `\nIMPORTANT INSTRUCTIONS:\n`;
-    prompt += `1. STRICTLY AVOID any foods mentioned in allergies or food dislikes\n`;
-    prompt += `2. Prioritize foods mentioned in food preferences when possible\n`;
-    prompt += `3. Calculate calories based on height, weight, and activity level if provided\n`;
-    prompt += `4. Include detailed macronutrient breakdown for each meal\n`;
-    prompt += `5. Provide specific portion sizes and cooking instructions\n`;
-    prompt += `6. Consider the client's activity level for appropriate caloric intake\n`;
-    prompt += `7. Format as a detailed, easy-to-follow meal plan\n`;
-
-    return prompt;
-  };
-  // Generate diet plan
-  const handleGeneratePlan = async () => {
-    if (!planType) {
-      alert("Please select a diet plan goal");
-      return;
-    }
-
-    if (!planTitle.trim()) {
-      alert("Please enter a title for the diet plan");
-      return;
-    }
-
-    // Use the selected client from the form or sidebar
-    const clientId = selectedClientForForm?.id || selectedClient?.id || null;
-    const enhancedPrompt = buildClientAwarePrompt();
-
+  // Simple handler to create loading plan and trigger generation
+  const handleGeneratePlan = async (planData) => {
     // Create a temporary loading plan item
     const tempPlanId = `temp_${Date.now()}`;
     const loadingPlan = {
       id: tempPlanId,
-      title: planTitle.trim(),
-      client_name: selectedClientForForm?.first_name
-        ? `${selectedClientForForm.first_name} ${selectedClientForForm.last_name}`
-        : selectedClient?.first_name
-        ? `${selectedClient.first_name} ${selectedClient.last_name}`
-        : "Generic Plan",
-      client_id: clientId,
-      plan_type: planType,
-      meals_per_day: mealsPerDay,
-      meal_complexity: mealComplexity,
+      title: planData.title,
+      client_name: planData.clientName,
+      client_id: planData.clientId,
+      plan_type: planData.planType,
+      meals_per_day: planData.mealsPerDay,
+      meal_complexity: planData.mealComplexity,
       created_at: new Date().toISOString(),
       isGenerating: true,
     };
 
-    // Close modal immediately and add loading plan
+    // Close modal and add loading plan
     setShowCreateModal(false);
     setGeneratingPlans((prev) => [...prev, loadingPlan]);
+
     try {
-      const result = await generateDietPlan({
-        prompt: enhancedPrompt,
-        aiProvider,
-        clientId,
-        title: planTitle.trim(),
-        planType,
-        mealsPerDay,
-        mealComplexity,
-        customCalories: useCustomCalories ? customCalories : null,
-        additionalNotes,
-      });
+      const result = await generateDietPlan(planData.dietPlanRequest);
 
       // Remove the loading plan and refresh the actual plans
       setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
 
-      // Reset form
-      setPlanTitle("");
-      setPlanType("");
-      setSelectedClientForForm(null);
-      setAdditionalNotes(""); // Refresh plans - hook handles this automatically
       console.log("Diet plan generated successfully:", result);
     } catch (error) {
       console.error("Error generating plan:", error);
@@ -850,232 +673,150 @@ export default function Nutrition() {
     setPlanToDelete(null);
   };
 
+  // Helper function to create chart data from meal plan
+  const createCalorieChartData = (row) => {
+    try {
+      if (!row.ai_response) return null;
+
+      const aiResponse =
+        typeof row.ai_response === "string"
+          ? JSON.parse(row.ai_response)
+          : row.ai_response;
+
+      const content = aiResponse.choices?.[0]?.message?.content;
+      if (!content) return null;
+
+      const nutritionData = JSON.parse(content);
+      if (!nutritionData.meals) return null;
+
+      const sortedMeals = nutritionData.meals.sort((a, b) => a.order - b.order);
+      return sortedMeals.map((meal, index) => ({
+        name: meal.type,
+        calories: meal.calories,
+        index: index + 1,
+      }));
+    } catch (error) {
+      return null;
+    }
+  };
+
   return (
     <>
-      {" "}
-      <div className="h-screen flex bg-zinc-900 text-white overflow-hidden rounded">
-        {/* Professional Trainer Sidebar */}
-        <div className="w-80 bg-zinc-950/50 border-r border-zinc-800/50 flex flex-col h-full">
-          {" "}
-          {/* Sidebar Header */}{" "}
-          <div className="p-3 border-b border-zinc-800/30">
-            <h1 className="text-base font-bold text-zinc-300 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-400" />
-              Nutrition Plans
-            </h1>
-            <p className="text-zinc-500 text-sm mt-1">
-              Manage client nutrition plans
-            </p>
-          </div>{" "}
-          {/* View Toggle */}
-          <div className="p-3 border-b border-zinc-800/30">
-            <h3 className="text-sm font-medium text-zinc-300 mb-2">
-              View Options
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setShowAllPlans(false)}
-                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
-                  !showAllPlans
-                    ? "bg-blue-600 text-white"
-                    : "bg-zinc-900/50 text-zinc-400 hover:text-white"
-                }`}
-              >
-                By Client
-              </button>
-              <button
-                onClick={() => setShowAllPlans(true)}
-                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
-                  showAllPlans
-                    ? "bg-blue-600 text-white"
-                    : "bg-zinc-900/50 text-zinc-400 hover:text-white"
-                }`}
-              >
-                All Plans
-              </button>
-            </div>
-          </div>{" "}
-          {/* Client Search */}
-          {!showAllPlans && (
-            <div className="p-3 border-b border-zinc-800/30">
-              <h3 className="text-sm font-medium text-zinc-300 mb-2">
-                Search Clients
-              </h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
-                <input
-                  type="text"
-                  placeholder="Search clients..."
-                  value={clientSearchTerm}
-                  onChange={(e) => setClientSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-zinc-900/50 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none text-sm placeholder:text-sm"
-                />
+      <div className="relative h-screen flex flex-col bg-gradient-to-br from-zinc-900 via-black to-zinc-900 text-white overflow-hidden rounded">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-500/5 via-transparent to-zinc-500/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,_rgba(59,130,246,0.1)_0%,_transparent_50%)] pointer-events-none" />
+
+        {/* Hero Section */}
+        <div className="flex items-center justify-center min-h-[40vh] w-full z-10 px-8">
+          <div className="flex flex-col gap-8 mx-auto justify-center items-center text-center">
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <div className="p-3  rounded-full">
+                  <ChefHat className="h-20 w-20 text-white" />
+                </div>
+                <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-zinc-100 bg-clip-text text-transparent">
+                  Nutrition Plans
+                </h1>
               </div>
+              <p className="text-xl text-zinc-400 max-w-2xl">
+                Create personalized nutrition plans powered by AI to help your
+                clients achieve their health goals
+              </p>
             </div>
-          )}
-          {/* Client List */}
-          <div className="flex-1 overflow-y-auto">
-            {" "}
-            {!showAllPlans ? (
-              <>
-                {clientsLoading && (
-                  <div className="p-4 text-center text-zinc-400">
-                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                    <p>Loading clients...</p>
-                  </div>
-                )}
-                {clientsError && (
-                  <div className="p-4 text-center text-red-400">
-                    <p>Failed to load clients: {clientsError}</p>
-                    <button
-                      onClick={() => fetchClients()}
-                      className="mt-2 text-sm bg-zinc-800 px-3 py-1 rounded hover:bg-zinc-700"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-                {!clientsLoading && !clientsError && clients.length === 0 && (
-                  <div className="p-4 text-center text-zinc-400">
-                    <p>No clients found</p>
-                    <button
-                      onClick={() => fetchClients()}
-                      className="mt-2 text-sm bg-zinc-800 px-3 py-1 rounded hover:bg-zinc-700"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}{" "}
-                {filteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    onClick={() => setSelectedClient(client)}
-                    className={`p-2 border-b border-zinc-800/30 cursor-pointer transition-all hover:bg-zinc-900/30 ${
-                      selectedClient?.id === client.id
-                        ? "bg-zinc-900/50 border-l-4 border-l-blue-500"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {(client.first_name || "U").charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-zinc-300 text-sm">
-                          {client.first_name} {client.last_name}
-                        </h3>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-zinc-500 truncate mr-2">
-                            {client.email}
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <BookOpen className="h-2 w-2 text-blue-400" />
-                            <span className="text-sm text-zinc-500">
-                              {
-                                activeDietPlans.filter(
-                                  (p) => p.client_id === client.id
-                                ).length
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div className="p-4 text-center text-zinc-400">
-                <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Showing all diet plans</p>
-                <p className="text-sm text-zinc-500 mt-1">
-                  {activeDietPlans.length} total plans
-                </p>
-              </div>
-            )}
+
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-lg">
+              <Input
+                label="Quick plan name"
+                placeholder="e.g., John's Muscle Gain Plan"
+                value={quickPlanName}
+                onChange={(e) => setQuickPlanName(e.target.value)}
+                className="flex-1"
+                size="lg"
+                radius="lg"
+                classNames={{
+                  input: "text-white",
+                  inputWrapper:
+                    "bg-zinc-800/50 group-data-[focus=true]:bg-zinc-800/70",
+                }}
+              />
+
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-zinc-600 to-zinc-600 hover:from-zinc-700 hover:to-zinc-700 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+                size="lg"
+              >
+                <Plus className="w-5 h-5" />
+                Create Plan
+              </Button>
+            </div>
           </div>
         </div>
-
-        {/* Main Content Area (75% width) */}
-        <div className="flex-1 flex flex-col">
-          {" "}
-          {/* Header with Client Info and Actions */}
-          <div className="bg-zinc-900 border-b border-zinc-800 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {" "}
-                {!showAllPlans && selectedClient ? (
-                  <>
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {(selectedClient.first_name || "U")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">
-                        {selectedClient.first_name} {selectedClient.last_name}
-                      </h2>
-                      <p className="text-zinc-400 text-sm">
-                        {displayPlans.length} diet plan
-                        {displayPlans.length !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </>
-                ) : clientsLoading && !showAllPlans ? (
-                  <div className="flex items-center gap-3">
-                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">
-                        Loading Clients...
-                      </h2>
-                      <p className="text-zinc-400 text-sm">
-                        Fetching client data
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <h2 className="text-lg font-bold text-white">
-                      All Diet Plans
-                    </h2>
-                    <p className="text-zinc-400 text-sm">
-                      {displayPlans.length} total plan
-                      {displayPlans.length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded font-medium text-white transition-all flex items-center gap-2 shadow-lg text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Plan
-                </button>
-              </div>
-            </div>
-          </div>{" "}
-          {/* Search and Sort Controls */}
-          <div className="bg-zinc-900/50 border-b border-zinc-800 p-3">
-            <div className="flex items-center gap-3">
+        {/* Plans Section */}
+        <div className="flex-1 flex flex-col w-full mx-auto z-10 min-h-0">
+          {/* Enhanced Search & Filter Bar */}
+          <div className="p-4 mb-6 flex-shrink-0">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+              {/* Search Input */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-3 h-3" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search diet plans..."
+                  placeholder="Search by plan name or client..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none text-sm"
+                  className="w-full max-w-[500px] pl-12 pr-4 py-3 bg-zinc-800/50 border-0 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-0 transition-all duration-200"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Filter Controls */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* View Mode Toggle using Hero UI Switch */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-400">List View</span>
+                  <Switch
+                    size="sm"
+                    isSelected={viewMode === "grid"}
+                    onValueChange={(checked) =>
+                      setViewMode(checked ? "grid" : "list")
+                    }
+                    classNames={{
+                      base: "bg-zinc-800/50",
+                      wrapper: "group-data-[selected=true]:bg-zinc-600",
+                      thumb: "bg-white group-data-[selected=true]:bg-white",
+                    }}
+                  />
+                  <span className="text-sm text-zinc-400">Grid View</span>
+                </div>
+
+                <button
+                  onClick={() => setShowAllPlans(!showAllPlans)}
+                  className={`px-4 py-2.5 text-sm font-medium rounded-lg border-0 transition-all duration-200 ${
+                    showAllPlans
+                      ? "bg-gradient-to-r from-zinc-600 to-zinc-600 text-white shadow-lg"
+                      : "bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50"
+                  }`}
+                >
+                  {showAllPlans ? "All Plans" : "Client Plans"}
+                </button>
+
+                <select
+                  value={clientFilter}
+                  onChange={(e) => setClientFilter(e.target.value)}
+                  className="px-3 py-2.5 bg-zinc-800/50 border-0 rounded-lg text-white text-sm focus:outline-none focus:ring-0 transition-all duration-200 min-w-[160px]"
+                >
+                  <option value="">All Clients</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.first_name} {client.last_name}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+                  className="px-3 py-2.5 bg-zinc-800/50 border-0 rounded-lg text-white text-sm focus:outline-none focus:ring-0 transition-all duration-200"
                 >
                   <option value="created_at">Created Date</option>
                   <option value="updated_at">Updated Date</option>
@@ -1086,550 +827,70 @@ export default function Nutrition() {
                   onClick={() =>
                     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
                   }
-                  className="p-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400 hover:text-white"
+                  className="p-2.5 bg-zinc-800/50 border-0 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-all duration-200"
+                  title={`Sort ${
+                    sortOrder === "asc" ? "Descending" : "Ascending"
+                  }`}
                 >
                   {sortOrder === "asc" ? (
-                    <SortAsc className="w-3 h-3" />
+                    <SortAsc className="w-4 h-4" />
                   ) : (
-                    <SortDesc className="w-3 h-3" />
+                    <SortDesc className="w-4 h-4" />
                   )}
                 </button>
               </div>
             </div>
-          </div>{" "}
-          {/* Diet Plans List */}
-          <div className="flex-1 overflow-y-auto p-3">
-            {clientsLoading && !selectedClient && !showAllPlans ? (
-              <div className="text-center text-zinc-400 py-12">
-                <div className="animate-spin w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-lg mb-2">Loading clients...</p>
-                <p className="text-sm text-zinc-500">
-                  Please wait while we fetch your client list
-                </p>
-              </div>
-            ) : displayPlans.length === 0 ? (
-              <div className="text-center text-zinc-400 py-12">
-                <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg mb-2">No diet plans found</p>
-                <p className="text-sm text-zinc-500 mb-4">
-                  {!showAllPlans && selectedClient
-                    ? `Create a diet plan for ${selectedClient.first_name}`
-                    : "Create your first diet plan to get started"}
-                </p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors"
-                >
-                  Create Diet Plan
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {displayPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`bg-zinc-800/50 rounded-lg px-4 py-2 transition-all duration-200 ${
-                      plan.isGenerating
-                        ? "border-blue-500/50 bg-blue-500/5"
-                        : "border-zinc-700/50 hover:border-zinc-600/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div
-                          className={`p-2 rounded-lg ${
-                            plan.isGenerating
-                              ? "bg-blue-500/20"
-                              : "bg-blue-500/10"
-                          }`}
-                        >
-                          {plan.isGenerating ? (
-                            <Loader className="h-5 w-5 text-blue-400 animate-spin" />
-                          ) : (
-                            <ChefHat className="h-5 w-5 text-blue-400" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-semibold text-white text-lg flex items-center gap-2">
-                                {plan.title}
-                                {plan.isGenerating && (
-                                  <span className="text-sm text-blue-400 font-normal">
-                                    - Developing Nutrition Plan
-                                  </span>
-                                )}
-                              </h3>
-                              <p className="text-sm text-zinc-400">
-                                {plan.client_name || "Generic Plan"}
-                              </p>
-                            </div>
-                            {!plan.isGenerating && (
-                              <div className="flex items-center gap-6 text-sm">
-                                <div className="text-center">
-                                  <span className="text-zinc-400">
-                                    Plan Type
-                                  </span>
-                                  <p className="text-white capitalize font-medium">
-                                    {plan.plan_type?.replace("_", " ")}
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <span className="text-zinc-400">
-                                    Meals/Day
-                                  </span>
-                                  <p className="text-white font-medium">
-                                    {plan.meals_per_day}
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <span className="text-zinc-400">Created</span>
-                                  <p className="text-white font-medium">
-                                    {new Date(
-                                      plan.created_at
-                                    ).toLocaleDateString()}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>{" "}
-                      <div className="flex items-center gap-2 ml-4">
-                        {!plan.isGenerating && (
-                          <>
-                            <button
-                              onClick={() => handleViewPlanDetails(plan)}
-                              className="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm font-medium"
-                            >
-                              View Plan
-                            </button>
-                            <button
-                              onClick={() => handleViewPlanDetails(plan)}
-                              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePlan(plan)}
-                              className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                              title="Delete Plan"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          </div>
+
+          {/* Data Table */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <DataTable
+              data={displayPlans}
+              columns={tableColumns}
+              loading={clientsLoading && !selectedClient && !showAllPlans}
+              emptyMessage="No nutrition plans found"
+              emptyDescription={
+                !showAllPlans && selectedClient
+                  ? `Create a personalized nutrition plan for ${selectedClient.first_name} to get started`
+                  : "Create your first AI-powered nutrition plan to help your clients achieve their health goals"
+              }
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              showViewToggle={false}
+              onRowClick={handleViewPlanDetails}
+              onRowAction={(action, row) => {
+                if (action === "view") {
+                  handleViewPlanDetails(row);
+                } else if (action === "delete") {
+                  handleDeletePlan(row);
+                }
+              }}
+            />
           </div>
         </div>
       </div>{" "}
       {/* Create Plan Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-900 rounded max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
-              <h2 className="text-xl font-semibold text-white">
-                Create Diet Plan
-              </h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-zinc-400 hover:text-white p-2 rounded hover:bg-zinc-900 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
-              <div className="space-y-4">
-                {/* Plan Title */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                    Plan Details
-                  </h3>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Plan Title
-                    </label>
-                    <input
-                      type="text"
-                      value={planTitle}
-                      onChange={(e) => setPlanTitle(e.target.value)}
-                      placeholder="Enter plan title"
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    />
-                  </div>
-                </div>
-                {/* Client Selection */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                    Client
-                  </h3>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Select Client (Optional)
-                    </label>
-                    <select
-                      value={
-                        selectedClientForForm?.id || selectedClient?.id || ""
-                      }
-                      onChange={(e) => {
-                        const clientId = e.target.value;
-                        if (clientId) {
-                          const client = clients.find(
-                            (c) => c.id === parseInt(clientId)
-                          );
-                          setSelectedClientForForm(client);
-                        } else {
-                          setSelectedClientForForm(null);
-                        }
-                      }}
-                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    >
-                      <option value="">
-                        Select a client (or leave empty for generic plan)
-                      </option>
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.first_name} {client.last_name} -{" "}
-                          {client.email}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Client Profile Information */}
-                    {(selectedClientForForm || selectedClient) && (
-                      <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
-                        <h4 className="text-sm font-medium text-zinc-300 mb-2">
-                          Client Profile Data
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                          {(selectedClientForForm || selectedClient)
-                            ?.height && (
-                            <div>
-                              <span className="text-zinc-500">Height:</span>
-                              <span className="text-zinc-300 ml-1">
-                                {
-                                  (selectedClientForForm || selectedClient)
-                                    .height
-                                }{" "}
-                                cm
-                              </span>
-                            </div>
-                          )}
-                          {(selectedClientForForm || selectedClient)
-                            ?.weight && (
-                            <div>
-                              <span className="text-zinc-500">Weight:</span>
-                              <span className="text-zinc-300 ml-1">
-                                {
-                                  (selectedClientForForm || selectedClient)
-                                    .weight
-                                }{" "}
-                                kg
-                              </span>
-                            </div>
-                          )}
-                          {(selectedClientForForm || selectedClient)
-                            ?.fitness_level && (
-                            <div>
-                              <span className="text-zinc-500">
-                                Activity Level:
-                              </span>
-                              <span className="text-zinc-300 ml-1 capitalize">
-                                {(
-                                  selectedClientForForm || selectedClient
-                                ).fitness_level.replace("_", " ")}
-                              </span>
-                            </div>
-                          )}
-                          {(selectedClientForForm || selectedClient)
-                            ?.allergies && (
-                            <div className="col-span-2 md:col-span-3">
-                              <span className="text-zinc-500">Allergies:</span>
-                              <span className="text-zinc-300 ml-1">
-                                {
-                                  (selectedClientForForm || selectedClient)
-                                    .allergies
-                                }
-                              </span>
-                            </div>
-                          )}
-                          {(selectedClientForForm || selectedClient)
-                            ?.food_likes && (
-                            <div className="col-span-2 md:col-span-3">
-                              <span className="text-zinc-500">Food Likes:</span>
-                              <span className="text-zinc-300 ml-1">
-                                {
-                                  (selectedClientForForm || selectedClient)
-                                    .food_likes
-                                }
-                              </span>
-                            </div>
-                          )}
-                          {(selectedClientForForm || selectedClient)
-                            ?.food_dislikes && (
-                            <div className="col-span-2 md:col-span-3">
-                              <span className="text-zinc-500">
-                                Food Dislikes:
-                              </span>
-                              <span className="text-zinc-300 ml-1">
-                                {
-                                  (selectedClientForForm || selectedClient)
-                                    .food_dislikes
-                                }
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-green-400 mt-2">
-                          ✓ This data will be used to personalize the diet plan
-                        </p>
-                      </div>
-                    )}
-
-                    {selectedClient && !selectedClientForForm && (
-                      <p className="text-sm text-blue-400 mt-1">
-                        Currently creating for: {selectedClient.first_name}{" "}
-                        {selectedClient.last_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {/* Plan Type Selection */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                    Diet Plan Goal
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {DIET_PLAN_TYPES.map((type) => (
-                      <button
-                        key={type.id}
-                        onClick={() => setPlanType(type.id)}
-                        className={`p-3 rounded border-2 transition-all text-left ${
-                          planType === type.id
-                            ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                            : "border-zinc-800 bg-zinc-900 hover:border-zinc-600 text-zinc-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <type.icon className="w-5 h-5" />
-                          <span className="font-medium">{type.name}</span>
-                        </div>
-                        <p className="text-sm text-zinc-400">
-                          {type.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>{" "}
-                {/* Plan Settings and Calories - Side by Side */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Plan Settings */}
-                  <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                    <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                      Plan Settings
-                    </h3>
-                    <div className="space-y-4">
-                      {/* Meals Per Day */}
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-2">
-                          Meals Per Day: {mealsPerDay}
-                        </label>
-                        <input
-                          type="range"
-                          min="3"
-                          max="6"
-                          value={mealsPerDay}
-                          onChange={(e) =>
-                            setMealsPerDay(parseInt(e.target.value))
-                          }
-                          className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <div className="flex justify-between text-sm text-zinc-500 mt-1">
-                          <span>3</span>
-                          <span>4</span>
-                          <span>5</span>
-                          <span>6</span>
-                        </div>
-                      </div>
-
-                      {/* Additional Notes */}
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Additional Notes (Optional)
-                        </label>
-                        <textarea
-                          value={additionalNotes}
-                          onChange={(e) => setAdditionalNotes(e.target.value)}
-                          placeholder="Any specific requirements or preferences..."
-                          rows={3}
-                          className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Calories Settings */}
-                  <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-                    <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                      Calories
-                    </h3>
-                    <div className="space-y-4">
-                      {/* Automatic Calories Option */}
-                      <div>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="calorieOption"
-                            checked={!useCustomCalories}
-                            onChange={() => setUseCustomCalories(false)}
-                            className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2"
-                          />
-                          <div>
-                            <div className="text-sm font-medium text-zinc-300">
-                              Automatic
-                            </div>
-                            <div className="text-xs text-zinc-500">
-                              We'll calculate the total calories based on your
-                              plan.
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-
-                      {/* Manual Calories Option */}
-                      <div>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="calorieOption"
-                            checked={useCustomCalories}
-                            onChange={() => setUseCustomCalories(true)}
-                            className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2"
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-zinc-300">
-                              Enter calories manually
-                            </div>
-                            <div className="text-xs text-zinc-500 mb-2">
-                              Take full control of the calorie count.
-                            </div>
-                            {useCustomCalories && (
-                              <input
-                                type="number"
-                                value={customCalories}
-                                onChange={(e) =>
-                                  setCustomCalories(e.target.value)
-                                }
-                                placeholder="e.g., 2000"
-                                min="800"
-                                max="5000"
-                                className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
-                              />
-                            )}
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-800 bg-zinc-900 p-4 px-8">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>{" "}
-              <button
-                onClick={handleGeneratePlan}
-                disabled={!planType || !planTitle.trim()}
-                className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black text-white rounded transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Sparkles className="w-4 h-4" />
-                Generate Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreatePlanModal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setQuickPlanName(""); // Clear the quick input when modal closes
+        }}
+        clients={clients}
+        selectedClient={selectedClient}
+        onGeneratePlan={handleGeneratePlan}
+        generateDietPlan={generateDietPlan}
+        initialPlanName={quickPlanName}
+      />
       {/* Plan Details Modal */}
-      {showPlanDetailModal && planDetails && (
-        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
-              <h2 className="text-xl font-semibold text-white">
-                {planDetails.title}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowPlanDetailModal(false);
-                  setPlanDetails(null);
-                }}
-                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>{" "}
-            <div className="p-4 overflow-y-auto max-h-[70vh] scrollbar-thin scrollbar-dark">
-              <div className="space-y-3">
-                {/* Plan Info */}
-                <div className="grid grid-cols-4 gap-3">
-                  <div>
-                    <span className="text-sm text-zinc-500">Client</span>
-                    <p className="text-sm font-medium text-zinc-300">
-                      {planDetails.client_name || "Generic Plan"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-zinc-500">Plan Type</span>
-                    <p className="text-sm font-medium text-zinc-300">
-                      {planDetails.plan_type?.replace("_", " ") || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-zinc-500">Meals/Day</span>
-                    <p className="text-sm font-medium text-zinc-300">
-                      {planDetails.meals_per_day}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-zinc-500">Created</span>
-                    <p className="text-sm font-medium text-zinc-300">
-                      {new Date(planDetails.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>{" "}
-                {/* Plan Content */}
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-300 mb-2">
-                    Diet Plan Content
-                  </h3>
-                  <div className=" rounded p-3 ">
-                    <div className="text-sm text-zinc-300 max-h-[55vh] overflow-y-auto scrollbar-thin scrollbar-dark">
-                      <MealPlanDisplay
-                        aiResponse={planDetails.ai_response}
-                        items={planDetails.items}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}{" "}
+      <PlanDetailsModal
+        isOpen={showPlanDetailModal}
+        onClose={() => {
+          setShowPlanDetailModal(false);
+          setPlanDetails(null);
+        }}
+        planDetails={planDetails}
+      />{" "}
       {/* Delete Confirmation Modal */}
       {showDeleteModal && planToDelete && (
         <ConfirmationModal
