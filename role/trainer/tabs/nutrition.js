@@ -29,7 +29,15 @@ import {
 } from "@/components/trainer/nutrition";
 import { DataTable } from "@/components/common/tables";
 import Button from "@/components/common/button";
-import { Input, Tabs, Tab, AvatarGroup, Avatar, Select, SelectItem } from "@heroui/react";
+import {
+  Input,
+  Tabs,
+  Tab,
+  AvatarGroup,
+  Avatar,
+  Select,
+  SelectItem,
+} from "@heroui/react";
 import Image from "next/image";
 import { Group } from "@visx/group";
 import { LinePath, AreaClosed } from "@visx/shape";
@@ -699,13 +707,15 @@ export default function Nutrition() {
   };
 
   // Get selected client name for search placeholder
-  const selectedClientName = clientFilter 
-    ? clients.find(client => client.id === parseInt(clientFilter))?.first_name + " " + 
-      clients.find(client => client.id === parseInt(clientFilter))?.last_name
+  const selectedClientName = clientFilter
+    ? clients.find((client) => client.id === parseInt(clientFilter))
+        ?.first_name +
+      " " +
+      clients.find((client) => client.id === parseInt(clientFilter))?.last_name
     : null;
 
   // Generate search placeholder text
-  const searchPlaceholder = selectedClientName 
+  const searchPlaceholder = selectedClientName
     ? `Searching ${selectedClientName} plans...`
     : "Search by plan name or client...";
 
@@ -804,23 +814,32 @@ export default function Nutrition() {
                 <Select
                   placeholder="All Clients"
                   selectedKeys={clientFilter ? [clientFilter] : []}
-                  onSelectionChange={(keys) => setClientFilter(Array.from(keys)[0] || "")}
+                  onSelectionChange={(keys) =>
+                    setClientFilter(Array.from(keys)[0] || "")
+                  }
                   className="w-52"
                   size="sm"
                   variant="flat"
                   renderValue={(items) => {
                     if (items.length === 0) return "All Clients";
-                    const selectedClient = clients.find(client => client.id.toString() === items[0].key);
-                    return selectedClient ? `${selectedClient.first_name} ${selectedClient.last_name}` : "All Clients";
+                    const selectedClient = clients.find(
+                      (client) => client.id.toString() === items[0].key
+                    );
+                    return selectedClient
+                      ? `${selectedClient.first_name} ${selectedClient.last_name}`
+                      : "All Clients";
                   }}
                   classNames={{
-                    trigger: "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
+                    trigger:
+                      "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
                     value: "text-white text-sm",
                     listbox: "bg-zinc-800 text-white",
                     popoverContent: "bg-zinc-800 border border-zinc-700",
                   }}
                 >
-                  <SelectItem key="" value="">All Clients</SelectItem>
+                  <SelectItem key="" value="">
+                    All Clients
+                  </SelectItem>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id.toString()}>
                       {client.first_name} {client.last_name}
@@ -849,12 +868,15 @@ export default function Nutrition() {
                 <Select
                   placeholder="Sort by"
                   selectedKeys={[currentSortValue]}
-                  onSelectionChange={(keys) => handleSortChange(Array.from(keys)[0])}
+                  onSelectionChange={(keys) =>
+                    handleSortChange(Array.from(keys)[0])
+                  }
                   className="w-52"
                   size="sm"
                   variant="flat"
                   classNames={{
-                    trigger: "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
+                    trigger:
+                      "bg-zinc-800/50 border-0 data-[hover=true]:bg-zinc-700/50 h-10",
                     value: "text-white text-sm",
                     listbox: "bg-zinc-800 text-white",
                     popoverContent: "bg-zinc-800 border border-zinc-700",
@@ -878,7 +900,8 @@ export default function Nutrition() {
                     base: "bg-zinc-800/50 rounded-lg p-0.5 h-10",
                     tabList: "gap-0.5 h-full",
                     tab: "px-3 py-1.5 h-full",
-                    tabContent: "text-zinc-400 group-data-[selected=true]:text-white text-xs font-medium",
+                    tabContent:
+                      "text-zinc-400 group-data-[selected=true]:text-white text-xs font-medium",
                     cursor: "bg-zinc-600",
                   }}
                 >

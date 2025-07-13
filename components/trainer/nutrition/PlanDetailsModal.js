@@ -601,9 +601,7 @@ const MealPlanDisplay = ({ aiResponse, items, activeTab }) => {
             <div className="grid grid-cols-2 gap-3">
               {currentMeal.ingredients.map((ingredient, idx) => {
                 const ingredientName =
-                  typeof ingredient === "object"
-                    ? ingredient.name
-                    : ingredient;
+                  typeof ingredient === "object" ? ingredient.name : ingredient;
                 const ingredientAmount =
                   typeof ingredient === "object" ? ingredient.amount : null;
 
@@ -644,11 +642,7 @@ const MealPlanDisplay = ({ aiResponse, items, activeTab }) => {
     </div>
   );
 
-  return (
-    <div>
-      {activeTab === "metrics" ? <MetricsTab /> : <MealsTab />}
-    </div>
-  );
+  return <div>{activeTab === "metrics" ? <MetricsTab /> : <MealsTab />}</div>;
 };
 
 // Main Modal Component
@@ -728,23 +722,23 @@ const PlanDetailsModal = ({ isOpen, onClose, planDetails }) => {
               cursor: "bg-zinc-600/50",
             }}
           >
-            <Tab 
-              key="meals" 
+            <Tab
+              key="meals"
               title={
                 <div className="flex items-center gap-2">
                   <Utensils className="w-4 h-4" />
                   Meals
                 </div>
-              } 
+              }
             />
-            <Tab 
-              key="metrics" 
+            <Tab
+              key="metrics"
               title={
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4" />
                   Metrics
                 </div>
-              } 
+              }
             />
           </Tabs>
         </div>
