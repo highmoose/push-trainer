@@ -50,7 +50,7 @@ const VSXCalorieChart = ({
   data,
   width = 140,
   height = 50,
-  color = "#3b82f6",
+  color = "#DFFF1D",
   chartId = "default",
 }) => {
   if (!data || data.length === 0) return null;
@@ -191,6 +191,143 @@ export default function Nutrition() {
       ),
     },
     {
+      key: "meals_per_day",
+      label: "Meals",
+      icon: Utensils,
+      className: "w-1/12", // ~8.3% of width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">-</div>;
+        }
+        return (
+          <div className="flex justify-start">
+            <div className="text-white font-semibold bg-zinc-500/20 px-2 py-1 rounded-full text-sm w-fit">
+              {value || 3}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "calories",
+      label: "Calories & Distribution",
+      icon: Zap,
+      className: "w-1/4", // Reduced from 25% to 20% width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">Calculating...</div>;
+        }
+
+        // Extract nutritional data from ai_response
+        const getNutritionalData = (row) => {
+          try {
+            if (!row.ai_response) {
+              return null;
+            }
+
+            const aiResponse =
+              typeof row.ai_response === "string"
+                ? JSON.parse(row.ai_response)
+                : row.ai_response;
+
+            const content = aiResponse.choices?.[0]?.message?.content;
+            if (!content) return null;
+
+            const nutritionData = JSON.parse(content);
+            return nutritionData.daily_totals;
+          } catch (error) {
+            console.error("Error parsing nutritional data:", error);
+            return null;
+          }
+        };
+
+        const nutritionalData = getNutritionalData(row);
+
+        // Fallback to mock data if no real data available
+        const getCalories = (planType) => {
+          switch (planType) {
+            case "weight_loss":
+            case "moderate_cut":
+              return { daily: 1800, range: "1600-2000" };
+            case "muscle_gain":
+            case "bulk":
+              return { daily: 2800, range: "2600-3000" };
+            case "maintenance":
+              return { daily: 2200, range: "2000-2400" };
+            default:
+              return { daily: 2200, range: "2000-2400" };
+          }
+        };
+
+        let calories;
+
+        if (nutritionalData) {
+          // Use real data from diet plan
+          const dailyCalories = nutritionalData.calories;
+          const rangeMin = Math.round(dailyCalories * 0.9);
+          const rangeMax = Math.round(dailyCalories * 1.1);
+
+          calories = {
+            daily: dailyCalories,
+            range: `${rangeMin}-${rangeMax}`,
+          };
+        } else {
+          // Fallback to mock data
+          calories = getCalories(row.plan_type);
+        }
+
+        // Get chart data
+        const chartData = createCalorieChartData(row);
+        let finalChartData = chartData;
+
+        if (!chartData) {
+          // Fallback chart data for non-AI plans (deterministic based on row data)
+          const mealCount = row.meals_per_day || 3;
+          const avgCalories =
+            row.plan_type === "weight_loss"
+              ? 600
+              : row.plan_type === "muscle_gain"
+              ? 900
+              : 730;
+
+          // Use row ID or title hash for deterministic random-like data
+          const seed = row.id || row.title?.length || 0;
+          const pseudoRandom = (index) => {
+            const x = Math.sin(seed + index) * 10000;
+            return x - Math.floor(x);
+          };
+
+          finalChartData = Array.from({ length: mealCount }, (_, i) => ({
+            name: `Meal ${i + 1}`,
+            calories: Math.round(avgCalories + (pseudoRandom(i) * 200 - 100)),
+            index: i + 1,
+          }));
+        }
+
+        return (
+          <div className="relative flex items-center gap-3">
+            <div className="text-left">
+              <div className="text-white font-semibold text-lg">
+                {calories.daily.toLocaleString()} cal
+              </div>
+            </div>
+            <div className="absolute left-24 -top-6 flex-shrink-0">
+              <VSXCalorieChart
+                data={finalChartData}
+                width={190}
+                height={70}
+                chartId={`chart-${
+                  row.id ||
+                  row.title?.replace(/\s+/g, "-").toLowerCase() ||
+                  "default"
+                }`}
+              />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       key: "macros",
       label: "Macros",
       icon: Target,
@@ -295,143 +432,6 @@ export default function Nutrition() {
             </div>
             <div className="text-xs text-zinc-500 capitalize">
               {row.plan_type?.replace("_", " ")}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "calories",
-      label: "Calories & Distribution",
-      icon: Zap,
-      className: "w-1/4", // 25% of width for the main content
-      render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">Calculating...</div>;
-        }
-
-        // Extract nutritional data from ai_response
-        const getNutritionalData = (row) => {
-          try {
-            if (!row.ai_response) {
-              return null;
-            }
-
-            const aiResponse =
-              typeof row.ai_response === "string"
-                ? JSON.parse(row.ai_response)
-                : row.ai_response;
-
-            const content = aiResponse.choices?.[0]?.message?.content;
-            if (!content) return null;
-
-            const nutritionData = JSON.parse(content);
-            return nutritionData.daily_totals;
-          } catch (error) {
-            console.error("Error parsing nutritional data:", error);
-            return null;
-          }
-        };
-
-        const nutritionalData = getNutritionalData(row);
-
-        // Fallback to mock data if no real data available
-        const getCalories = (planType) => {
-          switch (planType) {
-            case "weight_loss":
-            case "moderate_cut":
-              return { daily: 1800, range: "1600-2000" };
-            case "muscle_gain":
-            case "bulk":
-              return { daily: 2800, range: "2600-3000" };
-            case "maintenance":
-              return { daily: 2200, range: "2000-2400" };
-            default:
-              return { daily: 2200, range: "2000-2400" };
-          }
-        };
-
-        let calories;
-
-        if (nutritionalData) {
-          // Use real data from diet plan
-          const dailyCalories = nutritionalData.calories;
-          const rangeMin = Math.round(dailyCalories * 0.9);
-          const rangeMax = Math.round(dailyCalories * 1.1);
-
-          calories = {
-            daily: dailyCalories,
-            range: `${rangeMin}-${rangeMax}`,
-          };
-        } else {
-          // Fallback to mock data
-          calories = getCalories(row.plan_type);
-        }
-
-        // Get chart data
-        const chartData = createCalorieChartData(row);
-        let finalChartData = chartData;
-
-        if (!chartData) {
-          // Fallback chart data for non-AI plans (deterministic based on row data)
-          const mealCount = row.meals_per_day || 3;
-          const avgCalories =
-            row.plan_type === "weight_loss"
-              ? 600
-              : row.plan_type === "muscle_gain"
-              ? 900
-              : 730;
-
-          // Use row ID or title hash for deterministic random-like data
-          const seed = row.id || row.title?.length || 0;
-          const pseudoRandom = (index) => {
-            const x = Math.sin(seed + index) * 10000;
-            return x - Math.floor(x);
-          };
-
-          finalChartData = Array.from({ length: mealCount }, (_, i) => ({
-            name: `Meal ${i + 1}`,
-            calories: Math.round(avgCalories + (pseudoRandom(i) * 200 - 100)),
-            index: i + 1,
-          }));
-        }
-
-        return (
-          <div className="flex items-center gap-3">
-            <div className="text-left">
-              <div className="text-white font-semibold text-lg">
-                {calories.daily.toLocaleString()} cal
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <VSXCalorieChart
-                data={finalChartData}
-                width={140}
-                height={56}
-                chartId={`chart-${
-                  row.id ||
-                  row.title?.replace(/\s+/g, "-").toLowerCase() ||
-                  "default"
-                }`}
-              />
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "meals_per_day",
-      label: "Meals",
-      icon: Utensils,
-      className: "w-1/12", // ~8.3% of width
-      render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">-</div>;
-        }
-        return (
-          <div className="flex justify-start">
-            <div className="text-white font-semibold bg-zinc-500/20 px-2 py-1 rounded-full text-sm w-fit">
-              {value || 3}
             </div>
           </div>
         );
