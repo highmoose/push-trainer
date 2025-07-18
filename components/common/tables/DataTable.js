@@ -292,10 +292,10 @@ export default function DataTable({
             {data.map((row, rowIndex) => (
               <div
                 key={row.id || rowIndex}
-                className={`group relative px-8 py-4 transition-all duration-200 cursor-pointer border-t border-b border-zinc-800/30 ${
+                className={`group relative px-8 py-4 transition-all duration-200 cursor-pointer border-t border-b border-zinc-700/30 ${
                   hoveredRow === rowIndex
                     ? "bg-zinc-800/30"
-                    : "hover:bg-zinc-800/20"
+                    : "hover:bg-zinc-800/30"
                 }`}
                 onMouseEnter={() => setHoveredRow(rowIndex)}
                 onMouseLeave={() => setHoveredRow(null)}

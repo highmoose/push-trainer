@@ -1,8 +1,17 @@
 import { useState, useCallback, useEffect } from "react";
 import axios from "@/lib/axios";
 
+// Import global refresh trigger for nutrition plans
+const triggerGlobalNutritionRefresh = () => {
+  // This will be connected to the global refresh system
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("nutrition-plan-refresh"));
+  }
+};
+
 export const useDietPlans = () => {
   const [dietPlans, setDietPlans] = useState([]);
+  console.log("Initial Diet Plans:", dietPlans);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -57,6 +66,7 @@ export const useDietPlans = () => {
       mealComplexity,
       customCalories = null,
       additionalNotes = "",
+      setAsActive = false,
     }) => {
       setLoading(true);
       setError(null);
@@ -72,12 +82,18 @@ export const useDietPlans = () => {
           mealComplexity,
           customCalories,
           additionalNotes,
+          setAsActive,
         });
 
         const generatedPlan = response.data.plan;
 
         // Add to diet plans list
         setDietPlans((prev) => [...prev, generatedPlan]);
+
+        // If this plan was set as active, trigger global nutrition refresh
+        if (setAsActive && clientId) {
+          triggerGlobalNutritionRefresh();
+        }
 
         return generatedPlan;
       } catch (err) {
@@ -158,6 +174,21 @@ export const useDietPlans = () => {
     [updateDietPlan]
   );
 
+  const fetchPlanDetails = useCallback(async (planId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.get(`/api/diet-plans/${planId}`);
+      return response.data.plan;
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch plan details");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Auto-fetch on mount
   useEffect(() => {
     fetchDietPlans();
@@ -173,6 +204,7 @@ export const useDietPlans = () => {
     updateDietPlan,
     deleteDietPlan,
     assignPlanToClient,
+    fetchPlanDetails,
     // Helper methods
     getDietPlan: useCallback(
       (id) => dietPlans.find((p) => p.id === id),

@@ -1,6 +1,8 @@
 import Button from "@/components/common/button";
-import { Clock, Dumbbell, Utensils } from "lucide-react";
-import React from "react";
+import { Clock, Dumbbell, Utensils, Settings } from "lucide-react";
+import React, { useState } from "react";
+import NutritionPlanManagementModal from "@/components/trainer/nutrition/NutritionPlanManagementModal";
+import useClientNutritionPlans from "@/hooks/useClientNutritionPlans";
 
 // Progress bar component that calculates percentage based on dates
 const ProgressBar = ({ startDate, endDate }) => {
@@ -54,6 +56,14 @@ const ProgressBar = ({ startDate, endDate }) => {
 };
 
 export default function ClientActivePlans({ selectedClient }) {
+  const [showNutritionModal, setShowNutritionModal] = useState(false);
+  const { activePlan, loading } = useClientNutritionPlans(selectedClient?.id);
+
+  const handleNutritionModalClose = () => {
+    setShowNutritionModal(false);
+    // The hook will automatically refresh when the modal closes due to dependency changes
+  };
+
   return (
     <div
       className="flex-1 bg-zinc-900 flex flex-col justify-between
@@ -75,14 +85,55 @@ export default function ClientActivePlans({ selectedClient }) {
         </div>
         {/* <Utensils className="w-10 h-10 text-white" /> */}
         <div className="text-white w-full">
-          <p className="text-zinc-600 ">Nutrition Plan</p>
-          <p className="text-sm">This is a the workout plan name</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-zinc-600">Nutrition Plan</p>
+            <button
+              onClick={() => setShowNutritionModal(true)}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
+              title="Manage Nutrition Plans"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+          {loading ? (
+            <p className="text-sm text-zinc-500">Loading...</p>
+          ) : activePlan ? (
+            <>
+              <p className="text-sm font-medium text-white mb-1">
+                {activePlan.title}
+              </p>
+              <p className="text-xs text-zinc-400 mb-2">
+                {activePlan.plan_type
+                  ?.replace(/_/g, " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase())}{" "}
+                • {activePlan.meals_per_day} meals/day
+                {activePlan.total_calories &&
+                  ` • ${activePlan.total_calories.toLocaleString()} cal`}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-500">No active nutrition plan</p>
+              <p className="text-xs text-zinc-600 mb-2">
+                Click manage to assign a plan
+              </p>
+            </>
+          )}
           <ProgressBar startDate="2025-06-01" endDate="2025-07-08" />
         </div>
       </div>
       <div className="flex w-full justify-start">
         <Button variant="secondary">View active plans</Button>
       </div>
+
+      {/* Nutrition Plan Management Modal */}
+      {showNutritionModal && (
+        <NutritionPlanManagementModal
+          isOpen={showNutritionModal}
+          onClose={handleNutritionModalClose}
+          client={selectedClient}
+        />
+      )}
     </div>
   );
 }

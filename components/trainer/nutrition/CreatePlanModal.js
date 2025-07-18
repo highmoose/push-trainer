@@ -157,6 +157,8 @@ const CreatePlanModal = ({
   const [useCustomCalories, setUseCustomCalories] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [aiProvider, setAiProvider] = useState("openai");
+  const [setAsActive, setSetAsActive] = useState(false);
+  const [tailorToClient, setTailorToClient] = useState(false);
 
   // Populate plan title when modal opens with initialPlanName
   useEffect(() => {
@@ -179,12 +181,16 @@ const CreatePlanModal = ({
       return;
     }
 
-    // Use the selected client from the form or sidebar
-    const clientId = selectedClientForForm?.id || selectedClient?.id || null;
-    const client = selectedClientForForm || selectedClient;
+    // Use the selected client from the form or sidebar only if tailoring to client
+    const clientId = tailorToClient
+      ? selectedClientForForm?.id || selectedClient?.id || null
+      : null;
+    const client = tailorToClient
+      ? selectedClientForForm || selectedClient
+      : null;
     const clientName = client
       ? `${client.first_name} ${client.last_name}`
-      : "Generic Plan";
+      : null;
 
     const enhancedPrompt = buildClientAwarePrompt(
       selectedClientForForm,
@@ -214,6 +220,7 @@ const CreatePlanModal = ({
         mealComplexity,
         customCalories: useCustomCalories ? customCalories : null,
         additionalNotes,
+        setAsActive: tailorToClient ? setAsActive : false, // Only allow setting as active if tailoring to client
       },
     };
 
@@ -224,6 +231,8 @@ const CreatePlanModal = ({
     setAdditionalNotes("");
     setCustomCalories("");
     setUseCustomCalories(false);
+    setSetAsActive(false);
+    setTailorToClient(false);
     setMealsPerDay(4);
     setMealComplexity("moderate");
     setAiProvider("openai");
@@ -270,122 +279,177 @@ const CreatePlanModal = ({
 
             {/* Client Selection */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">Client</h3>
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Select Client (Optional)
-                </label>
-                <select
-                  value={selectedClientForForm?.id || selectedClient?.id || ""}
-                  onChange={(e) => {
-                    const clientId = e.target.value;
-                    if (clientId) {
-                      const client = clients.find(
-                        (c) => c.id === parseInt(clientId)
-                      );
-                      setSelectedClientForForm(client);
-                    } else {
-                      setSelectedClientForForm(null);
-                    }
-                  }}
-                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                >
-                  <option value="">
-                    Select a client (or leave empty for generic plan)
-                  </option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.first_name} {client.last_name} - {client.email}
-                    </option>
-                  ))}
-                </select>
+              <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                Client Configuration
+              </h3>
 
-                {/* Client Profile Information */}
-                {(selectedClientForForm || selectedClient) && (
-                  <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
-                    <h4 className="text-sm font-medium text-zinc-300 mb-2">
-                      Client Profile Data
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                      {(selectedClientForForm || selectedClient)?.height && (
-                        <div>
-                          <span className="text-zinc-500">Height:</span>
-                          <span className="text-zinc-300 ml-1">
-                            {(selectedClientForForm || selectedClient).height}{" "}
-                            cm
-                          </span>
-                        </div>
-                      )}
-                      {(selectedClientForForm || selectedClient)?.weight && (
-                        <div>
-                          <span className="text-zinc-500">Weight:</span>
-                          <span className="text-zinc-300 ml-1">
-                            {(selectedClientForForm || selectedClient).weight}{" "}
-                            kg
-                          </span>
-                        </div>
-                      )}
-                      {(selectedClientForForm || selectedClient)
-                        ?.fitness_level && (
-                        <div>
-                          <span className="text-zinc-500">Activity Level:</span>
-                          <span className="text-zinc-300 ml-1 capitalize">
-                            {(
-                              selectedClientForForm || selectedClient
-                            ).fitness_level.replace("_", " ")}
-                          </span>
-                        </div>
-                      )}
-                      {(selectedClientForForm || selectedClient)?.allergies && (
-                        <div className="col-span-2 md:col-span-3">
-                          <span className="text-zinc-500">Allergies:</span>
-                          <span className="text-zinc-300 ml-1">
-                            {
-                              (selectedClientForForm || selectedClient)
-                                .allergies
-                            }
-                          </span>
-                        </div>
-                      )}
-                      {(selectedClientForForm || selectedClient)
-                        ?.food_likes && (
-                        <div className="col-span-2 md:col-span-3">
-                          <span className="text-zinc-500">Food Likes:</span>
-                          <span className="text-zinc-300 ml-1">
-                            {
-                              (selectedClientForForm || selectedClient)
-                                .food_likes
-                            }
-                          </span>
-                        </div>
-                      )}
-                      {(selectedClientForForm || selectedClient)
-                        ?.food_dislikes && (
-                        <div className="col-span-2 md:col-span-3">
-                          <span className="text-zinc-500">Food Dislikes:</span>
-                          <span className="text-zinc-300 ml-1">
-                            {
-                              (selectedClientForForm || selectedClient)
-                                .food_dislikes
-                            }
-                          </span>
-                        </div>
-                      )}
+              {/* Tailor to Client Checkbox */}
+              <div className="mb-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tailorToClient}
+                    onChange={(e) => {
+                      setTailorToClient(e.target.checked);
+                      if (!e.target.checked) {
+                        setSelectedClientForForm(null);
+                        setSetAsActive(false); // Can't set as active without client
+                      }
+                    }}
+                    className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 rounded"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-zinc-300">
+                      Tailor to client
                     </div>
-                    <p className="text-xs text-green-400 mt-2">
-                      ✓ This data will be used to personalize the diet plan
-                    </p>
+                    <div className="text-xs text-zinc-500">
+                      Enable to customize this plan for a specific client's
+                      profile and goals
+                    </div>
                   </div>
-                )}
-
-                {selectedClient && !selectedClientForForm && (
-                  <p className="text-sm text-blue-400 mt-1">
-                    Currently creating for: {selectedClient.first_name}{" "}
-                    {selectedClient.last_name}
-                  </p>
-                )}
+                </label>
               </div>
+
+              {/* Client Selection Dropdown - Only shown when tailorToClient is enabled */}
+              {tailorToClient && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                    Select Client
+                  </label>
+                  <select
+                    value={
+                      selectedClientForForm?.id || selectedClient?.id || ""
+                    }
+                    onChange={(e) => {
+                      const clientId = e.target.value;
+                      if (clientId) {
+                        const client = clients.find(
+                          (c) => c.id === parseInt(clientId)
+                        );
+                        setSelectedClientForForm(client);
+                      } else {
+                        setSelectedClientForForm(null);
+                      }
+                    }}
+                    className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  >
+                    <option value="">Select a client</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.first_name} {client.last_name} - {client.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Client Profile Information */}
+              {tailorToClient && (selectedClientForForm || selectedClient) && (
+                <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+                  <h4 className="text-sm font-medium text-zinc-300 mb-2">
+                    Client Profile Data
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                    {(selectedClientForForm || selectedClient)?.height && (
+                      <div>
+                        <span className="text-zinc-500">Height:</span>
+                        <span className="text-zinc-300 ml-1">
+                          {(selectedClientForForm || selectedClient).height} cm
+                        </span>
+                      </div>
+                    )}
+                    {(selectedClientForForm || selectedClient)?.weight && (
+                      <div>
+                        <span className="text-zinc-500">Weight:</span>
+                        <span className="text-zinc-300 ml-1">
+                          {(selectedClientForForm || selectedClient).weight} kg
+                        </span>
+                      </div>
+                    )}
+                    {(selectedClientForForm || selectedClient)
+                      ?.fitness_level && (
+                      <div>
+                        <span className="text-zinc-500">Activity Level:</span>
+                        <span className="text-zinc-300 ml-1 capitalize">
+                          {(
+                            selectedClientForForm || selectedClient
+                          ).fitness_level.replace("_", " ")}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedClientForForm || selectedClient)?.allergies && (
+                      <div className="col-span-2 md:col-span-3">
+                        <span className="text-zinc-500">Allergies:</span>
+                        <span className="text-zinc-300 ml-1">
+                          {(selectedClientForForm || selectedClient).allergies}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedClientForForm || selectedClient)?.food_likes && (
+                      <div className="col-span-2 md:col-span-3">
+                        <span className="text-zinc-500">Food Likes:</span>
+                        <span className="text-zinc-300 ml-1">
+                          {(selectedClientForForm || selectedClient).food_likes}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedClientForForm || selectedClient)
+                      ?.food_dislikes && (
+                      <div className="col-span-2 md:col-span-3">
+                        <span className="text-zinc-500">Food Dislikes:</span>
+                        <span className="text-zinc-300 ml-1">
+                          {
+                            (selectedClientForForm || selectedClient)
+                              .food_dislikes
+                          }
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-green-400 mt-2">
+                    ✓ This data will be used to personalize the diet plan
+                  </p>
+                </div>
+              )}
+
+              {tailorToClient && selectedClient && !selectedClientForForm && (
+                <p className="text-sm text-blue-400 mt-1">
+                  Currently creating for: {selectedClient.first_name}{" "}
+                  {selectedClient.last_name}
+                </p>
+              )}
             </div>
+
+            {/* Set as Active Option - Only show if tailoring to client */}
+            {tailorToClient && (selectedClientForForm || selectedClient) && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+                <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                  Plan Assignment
+                </h3>
+                <div>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={setAsActive}
+                      onChange={(e) => setSetAsActive(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 rounded"
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-zinc-300">
+                        Set as active plan for{" "}
+                        {(selectedClientForForm || selectedClient)?.first_name}{" "}
+                        {(selectedClientForForm || selectedClient)?.last_name}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        This will automatically assign this plan as the client's
+                        active nutrition plan and deactivate any existing active
+                        plans.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
 
             {/* Plan Type Selection */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">

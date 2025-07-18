@@ -6,18 +6,11 @@ import { useDietPlans } from "@/hooks/diet";
 import {
   ChefHat,
   Search,
-  Eye,
   Plus,
-  BookOpen,
-  SortAsc,
-  SortDesc,
-  Loader,
-  Trash2,
   User,
   Calendar,
   Target,
   Utensils,
-  TrendingUp,
   Zap,
   X,
 } from "lucide-react";
@@ -25,7 +18,6 @@ import ConfirmationModal from "@/components/common/ConfirmationModal";
 import {
   CreatePlanModal,
   PlanDetailsModal,
-  sampleDietPlans,
 } from "@/components/trainer/nutrition";
 import { DataTable } from "@/components/common/tables";
 import Button from "@/components/common/button";
@@ -50,7 +42,7 @@ const VSXCalorieChart = ({
   data,
   width = 140,
   height = 50,
-  color = "#DFFF1D",
+  color = "#4BB760",
   chartId = "default",
 }) => {
   if (!data || data.length === 0) return null;
@@ -129,10 +121,11 @@ export default function Nutrition() {
     updateDietPlan,
     deleteDietPlan,
     fetchDietPlans,
+    fetchPlanDetails,
   } = useDietPlans();
 
-  // Use sample data if no real data is available
-  const activeDietPlans = dietPlans.length > 0 ? dietPlans : sampleDietPlans;
+  // Use real diet plans data only
+  const activeDietPlans = dietPlans;
 
   // State
   const [selectedClient, setSelectedClient] = useState(null);
@@ -146,6 +139,8 @@ export default function Nutrition() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPlanDetailModal, setShowPlanDetailModal] = useState(false);
   const [planDetails, setPlanDetails] = useState(null);
+
+  console.log("Plan Details:", planDetails);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
 
@@ -184,145 +179,74 @@ export default function Nutrition() {
               )}
             </div>
             <div className="text-sm text-zinc-400 truncate">
-              {row.client_name || "Generic Plan"}
+              {row.client_name || ""}
             </div>
           </div>
         </div>
       ),
     },
     {
-      key: "meals_per_day",
-      label: "Meals",
-      icon: Utensils,
-      className: "w-1/12", // ~8.3% of width
-      render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">-</div>;
-        }
-        return (
-          <div className="flex justify-start">
-            <div className="text-white font-semibold bg-zinc-500/20 px-2 py-1 rounded-full text-sm w-fit">
-              {value || 3}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
       key: "calories",
       label: "Calories & Distribution",
       icon: Zap,
-      className: "w-1/4", // Reduced from 25% to 20% width
+      className: "w-1/4", // 25% of width for the main content
       render: (value, row) => {
         if (row.isGenerating) {
           return <div className="text-zinc-500 text-sm">Calculating...</div>;
         }
 
-        // Extract nutritional data from ai_response
-        const getNutritionalData = (row) => {
-          try {
-            if (!row.ai_response) {
-              return null;
-            }
+        // Use only structured data from dietPlans hook
+        let calories = { daily: 0, range: "N/A" };
 
-            const aiResponse =
-              typeof row.ai_response === "string"
-                ? JSON.parse(row.ai_response)
-                : row.ai_response;
-
-            const content = aiResponse.choices?.[0]?.message?.content;
-            if (!content) return null;
-
-            const nutritionData = JSON.parse(content);
-            return nutritionData.daily_totals;
-          } catch (error) {
-            console.error("Error parsing nutritional data:", error);
-            return null;
-          }
-        };
-
-        const nutritionalData = getNutritionalData(row);
-
-        // Fallback to mock data if no real data available
-        const getCalories = (planType) => {
-          switch (planType) {
-            case "weight_loss":
-            case "moderate_cut":
-              return { daily: 1800, range: "1600-2000" };
-            case "muscle_gain":
-            case "bulk":
-              return { daily: 2800, range: "2600-3000" };
-            case "maintenance":
-              return { daily: 2200, range: "2000-2400" };
-            default:
-              return { daily: 2200, range: "2000-2400" };
-          }
-        };
-
-        let calories;
-
-        if (nutritionalData) {
-          // Use real data from diet plan
-          const dailyCalories = nutritionalData.calories;
-          const rangeMin = Math.round(dailyCalories * 0.9);
-          const rangeMax = Math.round(dailyCalories * 1.1);
-
+        // Check if we have total_calories or custom_calories from the hook data
+        if (row.custom_calories && row.custom_calories > 0) {
+          // Use custom calories if set
+          const dailyCalories = parseInt(row.custom_calories);
           calories = {
             daily: dailyCalories,
-            range: `${rangeMin}-${rangeMax}`,
+            range: `${Math.round(dailyCalories * 0.9)}-${Math.round(
+              dailyCalories * 1.1
+            )}`,
+          };
+        } else if (row.total_calories && row.total_calories > 0) {
+          // Use calculated total calories
+          const dailyCalories = parseInt(row.total_calories);
+          calories = {
+            daily: dailyCalories,
+            range: `${Math.round(dailyCalories * 0.9)}-${Math.round(
+              dailyCalories * 1.1
+            )}`,
           };
         } else {
-          // Fallback to mock data
-          calories = getCalories(row.plan_type);
+          // No calorie data available
+          calories = { daily: 0, range: "N/A" };
         }
 
         // Get chart data
         const chartData = createCalorieChartData(row);
-        let finalChartData = chartData;
-
-        if (!chartData) {
-          // Fallback chart data for non-AI plans (deterministic based on row data)
-          const mealCount = row.meals_per_day || 3;
-          const avgCalories =
-            row.plan_type === "weight_loss"
-              ? 600
-              : row.plan_type === "muscle_gain"
-              ? 900
-              : 730;
-
-          // Use row ID or title hash for deterministic random-like data
-          const seed = row.id || row.title?.length || 0;
-          const pseudoRandom = (index) => {
-            const x = Math.sin(seed + index) * 10000;
-            return x - Math.floor(x);
-          };
-
-          finalChartData = Array.from({ length: mealCount }, (_, i) => ({
-            name: `Meal ${i + 1}`,
-            calories: Math.round(avgCalories + (pseudoRandom(i) * 200 - 100)),
-            index: i + 1,
-          }));
-        }
 
         return (
-          <div className="relative flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="text-left">
               <div className="text-white font-semibold text-lg">
-                {calories.daily.toLocaleString()} cal
+                {calories.daily > 0 ? calories.daily.toLocaleString() : "N/A"}{" "}
+                cal
               </div>
             </div>
-            <div className="absolute left-24 -top-6 flex-shrink-0">
-              <VSXCalorieChart
-                data={finalChartData}
-                width={190}
-                height={70}
-                chartId={`chart-${
-                  row.id ||
-                  row.title?.replace(/\s+/g, "-").toLowerCase() ||
-                  "default"
-                }`}
-              />
-            </div>
+            {chartData && (
+              <div className="flex-shrink-0">
+                <VSXCalorieChart
+                  data={chartData}
+                  width={190}
+                  height={56}
+                  chartId={`chart-${
+                    row.id ||
+                    row.title?.replace(/\s+/g, "-").toLowerCase() ||
+                    "default"
+                  }`}
+                />
+              </div>
+            )}
           </div>
         );
       },
@@ -337,81 +261,26 @@ export default function Nutrition() {
           return <div className="text-zinc-500 text-sm">Calculating...</div>;
         }
 
-        // Extract nutritional data from ai_response
-        const getNutritionalData = (row) => {
-          try {
-            if (!row.ai_response) {
-              return null;
-            }
+        // Calculate macros from items data only
+        let macros = { protein: "N/A", carbs: "N/A", fats: "N/A" };
 
-            const aiResponse =
-              typeof row.ai_response === "string"
-                ? JSON.parse(row.ai_response)
-                : row.ai_response;
+        if (row.items && Array.isArray(row.items) && row.items.length > 0) {
+          // Sum up macros from all meal items
+          const totals = row.items.reduce(
+            (acc, item) => ({
+              protein: acc.protein + (parseFloat(item.protein) || 0),
+              carbs: acc.carbs + (parseFloat(item.carbs) || 0),
+              fats: acc.fats + (parseFloat(item.fats) || 0),
+            }),
+            { protein: 0, carbs: 0, fats: 0 }
+          );
 
-            const content = aiResponse.choices?.[0]?.message?.content;
-            if (!content) return null;
-
-            const nutritionData = JSON.parse(content);
-            return nutritionData.daily_totals;
-          } catch (error) {
-            console.error("Error parsing nutritional data:", error);
-            return null;
-          }
-        };
-
-        const nutritionalData = getNutritionalData(row);
-
-        // Fallback to mock data if no real data available - always in grams
-        const getMacros = (planType) => {
-          // Calculate grams based on calories and percentages
-          const calories =
-            planType === "weight_loss" || planType === "moderate_cut"
-              ? 1800
-              : planType === "muscle_gain" || planType === "bulk"
-              ? 2800
-              : 2200;
-          const proteinCals =
-            calories *
-            (planType === "weight_loss" || planType === "moderate_cut"
-              ? 0.4
-              : planType === "muscle_gain" || planType === "bulk"
-              ? 0.3
-              : 0.25);
-          const carbsCals =
-            calories *
-            (planType === "weight_loss" || planType === "moderate_cut"
-              ? 0.3
-              : planType === "muscle_gain" || planType === "bulk"
-              ? 0.45
-              : 0.4);
-          const fatsCals =
-            calories *
-            (planType === "weight_loss" || planType === "moderate_cut"
-              ? 0.3
-              : planType === "muscle_gain" || planType === "bulk"
-              ? 0.25
-              : 0.35);
-
-          return {
-            protein: `${Math.round(proteinCals / 4)}g`,
-            carbs: `${Math.round(carbsCals / 4)}g`,
-            fats: `${Math.round(fatsCals / 9)}g`,
-          };
-        };
-
-        let macros;
-
-        if (nutritionalData) {
-          // Use real data from diet plan - always show in grams
           macros = {
-            protein: `${nutritionalData.protein}g`,
-            carbs: `${nutritionalData.carbs}g`,
-            fats: `${nutritionalData.fats}g`,
+            protein:
+              totals.protein > 0 ? `${Math.round(totals.protein)}g` : "N/A",
+            carbs: totals.carbs > 0 ? `${Math.round(totals.carbs)}g` : "N/A",
+            fats: totals.fats > 0 ? `${Math.round(totals.fats)}g` : "N/A",
           };
-        } else {
-          // Fallback to mock data
-          macros = getMacros(row.plan_type);
         }
 
         return (
@@ -432,6 +301,24 @@ export default function Nutrition() {
             </div>
             <div className="text-xs text-zinc-500 capitalize">
               {row.plan_type?.replace("_", " ")}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "meals_per_day",
+      label: "Meals",
+      icon: Utensils,
+      className: "w-1/12", // ~8.3% of width
+      render: (value, row) => {
+        if (row.isGenerating) {
+          return <div className="text-zinc-500 text-sm">-</div>;
+        }
+        return (
+          <div className="flex justify-start">
+            <div className="text-white font-semibold bg-zinc-500/20 px-2 py-1 rounded-full text-sm w-fit">
+              {value || 3}
             </div>
           </div>
         );
@@ -545,11 +432,20 @@ export default function Nutrition() {
 
     // Apply client filter
     if (clientFilter) {
-      plans = plans.filter(
-        (plan) =>
-          plan.client_id === parseInt(clientFilter) ||
-          plan.client_name?.toLowerCase().includes(clientFilter.toLowerCase())
-      );
+      if (clientFilter === "template") {
+        // Show only plans without clients (template plans)
+        plans = plans.filter((plan) => !plan.client_id);
+      } else {
+        // Show plans for specific client
+        plans = plans.filter(
+          (plan) =>
+            plan.client_id === parseInt(clientFilter) ||
+            (plan.client_name &&
+              plan.client_name
+                .toLowerCase()
+                .includes(clientFilter.toLowerCase()))
+        );
+      }
     }
 
     // Sort plans (create a copy to avoid mutating read-only array)
@@ -595,13 +491,21 @@ export default function Nutrition() {
   const handleViewPlanDetails = async (plan) => {
     console.log("=== View Plan Details Debug ===");
     console.log("Initial plan data:", plan);
-    console.log("Plan has ai_response:", !!plan.ai_response);
-    console.log("AI response preview:", plan.ai_response?.substring(0, 100));
-    setPlanDetails(plan);
-    setShowPlanDetailModal(true);
 
-    // TODO: Implement fetchPlanDetails in useDietPlans hook if needed for additional details
-    console.log("Using plan data directly:", plan);
+    try {
+      // Fetch full plan details from API which includes client_metrics
+      const fullPlanDetails = await fetchPlanDetails(plan.id);
+      console.log("Full plan details from API:", fullPlanDetails);
+      console.log("Client metrics:", fullPlanDetails.client_metrics);
+
+      setPlanDetails(fullPlanDetails);
+      setShowPlanDetailModal(true);
+    } catch (error) {
+      console.error("Failed to fetch plan details:", error);
+      // Fallback to using the plan data we have
+      setPlanDetails(plan);
+      setShowPlanDetailModal(true);
+    }
   };
 
   // Simple handler to create loading plan and trigger generation
@@ -671,29 +575,25 @@ export default function Nutrition() {
     setPlanToDelete(null);
   };
 
-  // Helper function to create chart data from meal plan
+  // Helper function to create chart data from meal plan items
   const createCalorieChartData = (row) => {
     try {
-      if (!row.ai_response) return null;
+      // Use items from the hook data instead of AI response
+      if (!row.items || !Array.isArray(row.items) || row.items.length === 0) {
+        return null;
+      }
 
-      const aiResponse =
-        typeof row.ai_response === "string"
-          ? JSON.parse(row.ai_response)
-          : row.ai_response;
-
-      const content = aiResponse.choices?.[0]?.message?.content;
-      if (!content) return null;
-
-      const nutritionData = JSON.parse(content);
-      if (!nutritionData.meals) return null;
-
-      const sortedMeals = nutritionData.meals.sort((a, b) => a.order - b.order);
+      // Sort by meal order and create chart data
+      const sortedMeals = row.items.sort(
+        (a, b) => (a.meal_order || 0) - (b.meal_order || 0)
+      );
       return sortedMeals.map((meal, index) => ({
-        name: meal.type,
-        calories: meal.calories,
+        name: meal.meal_type || meal.meal_name || `Meal ${index + 1}`,
+        calories: meal.calories || 0,
         index: index + 1,
       }));
     } catch (error) {
+      console.error("Error creating chart data from items:", error);
       return null;
     }
   };
@@ -707,16 +607,20 @@ export default function Nutrition() {
   };
 
   // Get selected client name for search placeholder
-  const selectedClientName = clientFilter
-    ? clients.find((client) => client.id === parseInt(clientFilter))
-        ?.first_name +
-      " " +
-      clients.find((client) => client.id === parseInt(clientFilter))?.last_name
-    : null;
+  const selectedClientName =
+    clientFilter === "template"
+      ? "Non-Client Plans"
+      : clientFilter
+      ? clients.find((client) => client.id === parseInt(clientFilter))
+          ?.first_name +
+        " " +
+        clients.find((client) => client.id === parseInt(clientFilter))
+          ?.last_name
+      : null;
 
   // Generate search placeholder text
   const searchPlaceholder = selectedClientName
-    ? `Searching ${selectedClientName} plans...`
+    ? `Searching ${selectedClientName}...`
     : "Search by plan name or client...";
 
   // Combined sort options
@@ -741,10 +645,8 @@ export default function Nutrition() {
 
   return (
     <>
-      <div className="relative h-screen flex flex-col bg-gradient-to-br from-zinc-900 via-black to-zinc-900 text-white overflow-hidden rounded">
+      <div className="relative h-screen flex flex-col bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white overflow-hidden rounded">
         {/* Subtle background pattern */}
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-500/5 via-transparent to-zinc-500/5 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,_rgba(59,130,246,0.1)_0%,_transparent_50%)] pointer-events-none" />
 
         {/* Hero Section */}
         <div className="flex items-center justify-center min-h-[40vh] w-full z-10 px-8">
@@ -766,7 +668,7 @@ export default function Nutrition() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-lg">
               <Input
-                label="Quick plan name"
+                // lab 4el="Quick plan name"
                 placeholder="e.g., John's Muscle Gain Plan"
                 value={quickPlanName}
                 onChange={(e) => setQuickPlanName(e.target.value)}
@@ -812,7 +714,7 @@ export default function Nutrition() {
 
                 {/* Client Filter Dropdown */}
                 <Select
-                  placeholder="All Clients"
+                  placeholder="All Plans"
                   selectedKeys={clientFilter ? [clientFilter] : []}
                   onSelectionChange={(keys) =>
                     setClientFilter(Array.from(keys)[0] || "")
@@ -821,13 +723,14 @@ export default function Nutrition() {
                   size="sm"
                   variant="flat"
                   renderValue={(items) => {
-                    if (items.length === 0) return "All Clients";
+                    if (items.length === 0) return "All Plans";
+                    if (items[0].key === "template") return "Non-Client Plans";
                     const selectedClient = clients.find(
                       (client) => client.id.toString() === items[0].key
                     );
                     return selectedClient
                       ? `${selectedClient.first_name} ${selectedClient.last_name}`
-                      : "All Clients";
+                      : "All Plans";
                   }}
                   classNames={{
                     trigger:
@@ -838,7 +741,10 @@ export default function Nutrition() {
                   }}
                 >
                   <SelectItem key="" value="">
-                    All Clients
+                    All Plans
+                  </SelectItem>
+                  <SelectItem key="template" value="template">
+                    Non-Client Plans
                   </SelectItem>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id.toString()}>

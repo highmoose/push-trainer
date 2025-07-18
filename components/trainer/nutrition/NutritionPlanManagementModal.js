@@ -1,0 +1,500 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import {
+  X,
+  Utensils,
+  Calendar,
+  Target,
+  CheckCircle,
+  Clock,
+  User,
+  AlertCircle,
+  ChevronDown,
+  Eye,
+} from "lucide-react";
+import { Select, SelectItem } from "@heroui/react";
+import axios from "@/lib/axios";
+import PlanDetailsModal from "./PlanDetailsModal";
+
+const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
+  const [clientPlans, setClientPlans] = useState([]);
+  const [activePlan, setActivePlan] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  // Plan details modal state
+  const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
+  const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
+  const [loadingPlanDetails, setLoadingPlanDetails] = useState(null); // Changed to store the plan ID instead of boolean
+
+  // Fetch client plans and active plan
+  useEffect(() => {
+    if (isOpen && client?.id) {
+      fetchClientPlans();
+      fetchActivePlan();
+    }
+  }, [isOpen, client]);
+
+  const fetchClientPlans = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/diet-plans/client/${client.id}`);
+      if (response.data.success) {
+        setClientPlans(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching client plans:", error);
+      setError("Failed to load nutrition plans");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchActivePlan = async () => {
+    try {
+      const response = await axios.get(
+        `/api/diet-plans/client/${client.id}/active`
+      );
+      if (response.data.success && response.data.data) {
+        setActivePlan(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching active plan:", error);
+      // Don't set error for this since having no active plan is normal
+    }
+  };
+
+  const handleActivatePlan = async (planId) => {
+    try {
+      setActionLoading(planId);
+      const response = await axios.post(`/api/diet-plans/${planId}/activate`, {
+        client_id: client.id,
+      });
+
+      if (response.data.success) {
+        // Refresh data
+        await fetchActivePlan();
+        // Update local state immediately for better UX
+        const newActivePlan = clientPlans.find((p) => p.id === planId);
+        setActivePlan(newActivePlan);
+      }
+    } catch (error) {
+      console.error("Error activating plan:", error);
+      setError("Failed to activate nutrition plan");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeactivatePlan = async () => {
+    try {
+      setActionLoading("deactivate");
+      const response = await axios.delete(
+        `/api/diet-plans/client/${client.id}/deactivate`
+      );
+
+      if (response.data.success) {
+        setActivePlan(null);
+      }
+    } catch (error) {
+      console.error("Error deactivating plan:", error);
+      setError("Failed to deactivate nutrition plan");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleViewPlanDetails = async (planId) => {
+    try {
+      console.log("Viewing plan details for ID:", planId);
+      setLoadingPlanDetails(planId); // Set the specific plan ID that's loading
+      const response = await axios.get(`/api/diet-plans/${planId}`);
+      console.log("Plan details response:", response.data);
+      if (response.data.success) {
+        // The plan data is in response.data.plan, not response.data.data
+        setSelectedPlanDetails(response.data.plan);
+        setShowPlanDetailsModal(true);
+        console.log("Plan details modal should be open", response.data.plan);
+      }
+    } catch (error) {
+      console.error("Error fetching plan details:", error);
+      setError("Failed to load plan details");
+    } finally {
+      setLoadingPlanDetails(null); // Clear the loading state
+    }
+  };
+
+  const handleClosePlanDetails = () => {
+    setShowPlanDetailsModal(false);
+    setSelectedPlanDetails(null);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getPlanTypeColor = (planType) => {
+    const colors = {
+      aggressive_cut: "text-red-400 bg-red-400/10 border-red-400/20",
+      moderate_cut: "text-orange-400 bg-orange-400/10 border-orange-400/20",
+      maintain: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+      recomp: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+      lean_bulk: "text-green-400 bg-green-400/10 border-green-400/20",
+      aggressive_bulk:
+        "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+    };
+    return (
+      colors[planType] || "text-zinc-400 bg-zinc-400/10 border-zinc-400/20"
+    );
+  };
+
+  const formatPlanType = (planType) => {
+    return (
+      planType?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) ||
+      "Unknown"
+    );
+  };
+
+  // Sort available plans (excluding active plan)
+  const sortedAvailablePlans = clientPlans
+    .filter((plan) => !plan.is_active)
+    .sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+
+      if (sortBy === "created_at" || sortBy === "updated_at") {
+        const aDate = new Date(aValue);
+        const bDate = new Date(bValue);
+        return sortOrder === "desc" ? bDate - aDate : aDate - bDate;
+      }
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        const comparison = aValue.localeCompare(bValue);
+        return sortOrder === "desc" ? -comparison : comparison;
+      }
+
+      return sortOrder === "desc" ? bValue - aValue : aValue - bValue;
+    });
+
+  const sortOptions = [
+    { key: "created_at|desc", label: "Newest First" },
+    { key: "created_at|asc", label: "Oldest First" },
+    { key: "title|asc", label: "Title A-Z" },
+    { key: "title|desc", label: "Title Z-A" },
+    { key: "plan_type|asc", label: "Plan Type A-Z" },
+    { key: "total_calories|desc", label: "Highest Calories" },
+    { key: "total_calories|asc", label: "Lowest Calories" },
+  ];
+
+  const handleSortChange = (keys) => {
+    const selectedKey = Array.from(keys)[0];
+    if (selectedKey) {
+      const [field, order] = selectedKey.split("|");
+      setSortBy(field);
+      setSortOrder(order);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  console.log("NutritionPlanManagementModal state:", {
+    showPlanDetailsModal,
+    selectedPlanDetails: !!selectedPlanDetails,
+    loadingPlanDetails,
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-zinc-700/50">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-zinc-700/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-400/10 rounded-lg">
+              <Utensils className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                Nutrition Plan Management
+              </h2>
+              <p className="text-sm text-zinc-400 mt-1">
+                {client?.name || `${client?.first_name} ${client?.last_name}`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
+            title="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Error Message */}
+          {error && (
+            <div className="mx-6 mt-6 bg-red-900/20 border border-red-500 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Active Plan Section - Always Visible */}
+          <div className="p-6 pb-0">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              Currently Active Plan
+            </h3>
+
+            {activePlan ? (
+              <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-lg font-medium text-white mb-2">
+                      {activePlan.title}
+                    </h4>
+                    <div className="flex items-center gap-4 text-sm text-zinc-400 mb-3">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Assigned {formatDate(activePlan.assigned_at)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Target className="w-4 h-4" />
+                        {activePlan.meals_per_day} meals/day
+                      </span>
+                      {activePlan.total_calories && (
+                        <span className="flex items-center gap-1">
+                          <Target className="w-4 h-4" />
+                          {activePlan.total_calories.toLocaleString()} cal
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium border ${getPlanTypeColor(
+                          activePlan.plan_type
+                        )}`}
+                      >
+                        {formatPlanType(activePlan.plan_type)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log(
+                          "View active plan button clicked for plan:",
+                          activePlan.id
+                        );
+                        handleViewPlanDetails(activePlan.id);
+                      }}
+                      disabled={loadingPlanDetails === activePlan.id}
+                      className="px-4 py-2 bg-zinc-600 hover:bg-zinc-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      {loadingPlanDetails === activePlan.id
+                        ? "Loading..."
+                        : "View Plan"}
+                    </button>
+                    <button
+                      onClick={handleDeactivatePlan}
+                      disabled={actionLoading === "deactivate"}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionLoading === "deactivate"
+                        ? "Deactivating..."
+                        : "Deactivate"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg p-6 text-center">
+                <Clock className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
+                <p className="text-zinc-400">No active nutrition plan</p>
+                <p className="text-sm text-zinc-500 mt-1">
+                  Select a plan below to activate it for this client
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Available Plans Section - Scrollable */}
+          <div className="flex-1 flex flex-col overflow-hidden p-6">
+            {/* Header with Sort Options */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Utensils className="w-5 h-5 text-orange-400" />
+                Available Plans ({sortedAvailablePlans.length})
+              </h3>
+
+              <div className="min-w-[200px]">
+                <Select
+                  selectedKeys={new Set([`${sortBy}|${sortOrder}`])}
+                  onSelectionChange={handleSortChange}
+                  size="sm"
+                  variant="bordered"
+                  classNames={{
+                    base: "max-w-xs",
+                    trigger:
+                      "border-none bg-zinc-800/50 data-[hover=true]:border-zinc-500 rounded-lg",
+                    value: "text-zinc-200",
+                    popoverContent: "bg-zinc-800 border-zinc-600 rounded-lg",
+                  }}
+                  placeholder="Sort by..."
+                  startContent={
+                    <ChevronDown className="w-4 h-4 text-zinc-400" />
+                  }
+                >
+                  {sortOptions.map((option) => (
+                    <SelectItem
+                      key={option.key}
+                      value={option.key}
+                      classNames={{
+                        base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-zinc-700 rounded-lg",
+                        title: "text-zinc-200",
+                      }}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+            </div>
+
+            {/* Scrollable Plans List */}
+            <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p className="text-zinc-500">Loading plans...</p>
+                </div>
+              ) : sortedAvailablePlans.length === 0 ? (
+                <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg p-6 text-center">
+                  <User className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
+                  <p className="text-zinc-400">
+                    No available plans to activate
+                  </p>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    {activePlan
+                      ? "All plans are either active or none exist"
+                      : "Create nutrition plans for this client to manage them here"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {sortedAvailablePlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="border border-zinc-700/30 hover:border-zinc-600/50 rounded-lg p-4 bg-zinc-800/20 hover:bg-zinc-800/40 transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-base font-medium text-white truncate">
+                              {plan.title}
+                            </h4>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium border whitespace-nowrap ${getPlanTypeColor(
+                                plan.plan_type
+                              )}`}
+                            >
+                              {formatPlanType(plan.plan_type)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-xs text-zinc-400">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(plan.created_at)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Target className="w-3 h-3" />
+                              {plan.meals_per_day} meals
+                            </span>
+                            {plan.total_calories && (
+                              <span className="flex items-center gap-1">
+                                <Target className="w-3 h-3" />
+                                {plan.total_calories.toLocaleString()} cal
+                              </span>
+                            )}
+                            {plan.meal_complexity && (
+                              <span className="px-1.5 py-0.5 bg-zinc-700/50 text-zinc-300 rounded text-xs">
+                                {plan.meal_complexity}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log(
+                                "View plan button clicked for plan:",
+                                plan.id
+                              );
+                              handleViewPlanDetails(plan.id);
+                            }}
+                            disabled={loadingPlanDetails === plan.id}
+                            className="px-3 py-1.5 bg-zinc-600 hover:bg-zinc-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            {loadingPlanDetails === plan.id
+                              ? "Loading..."
+                              : "View Plan"}
+                          </button>
+                          <button
+                            onClick={() => handleActivatePlan(plan.id)}
+                            disabled={actionLoading === plan.id}
+                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            {actionLoading === plan.id
+                              ? "Activating..."
+                              : "Activate"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-zinc-700/30">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* Plan Details Modal */}
+      <PlanDetailsModal
+        isOpen={showPlanDetailsModal}
+        onClose={handleClosePlanDetails}
+        planDetails={selectedPlanDetails}
+        zIndex="z-[60]"
+      />
+    </div>
+  );
+};
+
+export default NutritionPlanManagementModal;
