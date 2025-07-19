@@ -2,10 +2,21 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { useEffect } from "react";
 import { Button } from "@heroui/react";
 
 export default function WelcomePage() {
   const router = useRouter();
+  const { user, hydrated } = useSelector((state) => state.auth);
+
+  // Auto-redirect if user is already authenticated
+  useEffect(() => {
+    if (hydrated && user) {
+      console.log("✅ User already authenticated, redirecting to dashboard");
+      router.replace("/dashboard");
+    }
+  }, [hydrated, user, router]);
 
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center">

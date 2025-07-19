@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { createTask, updateTask, deleteTask } from "@/redux/slices/taskSlice";
 import dayjs from "dayjs";
 import { ClipboardCheck, Trash2 } from "lucide-react";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
@@ -26,8 +24,36 @@ export default function CreateTaskModal({
   close,
   initialValues = {},
   mode = "create",
+  tasksHookData,
 }) {
-  const dispatch = useDispatch();
+  // Ensure we have task data and prevent any API calls
+  if (!tasksHookData) {
+    console.error("CreateTaskModal: tasksHookData is required");
+    return null;
+  }
+
+  // Use only the hook data that was passed in - no additional API calls
+  const {
+    tasks,
+    createTask,
+    updateTask,
+    deleteTask,
+    completeTask,
+    loading: tasksLoading,
+    error: tasksError,
+  } = tasksHookData;
+
+  // If we're in edit mode, ensure the task exists in our data
+  if (mode === "edit" && initialValues?.id) {
+    const taskExists = tasks.find((t) => t.id === initialValues.id);
+    if (!taskExists) {
+      console.warn(
+        "CreateTaskModal: Task not found in current data, closing modal"
+      );
+      close();
+      return null;
+    }
+  }
   // Add loading state to prevent duplicate submissions
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,15 +143,10 @@ export default function CreateTaskModal({
 
       if (mode === "edit" && initialValues?.id) {
         // Update existing task
-        await dispatch(
-          updateTask({
-            id: initialValues.id,
-            data: payload,
-          })
-        ).unwrap();
+        await updateTask(initialValues.id, payload);
       } else {
         // Create new task
-        await dispatch(createTask(payload)).unwrap();
+        await createTask(payload);
       }
       close();
     } catch (error) {
@@ -134,12 +155,13 @@ export default function CreateTaskModal({
       setIsSubmitting(false);
     }
   };
+
   const handleTaskDelete = async () => {
     if (!initialValues?.id || mode !== "edit") return;
 
     setIsDeleting(true);
     try {
-      await dispatch(deleteTask(initialValues.id)).unwrap();
+      await deleteTask(initialValues.id);
       setShowDeleteConfirm(false);
       close();
     } catch (error) {

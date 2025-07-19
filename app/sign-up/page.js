@@ -11,7 +11,11 @@ import { Input, Button, Select, SelectItem } from "@heroui/react";
 export default function RegisterPage() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { error } = useSelector((state) => state.auth);
+  const {
+    error,
+    user: authUser,
+    hydrated,
+  } = useSelector((state) => state.auth);
   const [user, setUser] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -19,6 +23,14 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [role, setRole] = useState("client");
+
+  // Auto-redirect if user is already authenticated
+  useEffect(() => {
+    if (hydrated && authUser) {
+      console.log("✅ User already authenticated, redirecting to dashboard");
+      router.replace("/dashboard");
+    }
+  }, [hydrated, authUser, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

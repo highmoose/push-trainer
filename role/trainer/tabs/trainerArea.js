@@ -12,9 +12,6 @@ import Metrics from "@role/trainer/tabs/metrics";
 import Nutrition from "@role/trainer/tabs/nutrition";
 
 import { useSelector } from "react-redux";
-import { useClients } from "@/hooks/clients";
-import { useSessions } from "@/hooks/session";
-import { useTasks } from "@/hooks/tasks";
 import { useMessaging } from "@/hooks/messaging";
 
 export default function trainerDashboard() {
@@ -23,10 +20,7 @@ export default function trainerDashboard() {
   const authUser = useSelector((state) => state.auth.user);
   const authUserId = authUser?.id;
 
-  // Initialize hooks - they will fetch data automatically on mount
-  useClients();
-  useSessions();
-  useTasks();
+  // Initialize messaging hook only
   const { fetchConversations } = useMessaging(authUserId);
 
   // Only fetch conversations once since messaging hook doesn't auto-fetch

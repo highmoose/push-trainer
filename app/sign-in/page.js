@@ -12,12 +12,20 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
 
-  const { user, status, error } = useSelector((state) => state.auth);
+  const { user, status, error, hydrated } = useSelector((state) => state.auth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
   const reason = searchParams.get("reason");
   const isSessionExpired = reason === "session_expired";
+
+  // Auto-redirect if user is already authenticated (unless session just expired)
+  useEffect(() => {
+    if (hydrated && user && !isSessionExpired) {
+      console.log("✅ User already authenticated, redirecting to dashboard");
+      router.replace("/dashboard");
+    }
+  }, [hydrated, user, router, isSessionExpired]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

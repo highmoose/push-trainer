@@ -1,16 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import {
-  createSession,
-  updateSession,
-  cancelSession,
-  reinstateSession,
-  deleteSession,
-  fetchSessions,
-} from "@/redux/slices/sessionSlice";
-import { fetchClients, clearError } from "@/redux/slices/clientSlice";
 import dayjs from "dayjs";
 import { Clock, User, Trash2, CheckCircle } from "lucide-react";
 import {
@@ -42,12 +32,43 @@ export default function CreateSessionModal({
   close,
   initialValues = {},
   mode = "create",
+  clientsHookData,
+  sessionsHookData,
 }) {
-  const dispatch = useDispatch();
-  const clients = useSelector((state) => state.clients.list || []);
-  const clientsStatus = useSelector((state) => state.clients.status);
-  const sessions = useSelector((state) => state.sessions.list || []);
-  const clientsToUse = clients;
+  // Ensure we have all required data and prevent any API calls
+  if (!clientsHookData) {
+    console.error("CreateSessionModal: clientsHookData is required");
+    return null;
+  }
+
+  if (!sessionsHookData) {
+    console.error("CreateSessionModal: sessionsHookData is required");
+    return null;
+  }
+
+  const { clients, loading: clientsLoading } = clientsHookData;
+  const {
+    sessions,
+    createSession,
+    updateSession,
+    deleteSession,
+    cancelSession,
+    completeSession,
+    loading: sessionsLoading,
+    error: sessionsError,
+  } = sessionsHookData;
+
+  // If we're in edit mode, ensure the session exists in our data
+  if (mode === "edit" && initialValues?.id) {
+    const sessionExists = sessions.find((s) => s.id === initialValues.id);
+    if (!sessionExists) {
+      console.warn(
+        "CreateSessionModal: Session not found in current data, closing modal"
+      );
+      close();
+      return null;
+    }
+  }
 
   // Session Templates
   const sessionTemplates = [
@@ -146,7 +167,7 @@ export default function CreateSessionModal({
   });
 
   // Helper functions
-  const filteredClients = clientsToUse.filter((client) =>
+  const filteredClients = clients.filter((client) =>
     `${client.first_name} ${client.last_name}`
       .toLowerCase()
       .includes(clientSearch.toLowerCase())
@@ -234,14 +255,6 @@ export default function CreateSessionModal({
     }
   }, [initialValues]);
 
-  // Ensure clients are loaded
-  useEffect(() => {
-    if (clientsStatus === "idle" || clientsStatus === "failed") {
-      dispatch(clearError());
-      dispatch(fetchClients());
-    }
-  }, [dispatch, clientsStatus]);
-
   // Focus client search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -284,9 +297,9 @@ export default function CreateSessionModal({
       };
 
       if (mode === "edit") {
-        await dispatch(updateSession({ id: initialValues.id, ...payload }));
+        await updateSession(initialValues.id, payload);
       } else {
-        await dispatch(createSession(payload));
+        await createSession(payload);
       }
 
       close();
@@ -302,7 +315,7 @@ export default function CreateSessionModal({
     setIsDeleting(true);
 
     try {
-      await dispatch(deleteSession(initialValues.id));
+      await deleteSession(initialValues.id);
       setShowDeleteConfirm(false);
       close();
     } catch (error) {
@@ -320,7 +333,7 @@ export default function CreateSessionModal({
     if (!initialValues?.id) return;
 
     try {
-      await dispatch(cancelSession(initialValues.id));
+      await cancelSession(initialValues.id);
       setShowCancelConfirm(false);
       close();
     } catch (error) {
@@ -336,7 +349,8 @@ export default function CreateSessionModal({
     if (!initialValues?.id) return;
 
     try {
-      await dispatch(reinstateSession(initialValues.id));
+      // Reinstate by updating status to scheduled
+      await updateSession(initialValues.id, { status: "scheduled" });
       setShowReinstateConfirm(false);
       close();
     } catch (error) {
@@ -352,12 +366,7 @@ export default function CreateSessionModal({
     if (!initialValues?.id) return;
 
     try {
-      await dispatch(
-        updateSession({
-          id: initialValues.id,
-          status: "completed",
-        })
-      );
+      await completeSession(initialValues.id);
       setShowCompleteConfirm(false);
       close();
     } catch (error) {

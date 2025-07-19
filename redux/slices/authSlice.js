@@ -90,16 +90,34 @@ export const logout = createAsyncThunk(
     try {
       await api.get("/sanctum/csrf-cookie"); // optional, but safer
       await api.post("/api/logout");
+      console.log("✅ Server logout successful");
     } catch (err) {
+      console.warn(
+        "⚠️ Server logout failed:",
+        err.response?.status,
+        err.response?.data
+      );
+
       if (err.response?.status === 401) {
-        // Session already gone — proceed
+        // Session already gone — this is fine, proceed with client-side logout
+        console.log(
+          "✅ Session already expired, proceeding with client logout"
+        );
         return;
       }
-      return rejectWithValue("Logout failed");
+
+      // For other errors, still proceed with client-side logout for security
+      // but log the error for debugging
+      console.warn(
+        "⚠️ Server logout failed, but proceeding with client logout for security"
+      );
+      return; // Don't reject, just proceed
     } finally {
+      // Always clean up client-side data regardless of server response
       localStorage.removeItem("user");
       localStorage.removeItem("auth_token");
       localStorage.removeItem("lastActivity");
+      console.log("✅ Client-side logout data cleared");
     }
   }
 );

@@ -67,10 +67,13 @@ export default function TrainerCalendarPage() {
       dayjs().format("YYYY-MM-DD HH:mm:ss Z")
     );
   }, [userTimezone]);
+  const sessionsHookData = useSessions();
   const { sessions, updateSessionTime, updateSessionTimeOptimistic } =
-    useSessions();
-  const { clients } = useClients();
-  const { tasks, updateTask, completeTask } = useTasks();
+    sessionsHookData;
+  const clientsHookData = useClients();
+  const { clients } = clientsHookData;
+  const tasksHookData = useTasks();
+  const { tasks, updateTask, completeTask } = tasksHookData;
 
   // Process sessions with timezone-aware datetime conversion
   const processedSessions = sessions.map((session) => ({
@@ -1695,6 +1698,8 @@ export default function TrainerCalendarPage() {
           mode="create"
           close={() => setCreateModalOpen(false)}
           initialValues={selectedSession || {}} // <-- fallback to empty object
+          clientsHookData={clientsHookData}
+          sessionsHookData={sessionsHookData}
         />
       )}{" "}
       {createTaskModalOpen && (
@@ -1702,6 +1707,7 @@ export default function TrainerCalendarPage() {
           mode="create"
           close={handleTaskModalClose}
           initialValues={selectedSession || {}}
+          tasksHookData={tasksHookData}
         />
       )}{" "}
       {editModalOpen && selectedSession && (
@@ -1709,6 +1715,8 @@ export default function TrainerCalendarPage() {
           mode="edit"
           close={() => setEditModalOpen(false)}
           initialValues={selectedSession}
+          clientsHookData={clientsHookData}
+          sessionsHookData={sessionsHookData}
         />
       )}{" "}
       {editTaskModalOpen && selectedTask && (
@@ -1716,6 +1724,7 @@ export default function TrainerCalendarPage() {
           mode="edit"
           close={handleEditTaskModalClose}
           initialValues={selectedTask}
+          tasksHookData={tasksHookData}
         />
       )}
       {/* Context Menu */}

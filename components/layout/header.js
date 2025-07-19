@@ -3,6 +3,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "@/redux/slices/authSlice";
+import clearAllCaches from "@/lib/clearAllCaches";
 import {
   LogOut,
   Settings,
@@ -26,10 +27,18 @@ export default function Header({ setShowTab, currentTab }) {
 
   const handleLogout = async () => {
     try {
+      // Clear all application caches before logout
+      clearAllCaches();
+
       await dispatch(logout()).unwrap(); // logout thunk
+      console.log("✅ Logout completed successfully");
       router.push("/welcome"); // redirect
     } catch (err) {
-      console.error("Logout failed:", err);
+      // Since logout always proceeds (see authSlice), this shouldn't happen
+      // But if it does, we still want to complete the logout process
+      console.warn("⚠️ Logout completed with warnings:", err);
+      clearAllCaches();
+      router.push("/welcome");
     }
   };
 

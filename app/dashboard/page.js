@@ -5,6 +5,7 @@ import Header from "@/components/layout/header";
 import { useSelector } from "react-redux";
 import { Spinner } from "@heroui/react";
 import TrainerArea from "@role/trainer/tabs/trainerArea";
+import DataPreloadWrapper from "@/components/auth/DataPreloadWrapper";
 
 export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);
@@ -16,11 +17,14 @@ export default function Dashboard() {
       </div>
     );
   }
+
   return (
-    <div className="flex flex-col w-full h-screen justify-center items-center overflow-hidden">
-      <div className="flex w-full h-full">
-        {user?.role === "trainer" && <TrainerArea />}
+    <DataPreloadWrapper>
+      <div className="flex flex-col w-full h-screen justify-center items-center overflow-hidden">
+        <div className="flex w-full h-full">
+          {user?.role === "trainer" && <TrainerArea />}
+        </div>
       </div>
-    </div>
+    </DataPreloadWrapper>
   );
 }

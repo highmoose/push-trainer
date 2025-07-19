@@ -15,10 +15,12 @@ import ClientGoalChart from "@/components/trainer/clients/clientGoalChart";
 import ClientActivePlans from "@/components/trainer/clients/clientActivePlans";
 import ClientActivityLog from "@/components/trainer/clients/clientActivityLog";
 import ClientTimeline from "@/components/trainer/clients/clientTimeline";
+import { usePersistentClientSelection } from "@/hooks/usePersistentClientSelection";
 
 export default function Clients() {
   const { clients, loading, error, fetchClients } = useClients();
-  const [selectedClient, setSelectedClient] = useState(null);
+  const { selectedClient, setSelectedClient, isInitialized } =
+    usePersistentClientSelection(clients);
   const [addClientModalOpen, setAddClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState(null); // Separate state for editing
   const [viewClientInfoModalOpen, setViewClientInfoModalOpen] = useState(false);
@@ -27,16 +29,6 @@ export default function Clients() {
   const [weighInRequestModalOpen, setWeighInRequestModalOpen] = useState(false);
   const [recurringWeighInModalOpen, setRecurringWeighInModalOpen] =
     useState(false);
-
-  useEffect(() => {
-    if (clients.length > 0 && !selectedClient) {
-      const firstClient = clients[0];
-    }
-  }, [clients, selectedClient]);
-
-  useEffect(() => {
-    setSelectedClient(clients[0]);
-  }, [clients]);
 
   console.log("Selected Client:", selectedClient);
 
@@ -52,46 +44,54 @@ export default function Clients() {
 
   return (
     <div className=" flex-1 w-full ">
-      <div className="flex">
-        <div className="flex flex-col flex-1 h-screen ">
-          <div className="p-2">
-            <ClientTopBar
-              clients={clients}
-              setAddClientModalOpen={setAddClientModalOpen}
-              setSelectedClient={setSelectedClient}
-              selectedClient={selectedClient}
-            />
-          </div>
-          <div className="flex w-full h-full gap-2  px-2 pb-2">
-            <ClientTimeline selectedClient={selectedClient} />
-            <div className="flex flex-col w-full h-full gap-2">
-              {/* Top row */}
-              <div className="flex w-full h-1/2 gap-2">
-                <div className="flex w-3/4 overflow-hidden rounded-3xl">
-                  <ClientTopChart selectedClient={selectedClient} />
-                </div>
-                <div className="flex relative w-1/4 bg-panel overflow-hidden rounded-3xl ">
-                  <ClientImageCard selectedClient={selectedClient} />
-                </div>
-              </div>
-              {/* Bottom row */}
-              <div className="flex w-full h-1/2 gap-2">
-                <div className="flex w-3/4 h-full  overflow-hidden  gap-2">
-                  <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl ">
-                    <ClientActivePlans selectedClient={selectedClient} />
+      {loading || !isInitialized ? (
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+          <p className="ml-3 text-zinc-400">Loading clients...</p>
+        </div>
+      ) : (
+        <div className="flex">
+          <div className="flex flex-col flex-1 h-screen ">
+            <div className="p-2">
+              <ClientTopBar
+                clients={clients}
+                setAddClientModalOpen={setAddClientModalOpen}
+                setSelectedClient={setSelectedClient}
+                selectedClient={selectedClient}
+              />
+            </div>
+            <div className="flex w-full h-full gap-2  px-2 pb-2">
+              <ClientTimeline selectedClient={selectedClient} />
+              <div className="flex flex-col w-full h-full gap-2">
+                {/* Top row */}
+                <div className="flex w-full h-1/2 gap-2">
+                  <div className="flex w-3/4 overflow-hidden rounded-3xl">
+                    <ClientTopChart selectedClient={selectedClient} />
                   </div>
-                  <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl">
-                    <ClientActivityLog selectedClient={selectedClient} />
+                  <div className="flex relative w-1/4 bg-panel overflow-hidden rounded-3xl ">
+                    <ClientImageCard selectedClient={selectedClient} />
                   </div>
                 </div>
-                <div className="flex w-1/4 overflow-hidden rounded-3xl">
-                  <ClientGoalChart selectedClient={selectedClient} />
+                {/* Bottom row */}
+                <div className="flex w-full h-1/2 gap-2">
+                  <div className="flex w-3/4 h-full  overflow-hidden  gap-2">
+                    <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl ">
+                      <ClientActivePlans selectedClient={selectedClient} />
+                    </div>
+                    <div className="flex w-1/2 h-full bg-panel overflow-hidden rounded-3xl">
+                      <ClientActivityLog selectedClient={selectedClient} />
+                    </div>
+                  </div>
+                  <div className="flex w-1/4 overflow-hidden rounded-3xl">
+                    <ClientGoalChart selectedClient={selectedClient} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
       {/* Modals */}
       {addClientModalOpen && (
         <AddClientModal
@@ -122,7 +122,7 @@ export default function Clients() {
           close={() => setViewClientInfoModalOpen(false)}
           client={selectedClient}
         />
-      )}{" "}
+      )}
       {addMetricsModalOpen && (
         <AddClientMetricsModal
           isOpen={addMetricsModalOpen}
@@ -135,7 +135,7 @@ export default function Clients() {
             console.log("Metrics added successfully:", metricsData);
           }}
         />
-      )}{" "}
+      )}
       {weighInRequestModalOpen && (
         <CreateWeighInRequestModal
           isOpen={weighInRequestModalOpen}

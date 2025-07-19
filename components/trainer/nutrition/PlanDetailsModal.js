@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   AlertCircle,
@@ -65,43 +65,80 @@ const VSXNutritionChart = ({ data, width = 600, height = 300 }) => {
     hideTooltip,
   } = useTooltip();
 
-  if (!data || data.length === 0) return null;
+  // Memoize expensive calculations
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return null;
 
-  const margin = { top: 20, right: 20, bottom: 40, left: 60 };
-  const xMax = width - margin.left - margin.right;
-  const yMax = height - margin.top - margin.bottom;
+    const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+    const xMax = width - margin.left - margin.right;
+    const yMax = height - margin.top - margin.bottom;
 
-  // Calculate max values for each metric
-  const maxValues = Object.fromEntries(
-    CHART_METRICS.map(({ key }) => [
-      key,
-      Math.max(...data.map((d) => d[key] || 0)),
-    ])
-  );
+    // Calculate max values for each metric
+    const maxValues = Object.fromEntries(
+      CHART_METRICS.map(({ key }) => [
+        key,
+        Math.max(...data.map((d) => d[key] || 0)),
+      ])
+    );
 
-  // Transform data for current metric
-  const currentMetric = data.map((d, i) => ({
-    index: i,
-    name: d.name || d.type || `Meal ${i + 1}`,
-    value: d[selectedMetric] || 0,
-  }));
+    // Transform data for current metric
+    const currentMetric = data.map((d, i) => ({
+      index: i,
+      name: d.name || d.type || `Meal ${i + 1}`,
+      value: d[selectedMetric] || 0,
+    }));
 
-  // Scales
-  const xScale = scaleLinear({
-    domain: [0, data.length - 1],
-    range: [0, xMax],
-  });
+    // Scales
+    const xScale = scaleLinear({
+      domain: [0, data.length - 1],
+      range: [0, xMax],
+    });
 
-  const yScale = scaleLinear({
-    domain: [0, maxValues[selectedMetric] * 1.1],
-    range: [yMax, 0],
-  });
+    const yScale = scaleLinear({
+      domain: [0, maxValues[selectedMetric] * 1.1],
+      range: [yMax, 0],
+    });
 
-  const currentMetricConfig = CHART_METRICS.find(
-    (m) => m.key === selectedMetric
-  );
+    const currentMetricConfig = CHART_METRICS.find(
+      (m) => m.key === selectedMetric
+    );
+    const yTicks = generateYTicks(maxValues[selectedMetric] * 1.1);
+
+    // Transform data to points for rendering
+    const points = currentMetric.map((d) => ({
+      x: xScale(d.index),
+      y: yScale(d.value),
+    }));
+
+    return {
+      margin,
+      xMax,
+      yMax,
+      maxValues,
+      currentMetric,
+      xScale,
+      yScale,
+      currentMetricConfig,
+      yTicks,
+      points,
+    };
+  }, [data, width, height, selectedMetric]);
+
+  if (!chartData) return null;
+
+  const {
+    margin,
+    xMax,
+    yMax,
+    currentMetric,
+    xScale,
+    yScale,
+    currentMetricConfig,
+    yTicks,
+    points,
+  } = chartData;
+
   const bisectIndex = bisector((d) => d.index).left;
-  const yTicks = generateYTicks(maxValues[selectedMetric] * 1.1);
 
   // Tooltip handler
   const handleTooltip = useCallback(
@@ -125,12 +162,6 @@ const VSXNutritionChart = ({ data, width = 600, height = 300 }) => {
     },
     [xScale, yScale, currentMetric, bisectIndex, showTooltip]
   );
-
-  // Transform data to points for rendering
-  const points = currentMetric.map((d) => ({
-    x: xScale(d.index),
-    y: yScale(d.value),
-  }));
 
   return (
     <div className="flex flex-col items-center gap-4">

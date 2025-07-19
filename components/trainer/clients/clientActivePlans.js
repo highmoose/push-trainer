@@ -3,6 +3,7 @@ import { Clock, Dumbbell, Utensils, Settings } from "lucide-react";
 import React, { useState } from "react";
 import NutritionPlanManagementModal from "@/components/trainer/nutrition/NutritionPlanManagementModal";
 import useClientNutritionPlans from "@/hooks/useClientNutritionPlans";
+import { useDietPlans } from "@/hooks/diet/useDietPlans";
 
 // Progress bar component that calculates percentage based on dates
 const ProgressBar = ({ startDate, endDate }) => {
@@ -57,7 +58,14 @@ const ProgressBar = ({ startDate, endDate }) => {
 
 export default function ClientActivePlans({ selectedClient }) {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
-  const { activePlan, loading } = useClientNutritionPlans(selectedClient?.id);
+
+  // Get hook data to pass to modal
+  const clientNutritionPlansHookData = useClientNutritionPlans(
+    selectedClient?.id
+  );
+  const dietPlansHookData = useDietPlans();
+
+  const { activePlan, loading } = clientNutritionPlansHookData;
 
   const handleNutritionModalClose = () => {
     setShowNutritionModal(false);
@@ -132,6 +140,8 @@ export default function ClientActivePlans({ selectedClient }) {
           isOpen={showNutritionModal}
           onClose={handleNutritionModalClose}
           client={selectedClient}
+          clientNutritionPlansHookData={clientNutritionPlansHookData}
+          dietPlansHookData={dietPlansHookData}
         />
       )}
     </div>

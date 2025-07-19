@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   X,
   Utensils,
@@ -12,16 +12,47 @@ import {
   AlertCircle,
   ChevronDown,
   Eye,
+  Trash2,
 } from "lucide-react";
 import { Select, SelectItem } from "@heroui/react";
-import axios from "@/lib/axios";
 import PlanDetailsModal from "./PlanDetailsModal";
+import ConfirmationModal from "@/components/common/ConfirmationModal";
 
-const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
-  const [clientPlans, setClientPlans] = useState([]);
-  const [activePlan, setActivePlan] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const NutritionPlanManagementModal = ({
+  isOpen,
+  onClose,
+  client,
+  clientNutritionPlansHookData,
+  dietPlansHookData,
+}) => {
+  // Ensure we have all required data and prevent any API calls
+  if (!clientNutritionPlansHookData) {
+    console.error(
+      "NutritionPlanManagementModal: clientNutritionPlansHookData is required"
+    );
+    return null;
+  }
+
+  if (!dietPlansHookData) {
+    console.error(
+      "NutritionPlanManagementModal: dietPlansHookData is required"
+    );
+    return null;
+  }
+
+  // Use the hook data passed as props
+  const {
+    plans: clientPlans,
+    activePlan,
+    loading,
+    error,
+    setAsActive,
+    deactivatePlan,
+    refresh,
+  } = clientNutritionPlansHookData;
+
+  const { fetchPlanDetails, deleteDietPlan } = dietPlansHookData;
+
   const [actionLoading, setActionLoading] = useState(null);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -29,62 +60,63 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   // Plan details modal state
   const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
-  const [loadingPlanDetails, setLoadingPlanDetails] = useState(null); // Changed to store the plan ID instead of boolean
+  const [loadingPlanDetails, setLoadingPlanDetails] = useState(null);
 
-  // Fetch client plans and active plan
+  // Delete confirmation modal state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
+
+  // Memoized sorted plans for better performance
+  const sortedPlans = useMemo(() => {
+    if (!clientPlans || clientPlans.length === 0) return [];
+
+    return [...clientPlans].sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+
+      // Handle date sorting
+      if (sortBy === "created_at" || sortBy === "updated_at") {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      }
+
+      // Handle string sorting
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [clientPlans, sortBy, sortOrder]);
+
+  // Only refresh data when modal first opens or client changes
   useEffect(() => {
     if (isOpen && client?.id) {
-      fetchClientPlans();
-      fetchActivePlan();
-    }
-  }, [isOpen, client]);
-
-  const fetchClientPlans = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`/api/diet-plans/client/${client.id}`);
-      if (response.data.success) {
-        setClientPlans(response.data.data);
+      // Only refresh if we don't have data yet - but don't depend on clientPlans
+      // to avoid triggering when plans update due to activation
+      const hasNoData = !clientPlans || clientPlans.length === 0;
+      if (hasNoData) {
+        refresh();
       }
-    } catch (error) {
-      console.error("Error fetching client plans:", error);
-      setError("Failed to load nutrition plans");
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const fetchActivePlan = async () => {
-    try {
-      const response = await axios.get(
-        `/api/diet-plans/client/${client.id}/active`
-      );
-      if (response.data.success && response.data.data) {
-        setActivePlan(response.data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching active plan:", error);
-      // Don't set error for this since having no active plan is normal
-    }
-  };
+  }, [isOpen, client?.id, refresh]); // Removed clientPlans dependency
 
   const handleActivatePlan = async (planId) => {
     try {
       setActionLoading(planId);
-      const response = await axios.post(`/api/diet-plans/${planId}/activate`, {
-        client_id: client.id,
-      });
+      const result = await setAsActive(planId);
 
-      if (response.data.success) {
-        // Refresh data
-        await fetchActivePlan();
-        // Update local state immediately for better UX
-        const newActivePlan = clientPlans.find((p) => p.id === planId);
-        setActivePlan(newActivePlan);
+      if (!result.success) {
+        console.error("Failed to activate plan:", result.error);
+        // Error handling could be improved here with toast notifications
       }
     } catch (error) {
       console.error("Error activating plan:", error);
-      setError("Failed to activate nutrition plan");
     } finally {
       setActionLoading(null);
     }
@@ -93,16 +125,14 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   const handleDeactivatePlan = async () => {
     try {
       setActionLoading("deactivate");
-      const response = await axios.delete(
-        `/api/diet-plans/client/${client.id}/deactivate`
-      );
+      const result = await deactivatePlan();
 
-      if (response.data.success) {
-        setActivePlan(null);
+      if (!result.success) {
+        console.error("Failed to deactivate plan:", result.error);
+        // Error handling could be improved here with toast notifications
       }
     } catch (error) {
       console.error("Error deactivating plan:", error);
-      setError("Failed to deactivate nutrition plan");
     } finally {
       setActionLoading(null);
     }
@@ -111,26 +141,53 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   const handleViewPlanDetails = async (planId) => {
     try {
       console.log("Viewing plan details for ID:", planId);
-      setLoadingPlanDetails(planId); // Set the specific plan ID that's loading
-      const response = await axios.get(`/api/diet-plans/${planId}`);
-      console.log("Plan details response:", response.data);
-      if (response.data.success) {
-        // The plan data is in response.data.plan, not response.data.data
-        setSelectedPlanDetails(response.data.plan);
-        setShowPlanDetailsModal(true);
-        console.log("Plan details modal should be open", response.data.plan);
-      }
+      setLoadingPlanDetails(planId);
+
+      const planDetails = await fetchPlanDetails(planId);
+      console.log("Plan details response:", planDetails);
+
+      setSelectedPlanDetails(planDetails);
+      setShowPlanDetailsModal(true);
+      console.log("Plan details modal should be open", planDetails);
     } catch (error) {
       console.error("Error fetching plan details:", error);
-      setError("Failed to load plan details");
     } finally {
-      setLoadingPlanDetails(null); // Clear the loading state
+      setLoadingPlanDetails(null);
     }
   };
 
   const handleClosePlanDetails = () => {
     setShowPlanDetailsModal(false);
     setSelectedPlanDetails(null);
+  };
+
+  const handleDeletePlanClick = (plan) => {
+    setPlanToDelete(plan);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleCloseDeleteConfirmation = () => {
+    setShowDeleteConfirmation(false);
+    setPlanToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!planToDelete) return;
+
+    try {
+      setActionLoading(planToDelete.id);
+      await deleteDietPlan(planToDelete.id);
+
+      // Refresh the client plans to reflect the deletion
+      refresh();
+
+      // Close the confirmation modal
+      handleCloseDeleteConfirmation();
+    } catch (error) {
+      console.error("Error deleting plan:", error);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -163,26 +220,8 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
     );
   };
 
-  // Sort available plans (excluding active plan)
-  const sortedAvailablePlans = clientPlans
-    .filter((plan) => !plan.is_active)
-    .sort((a, b) => {
-      const aValue = a[sortBy];
-      const bValue = b[sortBy];
-
-      if (sortBy === "created_at" || sortBy === "updated_at") {
-        const aDate = new Date(aValue);
-        const bDate = new Date(bValue);
-        return sortOrder === "desc" ? bDate - aDate : aDate - bDate;
-      }
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        const comparison = aValue.localeCompare(bValue);
-        return sortOrder === "desc" ? -comparison : comparison;
-      }
-
-      return sortOrder === "desc" ? bValue - aValue : aValue - bValue;
-    });
+  // Filter available plans (excluding active plan) from already sorted plans
+  const sortedAvailablePlans = sortedPlans.filter((plan) => !plan.is_active);
 
   const sortOptions = [
     { key: "created_at|desc", label: "Newest First" },
@@ -457,6 +496,19 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
                               : "View Plan"}
                           </button>
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePlanClick(plan);
+                            }}
+                            disabled={actionLoading === plan.id}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            {actionLoading === plan.id
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                          <button
                             onClick={() => handleActivatePlan(plan.id)}
                             disabled={actionLoading === plan.id}
                             className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
@@ -492,6 +544,23 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
         onClose={handleClosePlanDetails}
         planDetails={selectedPlanDetails}
         zIndex="z-[60]"
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        onClose={handleCloseDeleteConfirmation}
+        onConfirm={handleConfirmDelete}
+        title="Delete Nutrition Plan"
+        message={
+          planToDelete
+            ? `Are you sure you want to delete "${planToDelete.title}"? This action cannot be undone and will remove the plan from all clients.`
+            : "Are you sure you want to delete this nutrition plan?"
+        }
+        confirmText="Delete Plan"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={planToDelete && actionLoading === planToDelete.id}
       />
     </div>
   );
