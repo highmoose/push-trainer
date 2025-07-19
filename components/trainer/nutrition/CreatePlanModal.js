@@ -15,42 +15,43 @@ const DIET_PLAN_TYPES = [
   {
     id: "aggressive_cut",
     name: "Aggressive Weight Cut",
-    description: "Rapid fat loss with significant caloric deficit",
+    description:
+      "Fast fat loss with 25% calorie deficit - High protein, lower carbs",
     icon: TrendingDown,
     color: "red",
   },
   {
     id: "moderate_cut",
     name: "Moderate Weight Cut",
-    description: "Steady fat loss with moderate caloric deficit",
+    description: "Steady fat loss with 15% calorie deficit - Balanced approach",
     icon: TrendingDown,
     color: "orange",
   },
   {
     id: "maintain",
     name: "Maintenance",
-    description: "Maintain current weight and composition",
+    description: "Maintain current weight and composition - Balanced macros",
     icon: Minus,
     color: "blue",
   },
   {
     id: "recomp",
     name: "Body Recomposition",
-    description: "Simultaneously lose fat and gain muscle",
+    description: "Lose fat while gaining muscle - High protein, slight deficit",
     icon: Target,
     color: "purple",
   },
   {
     id: "lean_bulk",
     name: "Lean Bulk",
-    description: "Muscle gain with minimal fat gain",
+    description: "Clean muscle gain with 10% surplus - Quality calories",
     icon: TrendingUp,
     color: "green",
   },
   {
     id: "aggressive_bulk",
     name: "Aggressive Muscle Gain",
-    description: "Rapid muscle gain with significant caloric surplus",
+    description: "Fast muscle gain with 20% surplus - High carbs and calories",
     icon: TrendingUp,
     color: "emerald",
   },
@@ -70,7 +71,11 @@ const buildClientAwarePrompt = (
   const client = selectedClientForForm || selectedClient;
   const selectedPlanType = DIET_PLAN_TYPES.find((p) => p.id === planType);
 
-  let prompt = `Create a comprehensive ${
+  let prompt = `=== DIET PLAN GENERATION REQUEST ===\n`;
+  prompt += `PLAN TYPE: ${selectedPlanType?.name || planType} (${planType})\n`;
+  prompt += `GOAL: ${selectedPlanType?.description || ""}\n\n`;
+
+  prompt += `Create a comprehensive ${
     selectedPlanType?.name || planType
   } diet plan with the following specifications:\n\n`;
 
@@ -82,11 +87,7 @@ const buildClientAwarePrompt = (
   prompt += `- Meals per day: ${mealsPerDay}\n`;
   prompt += `- Meal complexity: ${mealComplexity}\n`;
 
-  if (useCustomCalories && customCalories) {
-    prompt += `- Target daily calories: ${customCalories}\n`;
-  }
-
-  // Client-specific information
+  // Client-specific information and caloric calculations
   if (client) {
     prompt += `\nCLIENT PROFILE:\n`;
     prompt += `- Name: ${client.first_name} ${client.last_name}\n`;
@@ -118,6 +119,119 @@ const buildClientAwarePrompt = (
     if (client.medical_conditions && client.medical_conditions.trim()) {
       prompt += `- Medical Considerations: ${client.medical_conditions}\n`;
     }
+
+    // Calculate BMR and add specific caloric guidelines based on plan type
+    if (client.height && client.weight) {
+      prompt += `\nCALORIC CALCULATIONS REQUIRED:\n`;
+      prompt += `STEP 1: Calculate BMR using Harris-Benedict equation:\n`;
+      prompt += `- For men: BMR = 88.362 + (13.397 × weight in kg) + (4.799 × height in cm) - (5.677 × age)\n`;
+      prompt += `- For women: BMR = 447.593 + (9.247 × weight in kg) + (3.098 × height in cm) - (4.330 × age)\n`;
+      prompt += `STEP 2: Apply activity level multiplier:\n`;
+      prompt += `- Sedentary: BMR × 1.2\n`;
+      prompt += `- Light activity: BMR × 1.375\n`;
+      prompt += `- Moderate activity: BMR × 1.55\n`;
+      prompt += `- Very active: BMR × 1.725\n`;
+      prompt += `- Extremely active: BMR × 1.9\n`;
+
+      // Specific caloric adjustments based on plan type
+      switch (planType) {
+        case "aggressive_cut":
+          prompt += `\nSTEP 3: AGGRESSIVE CUT CALCULATION:\n`;
+          prompt += `- Take maintenance calories (BMR × activity) and multiply by 0.75\n`;
+          prompt += `- This creates a 25% caloric deficit for rapid fat loss\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 1800 cal\n`;
+          prompt += `- Macro split: 40% protein, 30% carbs, 30% fats\n`;
+          prompt += `- Focus on high-protein, low-calorie dense foods\n`;
+          prompt += `- CRITICAL: The final plan MUST be significantly lower in calories than maintenance\n`;
+          break;
+        case "moderate_cut":
+          prompt += `\nSTEP 3: MODERATE CUT CALCULATION:\n`;
+          prompt += `- Take maintenance calories (BMR × activity) and multiply by 0.85\n`;
+          prompt += `- This creates a 15% caloric deficit for steady fat loss\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 2040 cal\n`;
+          prompt += `- Macro split: 35% protein, 35% carbs, 30% fats\n`;
+          prompt += `- Balanced approach with moderate calorie restriction\n`;
+          break;
+        case "maintain":
+          prompt += `\nSTEP 3: MAINTENANCE CALCULATION:\n`;
+          prompt += `- Use maintenance calories (BMR × activity level)\n`;
+          prompt += `- No deficit or surplus - maintain current weight\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 2400 cal\n`;
+          prompt += `- Macro split: 30% protein, 40% carbs, 30% fats\n`;
+          prompt += `- Focus on balanced nutrition for current weight\n`;
+          break;
+        case "recomp":
+          prompt += `\nSTEP 3: RECOMPOSITION CALCULATION:\n`;
+          prompt += `- Take maintenance calories (BMR × activity) and multiply by 0.95\n`;
+          prompt += `- This creates a 5% deficit for body recomposition\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 2280 cal\n`;
+          prompt += `- Macro split: 35% protein, 35% carbs, 30% fats\n`;
+          prompt += `- High protein for muscle preservation during fat loss\n`;
+          break;
+        case "lean_bulk":
+          prompt += `\nSTEP 3: LEAN BULK CALCULATION:\n`;
+          prompt += `- Take maintenance calories (BMR × activity) and multiply by 1.1\n`;
+          prompt += `- This creates a 10% surplus for clean muscle gain\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 2640 cal\n`;
+          prompt += `- Macro split: 30% protein, 45% carbs, 25% fats\n`;
+          prompt += `- Clean foods, controlled surplus for muscle gain\n`;
+          prompt += `- CRITICAL: The final plan MUST be higher in calories than maintenance\n`;
+          break;
+        case "aggressive_bulk":
+          prompt += `\nSTEP 3: AGGRESSIVE BULK CALCULATION:\n`;
+          prompt += `- Take maintenance calories (BMR × activity) and multiply by 1.2\n`;
+          prompt += `- This creates a 20% surplus for rapid muscle gain\n`;
+          prompt += `- EXAMPLE: If maintenance = 2400 cal, target = 2880 cal\n`;
+          prompt += `- Macro split: 25% protein, 50% carbs, 25% fats\n`;
+          prompt += `- Higher calorie density, focus on muscle building foods\n`;
+          prompt += `- CRITICAL: The final plan MUST be significantly higher in calories than maintenance\n`;
+          break;
+      }
+
+      prompt += `\nMANDATORY: Display the calculated target calories prominently in the plan\n`;
+      prompt += `MANDATORY: Ensure meal portions add up to the target calorie amount\n`;
+    } else {
+      // If no client metrics available, provide general guidance
+      switch (planType) {
+        case "aggressive_cut":
+          prompt += `\nGENERAL AGGRESSIVE CUT GUIDANCE:\n`;
+          prompt += `- Target approximately 1400-1600 calories per day\n`;
+          prompt += `- High protein (40%), moderate carbs (30%), moderate fats (30%)\n`;
+          break;
+        case "moderate_cut":
+          prompt += `\nGENERAL MODERATE CUT GUIDANCE:\n`;
+          prompt += `- Target approximately 1600-1800 calories per day\n`;
+          prompt += `- Balanced macros: 35% protein, 35% carbs, 30% fats\n`;
+          break;
+        case "maintain":
+          prompt += `\nGENERAL MAINTENANCE GUIDANCE:\n`;
+          prompt += `- Target approximately 2000-2200 calories per day\n`;
+          prompt += `- Balanced macros: 30% protein, 40% carbs, 30% fats\n`;
+          break;
+        case "recomp":
+          prompt += `\nGENERAL RECOMPOSITION GUIDANCE:\n`;
+          prompt += `- Target approximately 1900-2100 calories per day\n`;
+          prompt += `- High protein: 35% protein, 35% carbs, 30% fats\n`;
+          break;
+        case "lean_bulk":
+          prompt += `\nGENERAL LEAN BULK GUIDANCE:\n`;
+          prompt += `- Target approximately 2400-2600 calories per day\n`;
+          prompt += `- Higher carbs: 30% protein, 45% carbs, 25% fats\n`;
+          break;
+        case "aggressive_bulk":
+          prompt += `\nGENERAL AGGRESSIVE BULK GUIDANCE:\n`;
+          prompt += `- Target approximately 2800-3200 calories per day\n`;
+          prompt += `- Very high carbs: 25% protein, 50% carbs, 25% fats\n`;
+          break;
+      }
+    }
+  }
+
+  // Custom calorie override
+  if (useCustomCalories && customCalories) {
+    prompt += `\nCALORIE OVERRIDE:\n`;
+    prompt += `- Use exactly ${customCalories} calories total per day\n`;
+    prompt += `- Adjust macro split according to plan type while hitting calorie target\n`;
   }
 
   // Additional notes
@@ -126,14 +240,40 @@ const buildClientAwarePrompt = (
   }
 
   // Output format requirements
-  prompt += `\nIMPORTANT INSTRUCTIONS:\n`;
+  prompt += `\nCRITICAL OUTPUT REQUIREMENTS:\n`;
   prompt += `1. STRICTLY AVOID any foods mentioned in allergies or food dislikes\n`;
   prompt += `2. Prioritize foods mentioned in food preferences when possible\n`;
-  prompt += `3. Calculate calories based on height, weight, and activity level if provided\n`;
-  prompt += `4. Include detailed macronutrient breakdown for each meal\n`;
-  prompt += `5. Provide specific portion sizes and cooking instructions\n`;
-  prompt += `6. Consider the client's activity level for appropriate caloric intake\n`;
-  prompt += `7. Format as a detailed, easy-to-follow meal plan\n`;
+  prompt += `3. MANDATORY: Calculate and display the EXACT target calories for this plan type\n`;
+  prompt += `4. MANDATORY: Show a calorie summary at the top of the plan\n`;
+  prompt += `5. MANDATORY: Ensure all meals add up to the target calorie amount\n`;
+  prompt += `6. Include detailed macronutrient breakdown for each meal\n`;
+  prompt += `7. Provide specific portion sizes and cooking instructions\n`;
+  prompt += `8. Consider the client's activity level for appropriate caloric intake\n`;
+  prompt += `9. Meal complexity should be ${mealComplexity} - adjust recipes accordingly\n`;
+  prompt += `10. Format as a detailed, easy-to-follow meal plan\n`;
+  prompt += `11. DOUBLE-CHECK: Verify that your calorie total matches the plan goal\n`;
+
+  // Add explicit calorie verification based on plan type
+  switch (planType) {
+    case "aggressive_cut":
+      prompt += `12. VERIFICATION: This is an AGGRESSIVE CUT - calories must be 25% below maintenance\n`;
+      break;
+    case "moderate_cut":
+      prompt += `12. VERIFICATION: This is a MODERATE CUT - calories must be 15% below maintenance\n`;
+      break;
+    case "maintain":
+      prompt += `12. VERIFICATION: This is MAINTENANCE - calories should match maintenance level\n`;
+      break;
+    case "recomp":
+      prompt += `12. VERIFICATION: This is RECOMPOSITION - calories must be 5% below maintenance\n`;
+      break;
+    case "lean_bulk":
+      prompt += `12. VERIFICATION: This is a LEAN BULK - calories must be 10% above maintenance\n`;
+      break;
+    case "aggressive_bulk":
+      prompt += `12. VERIFICATION: This is an AGGRESSIVE BULK - calories must be 20% above maintenance\n`;
+      break;
+  }
 
   return prompt;
 };
@@ -203,6 +343,18 @@ const CreatePlanModal = ({
       additionalNotes
     );
 
+    // Debug: Log the prompt to see what's being sent
+    console.log("=== DIET PLAN PROMPT DEBUG ===");
+    console.log("Plan Type:", planType);
+    console.log("Client:", client);
+    console.log("Client Height:", client?.height);
+    console.log("Client Weight:", client?.weight);
+    console.log("Client Fitness Level:", client?.fitness_level);
+    console.log("Use Custom Calories:", useCustomCalories);
+    console.log("Custom Calories:", customCalories);
+    console.log("Full Prompt:", enhancedPrompt);
+    console.log("===============================");
+
     const planData = {
       title: planTitle.trim(),
       clientName,
@@ -260,9 +412,6 @@ const CreatePlanModal = ({
           <div className="space-y-4">
             {/* Plan Title */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                Plan Details
-              </h3>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Plan Title
@@ -279,10 +428,6 @@ const CreatePlanModal = ({
 
             {/* Client Selection */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                Client Configuration
-              </h3>
-
               {/* Tailor to Client Checkbox */}
               <div className="mb-3">
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -457,23 +602,65 @@ const CreatePlanModal = ({
                 Diet Plan Goal
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {DIET_PLAN_TYPES.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setPlanType(type.id)}
-                    className={`p-3 rounded border-2 transition-all text-left ${
-                      planType === type.id
-                        ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-600 text-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <type.icon className="w-5 h-5" />
-                      <span className="font-medium">{type.name}</span>
-                    </div>
-                    <p className="text-sm text-zinc-400">{type.description}</p>
-                  </button>
-                ))}
+                {DIET_PLAN_TYPES.map((type) => {
+                  // Add calorie indicator based on plan type
+                  let calorieIndicator = "";
+                  let indicatorColor = "";
+
+                  switch (type.id) {
+                    case "aggressive_cut":
+                      calorieIndicator = "-25% calories";
+                      indicatorColor = "text-red-400";
+                      break;
+                    case "moderate_cut":
+                      calorieIndicator = "-15% calories";
+                      indicatorColor = "text-orange-400";
+                      break;
+                    case "maintain":
+                      calorieIndicator = "Maintenance";
+                      indicatorColor = "text-blue-400";
+                      break;
+                    case "recomp":
+                      calorieIndicator = "-5% calories";
+                      indicatorColor = "text-purple-400";
+                      break;
+                    case "lean_bulk":
+                      calorieIndicator = "+10% calories";
+                      indicatorColor = "text-green-400";
+                      break;
+                    case "aggressive_bulk":
+                      calorieIndicator = "+20% calories";
+                      indicatorColor = "text-emerald-400";
+                      break;
+                  }
+
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => setPlanType(type.id)}
+                      className={`p-3 rounded border-2 transition-all text-left ${
+                        planType === type.id
+                          ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-600 text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <type.icon className="w-5 h-5" />
+                          <span className="font-medium">{type.name}</span>
+                        </div>
+                        <span
+                          className={`text-xs font-semibold ${indicatorColor}`}
+                        >
+                          {calorieIndicator}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-400">
+                        {type.description}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -504,6 +691,28 @@ const CreatePlanModal = ({
                       <span>5</span>
                       <span>6</span>
                     </div>
+                  </div>
+
+                  {/* Meal Complexity */}
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Meal Complexity
+                    </label>
+                    <select
+                      value={mealComplexity}
+                      onChange={(e) => setMealComplexity(e.target.value)}
+                      className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    >
+                      <option value="simple">
+                        Simple - Basic recipes, minimal prep
+                      </option>
+                      <option value="moderate">
+                        Moderate - Standard home cooking
+                      </option>
+                      <option value="complex">
+                        Complex - Advanced recipes, longer prep
+                      </option>
+                    </select>
                   </div>
 
                   {/* Additional Notes */}

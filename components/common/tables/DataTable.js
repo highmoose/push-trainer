@@ -226,16 +226,18 @@ export default function DataTable({
                 {/* Actions overlay */}
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRowAction?.("view", row, rowIndex);
-                      }}
-                      className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
-                      title="View Details"
-                    >
-                      <Eye className="h-3 w-3" />
-                    </button>
+                    {!row.has_error && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowAction?.("view", row, rowIndex);
+                        }}
+                        className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
+                        title="View Details"
+                      >
+                        <Eye className="h-3 w-3" />
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -319,16 +321,18 @@ export default function DataTable({
 
                   {/* Actions - Make visible by default */}
                   <div className="flex items-center gap-2 w-32 justify-end transition-opacity duration-200">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRowAction?.("view", row, rowIndex);
-                      }}
-                      className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
-                      title="View Details"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                    {!row.has_error && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowAction?.("view", row, rowIndex);
+                        }}
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -339,16 +343,18 @@ export default function DataTable({
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRowAction?.("menu", row, rowIndex);
-                      }}
-                      className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
-                      title="More Actions"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
+                    {!row.has_error && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowAction?.("menu", row, rowIndex);
+                        }}
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all duration-200"
+                        title="More Actions"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

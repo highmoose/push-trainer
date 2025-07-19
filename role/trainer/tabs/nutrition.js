@@ -144,9 +144,6 @@ export default function Nutrition() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
 
-  // Track plans being generated
-  const [generatingPlans, setGeneratingPlans] = useState([]);
-
   // Quick plan name input state
   const [quickPlanName, setQuickPlanName] = useState("");
 
@@ -171,10 +168,16 @@ export default function Nutrition() {
           <div className="min-w-0">
             <div className="font-semibold text-white flex items-center gap-2">
               <span className="truncate">{row.title}</span>
-              {row.isGenerating && (
+              {row.is_generating && (
                 <span className="inline-flex items-center gap-1 text-xs text-zinc-400 font-normal bg-zinc-500/10 px-2 py-1 rounded-full">
                   <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-pulse"></div>
-                  Generating...
+                  Creating Nutrition Plan
+                </span>
+              )}
+              {row.has_error && (
+                <span className="inline-flex items-center gap-1 text-xs text-red-400 font-normal bg-red-500/10 px-2 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                  Something went wrong
                 </span>
               )}
             </div>
@@ -191,8 +194,21 @@ export default function Nutrition() {
       icon: Zap,
       className: "w-1/4", // 25% of width for the main content
       render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">Calculating...</div>;
+        if (row.is_generating) {
+          return (
+            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+              <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+              Calculating...
+            </div>
+          );
+        }
+
+        if (row.has_error) {
+          return (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <span>Error generating plan</span>
+            </div>
+          );
         }
 
         // Use only structured data from dietPlans hook
@@ -257,8 +273,13 @@ export default function Nutrition() {
       icon: Target,
       className: "w-1/6", // ~16.7% of width
       render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">Calculating...</div>;
+        if (row.is_generating) {
+          return (
+            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+              <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+              Calculating...
+            </div>
+          );
         }
 
         // Calculate macros from items data only
@@ -312,8 +333,12 @@ export default function Nutrition() {
       icon: Utensils,
       className: "w-1/12", // ~8.3% of width
       render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">-</div>;
+        if (row.is_generating) {
+          return (
+            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+              <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          );
         }
         return (
           <div className="flex justify-start">
@@ -330,8 +355,16 @@ export default function Nutrition() {
       icon: Calendar,
       className: "w-1/6", // ~16.7% of width
       render: (value, row) => {
-        if (row.isGenerating) {
-          return <div className="text-zinc-500 text-sm">Just now</div>;
+        if (row.is_generating) {
+          return (
+            <div className="text-sm">
+              <div className="text-white font-medium">Just now</div>
+              <div className="text-zinc-400 text-xs flex items-center gap-1">
+                <div className="w-2 h-2 border border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                Creating...
+              </div>
+            </div>
+          );
         }
         return (
           <div className="text-sm">
@@ -354,6 +387,24 @@ export default function Nutrition() {
       icon: User,
       className: "w-1/6", // ~16.7% of width
       render: (value, row) => {
+        if (row.is_generating) {
+          return (
+            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+              <div className="w-6 h-6 bg-zinc-700 rounded-full flex items-center justify-center">
+                <div className="w-3 h-3 border border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+          );
+        }
+
+        if (row.has_error) {
+          return (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <span>—</span>
+            </div>
+          );
+        }
+
         // For now, we'll show a single assigned user and placeholder for multiple assignments
         // In the future, this could be enhanced to show multiple assigned users
         const assignedUsers = [
@@ -415,12 +466,6 @@ export default function Nutrition() {
   const displayPlans = useMemo(() => {
     let plans = [...activeDietPlans];
 
-    // Add generating plans to the list
-    const relevantGeneratingPlans = [...generatingPlans];
-
-    // Combine actual plans with generating plans
-    plans = [...relevantGeneratingPlans, ...plans];
-
     // Apply search filter
     if (searchTerm) {
       plans = plans.filter(
@@ -466,14 +511,7 @@ export default function Nutrition() {
     });
 
     return plans;
-  }, [
-    activeDietPlans,
-    searchTerm,
-    sortBy,
-    sortOrder,
-    generatingPlans,
-    clientFilter,
-  ]);
+  }, [activeDietPlans, searchTerm, sortBy, sortOrder, clientFilter]);
 
   // Initialize with first client if available (removed dependency on showAllPlans)
   useEffect(() => {
@@ -489,6 +527,11 @@ export default function Nutrition() {
 
   // View plan details
   const handleViewPlanDetails = async (plan) => {
+    // Don't allow viewing details of plans that are still generating or have errors
+    if (plan.is_generating || plan.has_error) {
+      return;
+    }
+
     console.log("=== View Plan Details Debug ===");
     console.log("Initial plan data:", plan);
 
@@ -508,39 +551,21 @@ export default function Nutrition() {
     }
   };
 
-  // Simple handler to create loading plan and trigger generation
+  // Simple handler to trigger generation using optimistic updates
   const handleGeneratePlan = async (planData) => {
-    // Create a temporary loading plan item
-    const tempPlanId = `temp_${Date.now()}`;
-    const loadingPlan = {
-      id: tempPlanId,
-      title: planData.title,
-      client_name: planData.clientName,
-      client_id: planData.clientId,
-      plan_type: planData.planType,
-      meals_per_day: planData.mealsPerDay,
-      meal_complexity: planData.mealComplexity,
-      created_at: new Date().toISOString(),
-      isGenerating: true,
-    };
-
-    // Close modal and add loading plan
+    // Close modal immediately
     setShowCreateModal(false);
-    setGeneratingPlans((prev) => [...prev, loadingPlan]);
 
     try {
-      const result = await generateDietPlan(planData.dietPlanRequest);
-
-      // Remove the loading plan and refresh the actual plans
-      setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
-
+      // The generateDietPlan function will handle optimistic updates
+      // Pass the clientName to the hook for proper display
+      const result = await generateDietPlan({
+        ...planData.dietPlanRequest,
+        clientName: planData.clientName,
+      });
       console.log("Diet plan generated successfully:", result);
     } catch (error) {
       console.error("Error generating plan:", error);
-
-      // Remove the loading plan on error
-      setGeneratingPlans((prev) => prev.filter((p) => p.id !== tempPlanId));
-
       alert("Failed to generate diet plan. Please try again.");
     }
   };
@@ -831,6 +856,19 @@ export default function Nutrition() {
               showViewToggle={false}
               onRowClick={handleViewPlanDetails}
               onRowAction={(action, row) => {
+                // Prevent actions on plans that are still generating
+                if (row.is_generating) {
+                  return;
+                }
+
+                // For error state, only allow delete action
+                if (row.has_error) {
+                  if (action === "delete") {
+                    handleDeletePlan(row);
+                  }
+                  return;
+                }
+
                 if (action === "view") {
                   handleViewPlanDetails(row);
                 } else if (action === "delete") {

@@ -121,6 +121,7 @@ export const useDietPlans = () => {
       prompt,
       aiProvider = "openai",
       clientId = null,
+      clientName = null,
       title,
       planType,
       mealsPerDay,
@@ -129,7 +130,31 @@ export const useDietPlans = () => {
       additionalNotes = "",
       setAsActive = false,
     }) => {
-      setLoading(true);
+      // Create a temporary plan object for optimistic update
+      const tempId = `temp_${Date.now()}`;
+      const tempPlan = {
+        id: tempId,
+        title: title,
+        plan_type: planType,
+        meals_per_day: mealsPerDay,
+        meal_complexity: mealComplexity,
+        total_calories: customCalories,
+        description: additionalNotes,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_generating: true, // Flag to show loading state
+        client_id: clientId,
+        client_name: clientName, // Add client name for display
+        ai_provider: aiProvider,
+      };
+
+      // Optimistically add the plan to the list
+      setDietPlans((prev) => {
+        const newPlans = [...prev, tempPlan];
+        setCacheItem("all_diet_plans", newPlans);
+        return newPlans;
+      });
+
       setError(null);
 
       try {
@@ -148,9 +173,11 @@ export const useDietPlans = () => {
 
         const generatedPlan = response.data.plan;
 
-        // Add to diet plans list with cache update
+        // Replace the temporary plan with the real plan data
         setDietPlans((prev) => {
-          const newPlans = [...prev, generatedPlan];
+          const newPlans = prev.map((plan) =>
+            plan.id === tempId ? generatedPlan : plan
+          );
           setCacheItem("all_diet_plans", newPlans);
           return newPlans;
         });
@@ -162,10 +189,25 @@ export const useDietPlans = () => {
 
         return generatedPlan;
       } catch (err) {
+        // Update the temporary plan to show error state instead of removing it
+        setDietPlans((prev) => {
+          const newPlans = prev.map((plan) =>
+            plan.id === tempId
+              ? {
+                  ...plan,
+                  is_generating: false,
+                  has_error: true,
+                  error_message:
+                    "Something went wrong generating this plan. Please try again.",
+                }
+              : plan
+          );
+          setCacheItem("all_diet_plans", newPlans);
+          return newPlans;
+        });
+
         setError(err.response?.data?.message || "Failed to generate diet plan");
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
     []
