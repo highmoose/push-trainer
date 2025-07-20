@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
-import { login, resetAuthStatus } from "@/redux/slices/authSlice";
+import { login, resetAuthStatus } from "@/store/slices/authSlice";
 import { Input, Button } from "@heroui/react";
 
 export default function LoginPage() {

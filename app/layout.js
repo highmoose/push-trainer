@@ -2,8 +2,8 @@
 
 import { Onest } from "next/font/google";
 import { Provider as ReduxProvider } from "react-redux";
-import store from "@redux/store";
-import AuthHydration from "@redux/store/AuthHydration";
+import store from "@/store/store";
+import AuthHydration from "@/store/store/AuthHydration";
 import "./globals.css";
 import { Providers } from "./providers";
 

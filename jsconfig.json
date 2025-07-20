@@ -3,11 +3,29 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
+      "@/src/*": ["src/*"],
+      "@/components/*": ["src/components/*"],
+      "@/features/*": ["src/components/features/*"],
+      "@/ui/*": ["src/components/ui/*"],
+      "@/common/*": ["src/components/common/*"],
+      "@/layout/*": ["src/components/layout/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/api/*": ["src/hooks/api/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/utils/*": ["src/lib/utils/*"],
+      "@/builders/*": ["src/lib/builders/*"],
+      "@/store/*": ["src/store/*"],
+      "@/types/*": ["src/types/*"],
+      "@/pages/*": ["src/pages/*"],
+      "@/config/*": ["config/*"],
+
+      // Legacy paths (for backward compatibility during migration)
       "@components/*": ["components/*"],
       "@redux/*": ["redux/*"],
-      "@api/*": ["api/*"],
       "@lib/*": ["lib/*"],
       "@role/*": ["role/*"]
     }
-  }
+  },
+  "include": ["**/*", "src/**/*"],
+  "exclude": ["node_modules", ".next", "out"]
 }

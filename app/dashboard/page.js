@@ -4,8 +4,8 @@ import React from "react";
 import Header from "@/components/layout/header";
 import { useSelector } from "react-redux";
 import { Spinner } from "@heroui/react";
-import TrainerArea from "@role/trainer/tabs/trainerArea";
-import DataPreloadWrapper from "@/components/auth/DataPreloadWrapper";
+import TrainerArea from "@/pages/trainer/trainerArea";
+import DataPreloadWrapper from "@/features/auth/DataPreloadWrapper";
 
 export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);

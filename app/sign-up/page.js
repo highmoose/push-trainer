@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { register } from "@/redux/slices/authSlice";
+import { register } from "@/store/slices/authSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { login } from "@/redux/slices/authSlice";
+import { login } from "@/store/slices/authSlice";
 import { Input, Button, Select, SelectItem } from "@heroui/react";
 
 export default function RegisterPage() {
