@@ -759,38 +759,56 @@ const InfoItem = ({ label, value, capitalize = false }) => (
 const ClientMetrics = ({ client_metrics }) => {
   const [clientMetricsOpen, setClientMetricsOpen] = useState(false);
 
-  const metrics = client_metrics
-    .split("\n")
-    .filter((line) => line.trim())
-    .map((metric, index) => {
-      const [label, value] = metric.split(":").map((s) => s.trim());
-      if (!label || !value || label === "Client") return null;
-      return { label, value, index };
-    })
-    .filter(Boolean);
+  // Handle both object and string formats
+  const metrics = useMemo(() => {
+    if (!client_metrics) return [];
+
+    // If it's already an object, convert to array format
+    if (typeof client_metrics === "object") {
+      return Object.entries(client_metrics).map(([key, value], index) => ({
+        label: key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        value: value?.toString() || "N/A",
+        index,
+      }));
+    }
+
+    // Legacy string parsing (fallback)
+    return client_metrics
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((metric, index) => {
+        const [label, value] = metric.split(":").map((s) => s.trim());
+        if (!label || !value || label === "Client") return null;
+        return { label, value, index };
+      })
+      .filter(Boolean);
+  }, [client_metrics]);
+
+  if (!metrics.length) return null;
 
   return (
     <>
       {clientMetricsOpen ? (
         <div
           onClick={() => setClientMetricsOpen(false)}
-          className="p-4  bg-green-500/10 rounded mb-4 cursor-pointer"
+          className="p-4 bg-green-500/10 rounded mb-4 cursor-pointer"
         >
           <div className="flex w-full justify-between text-sm">
-            <h3 className="  font-semibold text-green-300 uppercase tracking-wide mb-3">
+            <h3 className="font-semibold text-green-300 uppercase tracking-wide mb-3">
               Client Metrics Used in Generation
             </h3>
             <p>Hide Details</p>
           </div>
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-2 gap-1 md:grid-cols-3">
             {metrics.map(({ label, value, index }) => (
-              <div key={index} className="flex gap-4 items-center">
-                <span className="text-xs text-zinc-400 uppercase tracking-wide block">
+              <div
+                key={index}
+                className="flex flex-col   bg-zinc-800/30 rounded"
+              >
+                <span className="text-xs text-zinc-400 uppercase tracking-wide">
                   {label}
                 </span>
-                <p className="text-sm font-medium text-white capitalize">
-                  {value}
-                </p>
+                <p className="text-sm font-medium text-white">{value}</p>
               </div>
             ))}
           </div>
@@ -800,7 +818,7 @@ const ClientMetrics = ({ client_metrics }) => {
           onClick={() => setClientMetricsOpen(true)}
           className="flex justify-between w-full p-2 px-4 text-sm bg-green-500/10 rounded mb-4 cursor-pointer"
         >
-          <h3 className="  font-semibold text-green-300 uppercase tracking-wide ">
+          <h3 className="font-semibold text-green-300 uppercase tracking-wide">
             Client Metrics Used in Generation
           </h3>
           <p>Show Details</p>

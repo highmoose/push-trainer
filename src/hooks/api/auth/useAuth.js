@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const res = await api.get("/api/user");
-      console.log("Server verification successful:", res.data);
       setUser(res.data);
       setError(null);
     } catch (err) {

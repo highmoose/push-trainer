@@ -32,6 +32,7 @@ export default function TimezoneSelector({ onTimezoneChange }) {
       <div>
         <Select
           label="Timezone"
+          aria-label="Select timezone"
           selectedKeys={[selectedTimezone]}
           onSelectionChange={(keys) => {
             const newTimezone = Array.from(keys)[0];
@@ -49,7 +50,12 @@ export default function TimezoneSelector({ onTimezoneChange }) {
           }}
         >
           {Object.entries(SUPPORTED_TIMEZONES).map(([timezone, label]) => (
-            <SelectItem key={timezone} value={timezone} className="text-white">
+            <SelectItem
+              key={timezone}
+              value={timezone}
+              textValue={label}
+              className="text-white"
+            >
               {label}
             </SelectItem>
           ))}

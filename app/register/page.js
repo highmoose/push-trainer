@@ -268,6 +268,7 @@ export default function ClientRegistration() {
                       name="password"
                       value={form.password}
                       onChange={handleChange}
+                      aria-label="Password"
                       className="w-full pl-10 pr-10 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
                       required
                       minLength={8}
@@ -297,6 +298,7 @@ export default function ClientRegistration() {
                       name="passwordConfirmation"
                       value={form.passwordConfirmation}
                       onChange={handleChange}
+                      aria-label="Confirm Password"
                       className="w-full pl-10 pr-10 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
                       required
                       minLength={8}
@@ -516,6 +518,7 @@ function InputField({
           name={name}
           value={value}
           onChange={onChange}
+          aria-label={label}
           className={`w-full ${
             Icon ? "pl-10" : "pl-3"
           } pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none`}
@@ -550,6 +553,7 @@ function SelectField({
           name={name}
           value={value}
           onChange={onChange}
+          aria-label={label}
           className={`w-full ${
             Icon ? "pl-10" : "pl-3"
           } pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:border-blue-500 focus:outline-none appearance-none`}
@@ -590,6 +594,7 @@ function TextAreaField({
         value={value}
         onChange={onChange}
         rows={rows}
+        aria-label={label}
         className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none resize-vertical"
         {...props}
       />

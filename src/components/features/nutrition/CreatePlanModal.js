@@ -43,9 +43,8 @@ const CreatePlanModal = ({
   onClose,
   clients,
   selectedClient,
-  onGeneratePlan,
-  generateDietPlan,
   initialPlanName = "",
+  createDietPlan, // Accept createDietPlan as a prop
 }) => {
   // Form state
   const [selectedClientForForm, setSelectedClientForForm] = useState(null);
@@ -136,101 +135,118 @@ const CreatePlanModal = ({
       return;
     }
 
-    // Get client data
-    const client = tailorToClient
-      ? selectedClientForForm || selectedClient
-      : null;
-    const clientName = client
-      ? `${client.first_name} ${client.last_name}`
-      : null;
+    try {
+      // Get client data
+      const client = tailorToClient
+        ? selectedClientForForm || selectedClient
+        : null;
+      const clientName = client
+        ? `${client.first_name} ${client.last_name}`
+        : null;
 
-    // Extract only the essential client metrics (9 fields)
-    let clientMetrics = null;
-    if (client) {
-      // Calculate age from date_of_birth if available
-      let age = client.age;
-      if (!age && client.date_of_birth) {
-        const birthDate = new Date(client.date_of_birth);
-        const today = new Date();
-        age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (
-          monthDiff < 0 ||
-          (monthDiff === 0 && today.getDate() < birthDate.getDate())
-        ) {
-          age--;
+      // Extract only the essential client metrics (9 fields)
+      let clientMetrics = null;
+      if (client) {
+        // Calculate age from date_of_birth if available
+        let age = client.age;
+        if (!age && client.date_of_birth) {
+          const birthDate = new Date(client.date_of_birth);
+          const today = new Date();
+          age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (
+            monthDiff < 0 ||
+            (monthDiff === 0 && today.getDate() < birthDate.getDate())
+          ) {
+            age--;
+          }
         }
+
+        clientMetrics = {
+          age: age || null,
+          weight: client.weight || null,
+          height: client.height || null,
+          fitness_level: client.fitness_level || null,
+          fitness_goals: client.fitness_goals || null,
+          fitness_experience: client.fitness_experience || null,
+          food_likes: client.food_likes || null,
+          food_dislikes: client.food_dislikes || null,
+          allergies: client.allergies || null,
+        };
       }
 
-      clientMetrics = {
-        age: age || null,
-        weight: client.weight || null,
-        height: client.height || null,
-        fitness_level: client.fitness_level || null,
-        fitness_goals: client.fitness_goals || null,
-        fitness_experience: client.fitness_experience || null,
-        food_likes: client.food_likes || null,
-        food_dislikes: client.food_dislikes || null,
-        allergies: client.allergies || null,
+      // Calculate target calories in the modal
+      let targetCalories = null;
+      if (useCustomCalories && customCalories) {
+        // Manual calorie override
+        targetCalories = parseInt(customCalories);
+      } else if (
+        client &&
+        clientMetrics?.age &&
+        clientMetrics?.weight &&
+        clientMetrics?.height
+      ) {
+        // Automatic calorie calculation
+        const gender = client.gender || "male";
+        targetCalories = calculateOptimalCalories(
+          clientMetrics.age,
+          clientMetrics.weight,
+          clientMetrics.height,
+          gender,
+          clientMetrics.fitness_level || "moderate_activity",
+          planType
+        );
+      }
+
+      // Prepare plan options for the builder
+      const planOptions = {
+        planType,
+        mealsPerDay,
+        mealComplexity,
+        additionalNotes,
       };
-    }
 
-    // Calculate target calories in the modal
-    let targetCalories = null;
-    if (useCustomCalories && customCalories) {
-      // Manual calorie override
-      targetCalories = parseInt(customCalories);
-    } else if (
-      client &&
-      clientMetrics?.age &&
-      clientMetrics?.weight &&
-      clientMetrics?.height
-    ) {
-      // Automatic calorie calculation
-      const gender = client.gender || "male";
-      targetCalories = calculateOptimalCalories(
-        clientMetrics.age,
-        clientMetrics.weight,
-        clientMetrics.height,
-        gender,
-        clientMetrics.fitness_level || "moderate_activity",
-        planType
+      // Build prompt using simplified builder
+      const enhancedPrompt = buildDietPlanPrompt(
+        planOptions,
+        clientMetrics,
+        targetCalories,
+        clientName
       );
+
+      // Prepare data for database storage - matches diet_plans table structure
+      const planData = {
+        title: planTitle.trim(),
+        client_id: client?.id || null,
+        client_name: client?.name || "", // Add client name for placeholder display
+        ai_prompt: enhancedPrompt, // Complete prompt ready for AI
+        client_metrics: clientMetrics, // Essential 9 client metrics for storage
+        plan_type: planType,
+        meals_per_day: mealsPerDay,
+        meal_complexity: mealComplexity,
+        total_calories: targetCalories,
+        generated_by_ai: true, // Since this is AI-generated
+        is_active: tailorToClient ? setAsActive : false, // Map set_as_active to is_active column
+        description: additionalNotes || null, // Map additional_notes to description column
+      };
+
+      console.log("CreatePlanModal planData for database:", planData);
+
+      // Close modal immediately for better UX
+      resetForm();
+      onClose();
+
+      // Create the diet plan in the database with placeholder
+      await createDietPlan(planData);
+
+      console.log("Diet plan created successfully in database");
+    } catch (error) {
+      console.error("Error creating diet plan:", error);
+
+      const errorMessage =
+        error.message || "Failed to create diet plan. Please try again.";
+      alert(`Error: ${errorMessage}`);
     }
-
-    // Prepare plan options for the builder
-    const planOptions = {
-      planType,
-      mealsPerDay,
-      mealComplexity,
-      additionalNotes,
-    };
-
-    // Build prompt using simplified builder
-    const enhancedPrompt = buildDietPlanPrompt(
-      planOptions,
-      clientMetrics,
-      targetCalories,
-      clientName
-    );
-
-    // Streamlined plan data - send only essential information to API
-    const planData = {
-      title: planTitle.trim(),
-      client_id: client?.id || null,
-      prompt: enhancedPrompt, // Complete prompt ready for AI
-      client_metrics: clientMetrics, // Essential 9 client metrics for storage
-      set_as_active: tailorToClient ? setAsActive : false,
-      plan_type: planType,
-      meals_per_day: mealsPerDay,
-      meal_complexity: mealComplexity,
-      additional_notes: additionalNotes,
-    };
-
-    console.log("CreatePlanModal planData:", planData);
-
-    resetForm();
-    await onGeneratePlan(planData);
   };
 
   return (

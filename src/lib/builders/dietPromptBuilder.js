@@ -183,6 +183,49 @@ export const buildDietPlanPrompt = (
   prompt += `13. Format as a detailed, easy-to-follow meal plan\n`;
   prompt += `14. DOUBLE-CHECK: Verify that your calorie total matches the plan goal\n`;
 
+  // Add structured response format requirements
+  prompt += `\nCRITICAL RESPONSE FORMAT:\n`;
+  prompt += `Your response MUST include a structured data section at the end in this EXACT format:\n\n`;
+  prompt += `===MEAL_DATA_START===\n`;
+  prompt += `[\n`;
+  prompt += `  {\n`;
+  prompt += `    "meal_name": "Protein Pancakes with Berries",\n`;
+  prompt += `    "meal_type": "breakfast",\n`;
+  prompt += `    "meal_order": 1,\n`;
+  prompt += `    "calories": 450,\n`;
+  prompt += `    "protein": 35,\n`;
+  prompt += `    "carbs": 45,\n`;
+  prompt += `    "fats": 12,\n`;
+  prompt += `    "ingredients": ["2 large eggs", "1 scoop protein powder", "1/2 cup oats", "1/2 cup blueberries", "1 tbsp almond butter"],\n`;
+  prompt += `    "instructions": "1. Blend eggs, protein powder, and oats. 2. Cook pancakes in pan. 3. Top with berries and almond butter."\n`;
+  prompt += `  },\n`;
+  prompt += `  {\n`;
+  prompt += `    "meal_name": "Grilled Chicken Salad",\n`;
+  prompt += `    "meal_type": "lunch",\n`;
+  prompt += `    "meal_order": 2,\n`;
+  prompt += `    "calories": 520,\n`;
+  prompt += `    "protein": 45,\n`;
+  prompt += `    "carbs": 25,\n`;
+  prompt += `    "fats": 22,\n`;
+  prompt += `    "ingredients": ["6oz chicken breast", "2 cups mixed greens", "1/2 avocado", "1 tbsp olive oil", "1 tbsp balsamic vinegar"],\n`;
+  prompt += `    "instructions": "1. Grill chicken breast. 2. Combine greens with dressing. 3. Top with sliced chicken and avocado."\n`;
+  prompt += `  }\n`;
+  prompt += `]\n`;
+  prompt += `===MEAL_DATA_END===\n\n`;
+
+  prompt += `MEAL DATA REQUIREMENTS:\n`;
+  prompt += `- meal_name: Clear, descriptive name for the meal\n`;
+  prompt += `- meal_type: MUST be one of: "breakfast", "lunch", "dinner", "snack", "pre_workout", "post_workout"\n`;
+  prompt += `- meal_order: Sequential number (1, 2, 3, etc.) representing the order of meals in the day\n`;
+  prompt += `- calories: Exact calorie count (integer)\n`;
+  prompt += `- protein: Protein grams (integer)\n`;
+  prompt += `- carbs: Carbohydrate grams (integer)\n`;
+  prompt += `- fats: Fat grams (integer)\n`;
+  prompt += `- ingredients: Array of specific ingredients with measurements\n`;
+  prompt += `- instructions: Step-by-step cooking/preparation instructions\n`;
+  prompt += `- ENSURE all macro calculations are accurate and add up correctly\n`;
+  prompt += `- ENSURE the sum of all meal calories equals the target calories\n`;
+
   // Add plan-specific verification
   const verificationMap = {
     aggressive_cut: "AGGRESSIVE CUT - calories must be 25% below maintenance",
@@ -194,7 +237,7 @@ export const buildDietPlanPrompt = (
   };
 
   if (verificationMap[planType]) {
-    prompt += `15. VERIFICATION: This is a ${verificationMap[planType]}\n`;
+    prompt += `\n15. VERIFICATION: This is a ${verificationMap[planType]}\n`;
   }
 
   return prompt;

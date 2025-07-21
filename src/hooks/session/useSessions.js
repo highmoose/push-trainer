@@ -58,7 +58,6 @@ export const useSessions = () => {
         const response = await axios.get("/api/sessions", {
           params: includePast ? { include_past: true } : {},
         });
-        console.log("useSessions: Response received:", response.data);
         const sessionsData = response.data || [];
         setSessions(sessionsData);
         setCacheItem(cacheKey, sessionsData);

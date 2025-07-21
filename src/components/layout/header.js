@@ -23,7 +23,6 @@ export default function Header({ setShowTab, currentTab }) {
   const router = useRouter();
 
   const user = useSelector((state) => state.auth.user);
-  console.log(user);
 
   const handleLogout = async () => {
     try {

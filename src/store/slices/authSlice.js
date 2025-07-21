@@ -7,7 +7,6 @@ export const verifyAuth = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get("/api/user");
-      console.log("Server verification successful:", res.data);
       return res.data;
     } catch (err) {
       console.log(
@@ -268,4 +267,3 @@ export const {
   resetAuthStatus,
 } = authSlice.actions;
 export default authSlice.reducer;
-

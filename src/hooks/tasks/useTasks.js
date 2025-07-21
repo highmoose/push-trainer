@@ -63,7 +63,6 @@ export const useTasks = () => {
       if (filters.overdue) params.append("overdue", "true");
 
       const response = await axios.get("/api/tasks", { params });
-      console.log("useTasks: Response received:", response.data);
       const tasksData = response.data.tasks || [];
       setTasks(tasksData);
       setCacheItem(cacheKey, tasksData);

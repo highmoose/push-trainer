@@ -21,14 +21,13 @@ import {
   Crown,
   Team,
 } from "lucide-react";
-import { useTeamManagement } from "@/hooks/team/useTeamManagement";
 import { useCheckIns } from "@/hooks/checkins/useCheckIns";
 import { useClients } from "@/api/clients";
 import { useSelector } from "react-redux";
 
 export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);
-  const { team, userRole } = useTeamManagement();
+  // const { team, userRole } = useTeamManagement();
   const { pendingCheckIns, loading: checkInsLoading } = useCheckIns();
   const { clients } = useClients();
 
@@ -46,17 +45,15 @@ export default function Dashboard() {
     const activeClients =
       clients?.filter((client) => client.status === "active")?.length || 0;
     const pendingCount = pendingCheckIns?.length || 0;
-    const teamMemberCount = team?.members?.length || 0;
 
     setDashboardMetrics({
       activeClients,
       pendingCheckIns: pendingCount,
       upcomingSessions: 8, // Mock data
-      teamMembers: teamMemberCount,
       completionRate: 85, // Mock data
       weeklyProgress: 12, // Mock data
     });
-  }, [clients, pendingCheckIns, team]);
+  }, [clients, pendingCheckIns]);
 
   const MetricCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
     <div className="bg-zinc-900 rounded-lg p-6 hover:bg-zinc-800/50 transition-colors mt-28">
@@ -168,39 +165,6 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
-
-      {/* Team Status (if part of a team) */}
-      {team && (
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Crown className="h-5 w-5 text-yellow-400" />
-            <h2 className="text-lg font-semibold text-white">
-              Team: {team.name}
-            </h2>
-            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
-              {userRole === "owner" ? "Owner" : userRole}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {team.members?.length || 0}
-              </div>
-              <div className="text-zinc-400 text-sm">Team Members</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {dashboardMetrics.activeClients}
-              </div>
-              <div className="text-zinc-400 text-sm">Total Clients</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">95%</div>
-              <div className="text-zinc-400 text-sm">Team Performance</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -376,4 +340,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

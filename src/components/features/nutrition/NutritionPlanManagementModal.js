@@ -60,6 +60,8 @@ const NutritionPlanManagementModal = ({
   // Plan details modal state
   const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
+
+  console.log("selectedPlanDetails:", selectedPlanDetails);
   const [loadingPlanDetails, setLoadingPlanDetails] = useState(null);
 
   // Delete confirmation modal state
@@ -383,6 +385,7 @@ const NutritionPlanManagementModal = ({
                 <Select
                   selectedKeys={new Set([`${sortBy}|${sortOrder}`])}
                   onSelectionChange={handleSortChange}
+                  aria-label="Sort available nutrition plans"
                   size="sm"
                   variant="bordered"
                   classNames={{
@@ -401,6 +404,7 @@ const NutritionPlanManagementModal = ({
                     <SelectItem
                       key={option.key}
                       value={option.key}
+                      textValue={option.label}
                       classNames={{
                         base: "data-[hover=true]:bg-zinc-700 data-[selected=true]:bg-zinc-700 rounded-lg",
                         title: "text-zinc-200",

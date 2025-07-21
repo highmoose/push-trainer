@@ -27,7 +27,7 @@ export default function DataTable({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {columns.slice(0, 3).map((_, index) => (
-                  <div
+                  <div 
                     key={index}
                     className="h-4 bg-zinc-700/50 rounded animate-pulse w-20"
                   ></div>

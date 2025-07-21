@@ -6,7 +6,7 @@ import Messages from "@/pages/trainer/messages";
 import Planner from "@/pages/trainer/planner";
 import Workouts from "@/pages/trainer/workouts";
 import CheckIns from "@/pages/trainer/checkins";
-import Team from "@/pages/trainer/team";
+// import Team from "@/pages/trainer/team";
 import Settings from "@/pages/trainer/settings";
 import Metrics from "@/pages/trainer/metrics";
 import Nutrition from "@/pages/trainer/nutrition";

@@ -61,7 +61,6 @@ export default function AuthHydration() {
         // Valid session, set user and verify with server
         try {
           const user = JSON.parse(stored);
-          console.log("Setting user from localStorage:", user);
           dispatch(setUser(user));
 
           // Verify with server in background
@@ -139,4 +138,3 @@ export default function AuthHydration() {
 
   return null;
 }
-
