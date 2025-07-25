@@ -93,7 +93,11 @@ export const buildDietPlanPrompt = (
   // Target calories
   if (targetCalories) {
     prompt += `- Target Calories: ${targetCalories} calories\n`;
+    prompt += `- CRITICAL: The total calories for all meals must equal ${targetCalories} calories\n`;
   }
+
+  // Macro targets
+  prompt += `- ENSURE all macro calculations are accurate for each meal\n`;
 
   // Client-specific information
   if (clientMetrics) {
@@ -152,93 +156,85 @@ export const buildDietPlanPrompt = (
     prompt += `2. Preparation time under 15 minutes per meal\n`;
     prompt += `3. Basic cooking methods: baking, grilling, steaming, boiling\n`;
     prompt += `4. Common grocery store ingredients only\n`;
-    prompt += `5. MANDATORY: Calculate and display the EXACT target calories\n`;
     prompt += `6. Provide simple portion measurements (cups, pieces, etc.)\n`;
-    prompt += `7. Step-by-step basic instructions\n`;
+    prompt += `7. Detailed and accurate macronutrient breakdown for each meal\n`;
+    prompt += `8. Step-by-step basic instructions\n`;
   } else if (mealComplexity === "complex") {
     prompt += `\nCRITICAL OUTPUT REQUIREMENTS:\n`;
     prompt += `1. ADVANCED RECIPES - Use 8+ ingredients with varied techniques\n`;
-    prompt += `2. Include complex cooking methods: sous vide, braising, reduction sauces\n`;
-    prompt += `3. Gourmet ingredients and specialty items encouraged\n`;
-    prompt += `4. Detailed preparation steps with precise timing\n`;
-    prompt += `5. MANDATORY: Calculate and display the EXACT target calories\n`;
-    prompt += `6. Professional cooking techniques and flavor combinations\n`;
-    prompt += `7. Detailed macronutrient breakdown for each component\n`;
+    prompt += `2. Gourmet ingredients and specialty items encouraged\n`;
+    prompt += `3. Professional cooking techniques and flavor combinations\n`;
+    prompt += `4. Detailed and accurate macronutrient breakdown for each meal\n`;
   } else {
     prompt += `\nCRITICAL OUTPUT REQUIREMENTS:\n`;
     prompt += `1. MODERATE COMPLEXITY - 4-7 ingredients per meal\n`;
     prompt += `2. Standard home cooking methods\n`;
     prompt += `3. Reasonable prep time (15-30 minutes)\n`;
     prompt += `4. Accessible ingredients from regular grocery stores\n`;
-    prompt += `5. MANDATORY: Calculate and display the EXACT target calories\n`;
-    prompt += `6. Clear portion sizes and cooking instructions\n`;
-    prompt += `7. Detailed macronutrient breakdown for each meal\n`;
+    prompt += `5. Clear portion sizes and cooking instructions\n`;
+    prompt += `6. Detailed and accurate macronutrient breakdown for each meal\n`;
   }
 
-  prompt += `8. STRICTLY AVOID any foods mentioned in allergies or food dislikes\n`;
-  prompt += `9. Prioritize foods mentioned in food preferences when possible\n`;
-  prompt += `10. MANDATORY: Show a calorie summary at the top of the plan\n`;
-  prompt += `11. MANDATORY: Ensure all meals add up to the target calorie amount\n`;
-  prompt += `12. Consider the client's activity level for appropriate caloric intake\n`;
-  prompt += `13. Format as a detailed, easy-to-follow meal plan\n`;
-  prompt += `14. DOUBLE-CHECK: Verify that your calorie total matches the plan goal\n`;
-
-  // Add structured response format requirements
-  prompt += `\nCRITICAL RESPONSE FORMAT:\n`;
-  prompt += `Your response MUST include a structured data section at the end in this EXACT format:\n\n`;
-  prompt += `===MEAL_DATA_START===\n`;
-  prompt += `[\n`;
-  prompt += `  {\n`;
-  prompt += `    "meal_name": "Protein Pancakes with Berries",\n`;
-  prompt += `    "meal_type": "breakfast",\n`;
-  prompt += `    "meal_order": 1,\n`;
-  prompt += `    "calories": 450,\n`;
-  prompt += `    "protein": 35,\n`;
-  prompt += `    "carbs": 45,\n`;
-  prompt += `    "fats": 12,\n`;
-  prompt += `    "ingredients": ["2 large eggs", "1 scoop protein powder", "1/2 cup oats", "1/2 cup blueberries", "1 tbsp almond butter"],\n`;
-  prompt += `    "instructions": "1. Blend eggs, protein powder, and oats. 2. Cook pancakes in pan. 3. Top with berries and almond butter."\n`;
-  prompt += `  },\n`;
-  prompt += `  {\n`;
-  prompt += `    "meal_name": "Grilled Chicken Salad",\n`;
-  prompt += `    "meal_type": "lunch",\n`;
-  prompt += `    "meal_order": 2,\n`;
-  prompt += `    "calories": 520,\n`;
-  prompt += `    "protein": 45,\n`;
-  prompt += `    "carbs": 25,\n`;
-  prompt += `    "fats": 22,\n`;
-  prompt += `    "ingredients": ["6oz chicken breast", "2 cups mixed greens", "1/2 avocado", "1 tbsp olive oil", "1 tbsp balsamic vinegar"],\n`;
-  prompt += `    "instructions": "1. Grill chicken breast. 2. Combine greens with dressing. 3. Top with sliced chicken and avocado."\n`;
-  prompt += `  }\n`;
-  prompt += `]\n`;
-  prompt += `===MEAL_DATA_END===\n\n`;
+  prompt += `STRICTLY AVOID any foods mentioned in allergies or food dislikes\n`;
+  prompt += `Prioritize foods mentioned in food preferences when possible\n`;
+  prompt += `MANDATORY: Food measurements must be in grams (g), milliliters (ml), teaspoons (tsp), or tablespoons (tbsp)\n`;
 
   prompt += `MEAL DATA REQUIREMENTS:\n`;
   prompt += `- meal_name: Clear, descriptive name for the meal\n`;
-  prompt += `- meal_type: MUST be one of: "breakfast", "lunch", "dinner", "snack", "pre_workout", "post_workout"\n`;
+  prompt += `- meal_type: MUST be one of: "breakfast", "lunch", "dinner", "snack", "bedtime", "pre_workout", "post_workout"\n`;
   prompt += `- meal_order: Sequential number (1, 2, 3, etc.) representing the order of meals in the day\n`;
   prompt += `- calories: Exact calorie count (integer)\n`;
   prompt += `- protein: Protein grams (integer)\n`;
   prompt += `- carbs: Carbohydrate grams (integer)\n`;
   prompt += `- fats: Fat grams (integer)\n`;
   prompt += `- ingredients: Array of specific ingredients with measurements\n`;
-  prompt += `- instructions: Step-by-step cooking/preparation instructions\n`;
-  prompt += `- ENSURE all macro calculations are accurate and add up correctly\n`;
-  prompt += `- ENSURE the sum of all meal calories equals the target calories\n`;
+  prompt += `- instructions: Cooking/preparation instructions\n`;
+  prompt += `- CRITICAL: Each macronutrient value must be in grams\n`;
+  prompt += `- Macronutrient values must be based on trusted food composition data, prioritising McCance & Widdowson (UK) or USDA FoodData Central if unavailable.\n`;
+  prompt += `- For each ingredient, provide the McCance & Widdowson 7th Edition (2019) values per 100g for protein, carbs, and fat.`;
+  prompt += `- All macro values (protein, carbs, fats) per meal must be based on real food data per gram weight. NO estimations or assumptions.\n`;
+  prompt += `- Distribute total daily calories optimally across meals based on standard nutritional timing principles (e.g. higher calories for main meals, lighter for snacks, less calories for bedtime )\n`;
 
-  // Add plan-specific verification
-  const verificationMap = {
-    aggressive_cut: "AGGRESSIVE CUT - calories must be 25% below maintenance",
-    moderate_cut: "MODERATE CUT - calories must be 15% below maintenance",
-    maintain: "MAINTENANCE - calories should match maintenance level",
-    recomp: "RECOMPOSITION - calories must be 5% below maintenance",
-    lean_bulk: "LEAN BULK - calories must be 10% above maintenance",
-    aggressive_bulk: "AGGRESSIVE BULK - calories must be 20% above maintenance",
-  };
-
-  if (verificationMap[planType]) {
-    prompt += `\n15. VERIFICATION: This is a ${verificationMap[planType]}\n`;
-  }
+  // Add structured response format requirements
+  prompt += `\nCRITICAL: The response must be in the following format as a JSON object. No other text should be included. This will be parsed programmatically.\n`;
+  prompt += `===MEAL_DATA_START===\n`;
+  prompt += `[\n`;
+  prompt += `  {\n`;
+  prompt += `    "meal_name": "Protein Pancakes with Berries",\n`;
+  prompt += `    "meal_type": "Breakfast",\n`;
+  prompt += `    "meal_order": 1,\n`;
+  prompt += `    "calories": 452,\n`;
+  prompt += `    "protein": 37,\n`;
+  prompt += `    "carbs": 48,\n`;
+  prompt += `    "fats": 13,\n`;
+  prompt += `    "ingredients": [\n`;
+  prompt += `      { "name": "Eggs", "amount": "2 large" },\n`;
+  prompt += `      { "name": "Protein Powder", "amount": "40g" },\n`;
+  prompt += `      { "name": "Oats", "amount": "100g" },\n`;
+  prompt += `      { "name": "Blueberries", "amount": "60g" },\n`;
+  prompt += `      { "name": "Almond butter", "amount": "1 tbsp" }\n`;
+  prompt += `    ],\n`;
+  prompt += `    "instructions": "Blend eggs, protein powder and oats. Cook pancakes in pan until golden brown. Top with berries and almond butter."\n`;
+  prompt += `  },\n`;
+  prompt += `  {\n`;
+  prompt += `    "meal_name": "Grilled Chicken Salad",\n`;
+  prompt += `    "meal_type": "Lunch",\n`;
+  prompt += `    "meal_order": 2,\n`;
+  prompt += `    "calories": 511,\n`;
+  prompt += `    "protein": 42,\n`;
+  prompt += `    "carbs": 23,\n`;
+  prompt += `    "fats": 27,\n`;
+  prompt += `    "ingredients": [\n`;
+  prompt += `      { "name": "Chicken Breast", "amount": "210g" },\n`;
+  prompt += `      { "name": "Mixed Greens", "amount": "130g" },\n`;
+  prompt += `      { "name": "Avocado", "amount": "110g" },\n`;
+  prompt += `      { "name": "Olive Oil", "amount": "1 tbsp" },\n`;
+  prompt += `      { "name": "Balsamic Vinegar", "amount": "1 tbsp" }\n`;
+  prompt += `    ],\n`;
+  prompt += `    "instructions": "Grill chicken breast until cooked through. Combine greens with dressing.Top with sliced chicken and avocado."\n`;
+  prompt += `  }\n`;
+  prompt += `]\n`;
+  prompt += `===MEAL_DATA_END===\n\n`;
 
   return prompt;
 };

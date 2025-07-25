@@ -14,6 +14,8 @@ import {
   filterAndSortPlans,
   clearAllFilters,
 } from "@/features/nutrition/nutritionUtils";
+import { set } from "date-fns";
+import PlanAssignModal from "@/src/components/features/nutrition/planAssignModal";
 
 export default function Nutrition() {
   const {
@@ -38,8 +40,6 @@ export default function Nutrition() {
   // Use real diet plans data only
   const activeDietPlans = dietPlans;
 
-  console.log("Active Diet Plans:", activeDietPlans);
-
   // State
   const [selectedClient, setSelectedClient] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,6 +51,7 @@ export default function Nutrition() {
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPlanDetailModal, setShowPlanDetailModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [planDetails, setPlanDetails] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -60,7 +61,6 @@ export default function Nutrition() {
   const [quickPlanName, setQuickPlanName] = useState("");
 
   // Get table columns
-  const tableColumns = getNutritionTableColumns();
 
   // Display plans - show all plans by default, apply filters
   const displayPlans = useMemo(() => {
@@ -73,6 +73,8 @@ export default function Nutrition() {
     );
   }, [activeDietPlans, searchTerm, sortBy, sortOrder, clientFilter, dietPlans]);
 
+  console.log("Display Plans:", displayPlans);
+
   // Initialize with first client if available (removed dependency on showAllPlans)
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
@@ -84,6 +86,13 @@ export default function Nutrition() {
     fetchClients();
     fetchDietPlans();
   }, [fetchClients, fetchDietPlans]);
+
+  const handleOpenAssignModal = (planData) => {
+    setPlanDetails(planData); // Set the selected plan
+    setShowAssignModal(true); // Open the modal
+  };
+
+  const tableColumns = getNutritionTableColumns(handleOpenAssignModal);
 
   // View plan details
   const handleViewPlanDetails = async (plan) => {
@@ -180,6 +189,7 @@ export default function Nutrition() {
               onViewModeChange={setViewMode}
               showViewToggle={false}
               onRowClick={handleViewPlanDetails}
+              showAssignModal={showAssignModal}
               onRowAction={(action, row) => {
                 // Prevent actions on plans that are still generating
                 if (row.is_generating) {
@@ -225,6 +235,15 @@ export default function Nutrition() {
         }}
         planDetails={planDetails}
       />{" "}
+      <PlanAssignModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        selectedPlan={planDetails}
+        onSuccess={() => {
+          setShowAssignModal(false);
+          setPlanDetails(null);
+        }}
+      />
       {/* Delete Confirmation Modal */}
       {showDeleteModal && planToDelete && (
         <ConfirmationModal

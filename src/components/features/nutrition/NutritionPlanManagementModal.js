@@ -17,15 +17,16 @@ import {
 import { Select, SelectItem } from "@heroui/react";
 import PlanDetailsModal from "./PlanDetailsModal";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
+import { useDietPlans } from "@/hooks/api/diet/useDietPlans";
+import axios from "@/lib/axios";
 
 const NutritionPlanManagementModal = ({
   isOpen,
   onClose,
   client,
   clientNutritionPlansHookData,
-  dietPlansHookData,
 }) => {
-  // Ensure we have all required data and prevent any API calls
+  // Ensure we have all required data
   if (!clientNutritionPlansHookData) {
     console.error(
       "NutritionPlanManagementModal: clientNutritionPlansHookData is required"
@@ -33,14 +34,18 @@ const NutritionPlanManagementModal = ({
     return null;
   }
 
-  if (!dietPlansHookData) {
-    console.error(
-      "NutritionPlanManagementModal: dietPlansHookData is required"
-    );
-    return null;
-  }
+  // Use the useDietPlans hook directly
+  const {
+    assignPlanToClients,
+    getPlanClients,
+    removeClientFromPlan,
+    getClientDietPlans,
+    fetchPlanDetails,
+    deleteDietPlan,
+    loading: planLoading,
+  } = useDietPlans();
 
-  // Use the hook data passed as props
+  // Use the hook data passed as props for client nutrition plans
   const {
     plans: clientPlans,
     activePlan,
@@ -51,7 +56,9 @@ const NutritionPlanManagementModal = ({
     refresh,
   } = clientNutritionPlansHookData;
 
-  const { fetchPlanDetails, deleteDietPlan } = dietPlansHookData;
+  // State for managing assigned diet plans for this client
+  const [assignedDietPlans, setAssignedDietPlans] = useState([]);
+  const [loadingAssignedPlans, setLoadingAssignedPlans] = useState(false);
 
   const [actionLoading, setActionLoading] = useState(null);
   const [sortBy, setSortBy] = useState("created_at");
@@ -68,11 +75,30 @@ const NutritionPlanManagementModal = ({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
 
-  // Memoized sorted plans for better performance
-  const sortedPlans = useMemo(() => {
-    if (!clientPlans || clientPlans.length === 0) return [];
+  // Function to fetch assigned diet plans for the client
+  const fetchAssignedDietPlans = async (clientId) => {
+    setLoadingAssignedPlans(true);
+    try {
+      console.log("Fetching assigned diet plans for client:", clientId);
 
-    return [...clientPlans].sort((a, b) => {
+      // Use the hook method for consistency and caching
+      const assignedPlans = await getClientDietPlans(clientId);
+
+      console.log("Fetched assigned diet plans:", assignedPlans);
+      setAssignedDietPlans(assignedPlans);
+    } catch (error) {
+      console.error("Error fetching assigned diet plans:", error);
+      setAssignedDietPlans([]);
+    } finally {
+      setLoadingAssignedPlans(false);
+    }
+  };
+
+  // Memoized sorted plans for better performance - now using assigned diet plans
+  const sortedPlans = useMemo(() => {
+    if (!assignedDietPlans || assignedDietPlans.length === 0) return [];
+
+    return [...assignedDietPlans].sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
 
@@ -94,19 +120,21 @@ const NutritionPlanManagementModal = ({
         return aValue < bValue ? 1 : -1;
       }
     });
-  }, [clientPlans, sortBy, sortOrder]);
+  }, [assignedDietPlans, sortBy, sortOrder]);
 
-  // Only refresh data when modal first opens or client changes
+  // Load data when modal first opens or client changes
   useEffect(() => {
     if (isOpen && client?.id) {
-      // Only refresh if we don't have data yet - but don't depend on clientPlans
-      // to avoid triggering when plans update due to activation
-      const hasNoData = !clientPlans || clientPlans.length === 0;
-      if (hasNoData) {
+      // Refresh client nutrition plans
+      const hasNoClientPlans = !clientPlans || clientPlans.length === 0;
+      if (hasNoClientPlans) {
         refresh();
       }
+
+      // Fetch assigned diet plans
+      fetchAssignedDietPlans(client.id);
     }
-  }, [isOpen, client?.id, refresh]); // Removed clientPlans dependency
+  }, [isOpen, client?.id, refresh]);
 
   const handleActivatePlan = async (planId) => {
     try {
@@ -173,6 +201,23 @@ const NutritionPlanManagementModal = ({
     setPlanToDelete(null);
   };
 
+  const handleRemoveFromClient = async (planId) => {
+    try {
+      setActionLoading(`remove-${planId}`);
+      await removeClientFromPlan(planId, client.id);
+
+      // Refresh the assigned diet plans to reflect the removal
+      await fetchAssignedDietPlans(client.id);
+
+      // Also refresh client nutrition plans in case this was the active plan
+      refresh();
+    } catch (error) {
+      console.error("Error removing plan from client:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!planToDelete) return;
 
@@ -180,8 +225,9 @@ const NutritionPlanManagementModal = ({
       setActionLoading(planToDelete.id);
       await deleteDietPlan(planToDelete.id);
 
-      // Refresh the client plans to reflect the deletion
+      // Refresh both the client plans and assigned diet plans to reflect the deletion
       refresh();
+      await fetchAssignedDietPlans(client.id);
 
       // Close the confirmation modal
       handleCloseDeleteConfirmation();
@@ -378,7 +424,7 @@ const NutritionPlanManagementModal = ({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Utensils className="w-5 h-5 text-orange-400" />
-                Available Plans ({sortedAvailablePlans.length})
+                Assigned Diet Plans ({sortedAvailablePlans.length})
               </h3>
 
               <div className="min-w-[200px]">
@@ -419,7 +465,7 @@ const NutritionPlanManagementModal = ({
 
             {/* Scrollable Plans List */}
             <div className="flex-1 overflow-y-auto pr-2 -mr-2">
-              {loading ? (
+              {loading || loadingAssignedPlans ? (
                 <div className="text-center py-8">
                   <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
                   <p className="text-zinc-500">Loading plans...</p>
@@ -428,12 +474,12 @@ const NutritionPlanManagementModal = ({
                 <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg p-6 text-center">
                   <User className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
                   <p className="text-zinc-400">
-                    No available plans to activate
+                    No available diet plans assigned
                   </p>
                   <p className="text-sm text-zinc-500 mt-1">
                     {activePlan
-                      ? "All plans are either active or none exist"
-                      : "Create nutrition plans for this client to manage them here"}
+                      ? "All assigned diet plans are either active or none exist"
+                      : "Assign diet plans to this client to manage them here"}
                   </p>
                 </div>
               ) : (
@@ -498,6 +544,19 @@ const NutritionPlanManagementModal = ({
                             {loadingPlanDetails === plan.id
                               ? "Loading..."
                               : "View Plan"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFromClient(plan.id);
+                            }}
+                            disabled={actionLoading === `remove-${plan.id}`}
+                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                            {actionLoading === `remove-${plan.id}`
+                              ? "Removing..."
+                              : "Remove"}
                           </button>
                           <button
                             onClick={(e) => {

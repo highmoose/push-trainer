@@ -1,5 +1,13 @@
 import React from "react";
-import { ChefHat, User, Calendar, Target, Utensils, Zap } from "lucide-react";
+import {
+  ChefHat,
+  User,
+  Calendar,
+  Target,
+  Utensils,
+  Zap,
+  Plus,
+} from "lucide-react";
 import { AvatarGroup, Avatar } from "@heroui/react";
 import VSXCalorieChart from "./VSXCalorieChart";
 
@@ -7,7 +15,7 @@ import VSXCalorieChart from "./VSXCalorieChart";
  * Table Column Definitions for Nutrition Plans
  * Defines how each column should render and behave
  */
-export const getNutritionTableColumns = () => [
+export const getNutritionTableColumns = (onAssignClick) => [
   {
     key: "name",
     label: "Plan",
@@ -69,45 +77,16 @@ export const getNutritionTableColumns = () => [
           </div>
         );
       }
-
-      // Use only structured data from dietPlans hook
-      let calories = { daily: 0, range: "N/A" };
-
-      // Check if we have total_calories or custom_calories from the hook data
-      if (row.custom_calories && row.custom_calories > 0) {
-        // Use custom calories if set
-        const dailyCalories = parseInt(row.custom_calories);
-        calories = {
-          daily: dailyCalories,
-          range: `${Math.round(dailyCalories * 0.9)}-${Math.round(
-            dailyCalories * 1.1
-          )}`,
-        };
-      } else if (row.total_calories && row.total_calories > 0) {
-        // Use calculated total calories
-        const dailyCalories = parseInt(row.total_calories);
-        calories = {
-          daily: dailyCalories,
-          range: `${Math.round(dailyCalories * 0.9)}-${Math.round(
-            dailyCalories * 1.1
-          )}`,
-        };
-      } else {
-        // No calorie data available
-        calories = { daily: 0, range: "N/A" };
-      }
-
       // Get chart data
       const chartData = createCalorieChartData(row);
-
       return (
         <div className="flex items-center gap-3">
           <div className="text-left">
             <div className="text-white font-semibold text-lg">
-              {calories.daily > 0 ? calories.daily.toLocaleString() : "N/A"} cal
+              {row.total_calories} cal
             </div>
           </div>
-          {chartData && (
+          {chartData && chartData.length > 0 ? (
             <div className="flex-shrink-0">
               <VSXCalorieChart
                 data={chartData}
@@ -120,6 +99,8 @@ export const getNutritionTableColumns = () => [
                 }`}
               />
             </div>
+          ) : (
+            <div className="text-xs text-zinc-500">No chart data</div>
           )}
         </div>
       );
@@ -143,9 +124,13 @@ export const getNutritionTableColumns = () => [
       // Calculate macros from items data only
       let macros = { protein: "N/A", carbs: "N/A", fats: "N/A" };
 
-      if (row.items && Array.isArray(row.items) && row.items.length > 0) {
+      if (
+        row.meal_items &&
+        Array.isArray(row.meal_items) &&
+        row.meal_items.length > 0
+      ) {
         // Sum up macros from all meal items
-        const totals = row.items.reduce(
+        const totals = row.meal_items.reduce(
           (acc, item) => ({
             protein: acc.protein + (parseFloat(item.protein) || 0),
             carbs: acc.carbs + (parseFloat(item.carbs) || 0),
@@ -254,6 +239,7 @@ export const getNutritionTableColumns = () => [
           </div>
         );
       }
+      [];
 
       if (row.has_error) {
         return (
@@ -264,7 +250,6 @@ export const getNutritionTableColumns = () => [
       }
 
       // For now, we'll show a single assigned user and placeholder for multiple assignments
-      // In the future, this could be enhanced to show multiple assigned users
       const assignedUsers = [
         {
           id: row.client_id || 1,
@@ -275,21 +260,17 @@ export const getNutritionTableColumns = () => [
         },
       ];
 
-      if (assignedUsers.length === 1) {
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar
-              src={assignedUsers[0].avatar}
-              alt={assignedUsers[0].name}
-              size="sm"
-              className="w-6 h-6"
-            />
-          </div>
-        );
-      }
-
       return (
         <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent row click
+              onAssignClick(row); // Pass the row data
+            }}
+            className="flex items-center justify-center bg-black/20 hover:bg-black/40 h-10 w-10 rounded-full mr-2 "
+          >
+            <Plus className=" text-white/50" size={20} />
+          </button>
           <AvatarGroup
             isBordered
             max={3}
@@ -326,12 +307,16 @@ export const getNutritionTableColumns = () => [
 export const createCalorieChartData = (row) => {
   try {
     // Use items from the hook data instead of AI response
-    if (!row.items || !Array.isArray(row.items) || row.items.length === 0) {
+    if (
+      !row.meal_items ||
+      !Array.isArray(row.meal_items) ||
+      row.meal_items.length === 0
+    ) {
       return null;
     }
 
     // Sort by meal order and create chart data
-    const sortedMeals = row.items.sort(
+    const sortedMeals = row.meal_items.sort(
       (a, b) => (a.meal_order || 0) - (b.meal_order || 0)
     );
     return sortedMeals.map((meal, index) => ({

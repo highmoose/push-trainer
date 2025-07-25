@@ -2,7 +2,7 @@
 import { Clock, Dumbbell, Utensils, Settings } from "lucide-react";
 import React, { useState } from "react";
 import NutritionPlanManagementModal from "@/features/nutrition/NutritionPlanManagementModal";
-import useClientNutritionPlans from "@/hooks/useClientNutritionPlans";
+import useClientNutritionPlans from "@/hooks/diet";
 import { useDietPlans } from "@/api/diet/useDietPlans";
 
 // Progress bar component that calculates percentage based on dates

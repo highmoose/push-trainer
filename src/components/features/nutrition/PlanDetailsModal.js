@@ -347,11 +347,26 @@ const processMealData = (items) => {
     throw new Error("No meal data available");
   }
 
+  const parseIngredients = (ingredients) => {
+    if (Array.isArray(ingredients)) return ingredients.map(normalizeIngredient);
+    if (typeof ingredients === "string") {
+      try {
+        const parsed = JSON.parse(ingredients);
+        if (Array.isArray(parsed)) return parsed.map(normalizeIngredient);
+        // fallback: comma split
+        return ingredients.split(",").map((i) => normalizeIngredient(i.trim()));
+      } catch {
+        return ingredients.split(",").map((i) => normalizeIngredient(i.trim()));
+      }
+    }
+    return [];
+  };
+
   const meals = items.map((item) => ({
     name: item.meal_name,
     type: item.meal_type,
     order: item.meal_order,
-    ingredients: JSON.parse(item.ingredients || "[]").map(normalizeIngredient),
+    ingredients: parseIngredients(item.ingredients),
     instructions: item.instructions,
     calories: item.calories,
     protein: item.protein,
@@ -645,11 +660,18 @@ const MealDisplay = ({
 
 // Macro Display Component
 const MacroDisplay = ({ currentMeal }) => (
-  <div className="flex items-center gap-6">
-    <MacroItem color="blue" label="Protein" value={`${currentMeal.protein}g`} />
-    <MacroItem color="green" label="Carbs" value={`${currentMeal.carbs}g`} />
-    <MacroItem color="yellow" label="Fats" value={`${currentMeal.fats}g`} />
-  </div>
+  console.log("Current Meal Macros:", currentMeal),
+  (
+    <div className="flex items-center gap-6">
+      <MacroItem
+        color="blue"
+        label="Protein"
+        value={`${currentMeal.protein}g`}
+      />
+      <MacroItem color="green" label="Carbs" value={`${currentMeal.carbs}g`} />
+      <MacroItem color="yellow" label="Fats" value={`${currentMeal.fats}g`} />
+    </div>
+  )
 );
 
 // Macro Item Component
@@ -881,6 +903,8 @@ const PlanDetailsModal = ({
 
   if (!isOpen || !planDetails) return null;
 
+  console.log("Rendering PlanDetailsModal with planDetails:", planDetails);
+
   return (
     <div
       className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center ${zIndex} p-4`}
@@ -890,7 +914,10 @@ const PlanDetailsModal = ({
         <PlanInfoSection planDetails={planDetails} />
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
         <div className="flex-1 overflow-y-auto p-6">
-          <MealPlanDisplay items={planDetails.items} activeTab={activeTab} />
+          <MealPlanDisplay
+            items={planDetails.meal_items}
+            activeTab={activeTab}
+          />
         </div>
       </div>
     </div>

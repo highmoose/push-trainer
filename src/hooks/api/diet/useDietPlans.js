@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { flushSync } from "react-dom";
 import axios from "@/lib/axios";
 
 // Global cache for diet plans
@@ -240,12 +241,285 @@ export const useDietPlans = () => {
     [dietPlans]
   );
 
+  // Helper to get client details for optimistic updates
+  const getClientDetails = useCallback((clientId, clientsData = []) => {
+    // Try to find client in provided data first
+    const foundClient = clientsData.find((c) => c.id === clientId);
+    if (foundClient) {
+      return {
+        id: foundClient.id,
+        name:
+          foundClient.name ||
+          `${foundClient.first_name || ""} ${
+            foundClient.last_name || ""
+          }`.trim() ||
+          `Client ${clientId}`,
+        first_name: foundClient.first_name,
+        last_name: foundClient.last_name,
+        email: foundClient.email,
+        assigned_at: new Date().toISOString(),
+      };
+    }
+
+    // Fallback to placeholder
+    return {
+      id: clientId,
+      name: `Client ${clientId}`,
+      assigned_at: new Date().toISOString(),
+      optimistic: true,
+    };
+  }, []);
+
+  const assignPlanToClientsWithClientData = useCallback(
+    async (planId, clientIds, clientsData = []) => {
+      try {
+        // Store previous state for rollback
+        const previousPlans = dietPlans;
+
+        // Optimistic update with better client data - use flushSync for immediate update
+        flushSync(() => {
+          setDietPlans((prev) => {
+            const updatedPlans = prev.map((plan) => {
+              if (plan.id === planId) {
+                const currentAssigned = plan.assigned_clients || [];
+
+                // Create optimistic client objects with real data
+                const newClients = clientIds.map((id) =>
+                  getClientDetails(id, clientsData)
+                );
+
+                // Merge without duplicates
+                const existingIds = currentAssigned.map((c) => c.id);
+                const uniqueNewClients = newClients.filter(
+                  (c) => !existingIds.includes(c.id)
+                );
+
+                return {
+                  ...plan,
+                  assigning: true,
+                  assigned_clients: [...currentAssigned, ...uniqueNewClients],
+                  total_assignments:
+                    (plan.total_assignments || 0) + uniqueNewClients.length,
+                };
+              }
+              return plan;
+            });
+            setCacheItem("all_diet_plans", updatedPlans);
+            return updatedPlans;
+          });
+        });
+
+        // API call
+        const response = await axios.post(
+          `/api/diet-plans/${planId}/assign-clients`,
+          { client_ids: clientIds }
+        );
+
+        const updatedPlan = response.data.plan;
+
+        // Update with server response
+        setDietPlans((prev) => {
+          const finalPlans = prev.map((plan) =>
+            plan.id === planId ? { ...updatedPlan, assigning: false } : plan
+          );
+          setCacheItem("all_diet_plans", finalPlans);
+          return finalPlans;
+        });
+
+        return updatedPlan;
+      } catch (err) {
+        // Rollback on error
+        setDietPlans(previousPlans);
+        setCacheItem("all_diet_plans", previousPlans);
+        setError(
+          err.response?.data?.message || "Failed to assign plan to clients"
+        );
+        throw err;
+      }
+    },
+    [dietPlans, getClientDetails]
+  );
+
+  const assignPlanToClients = useCallback(
+    async (planId, clientIds) => {
+      try {
+        // Store previous state for rollback
+        const previousPlans = dietPlans;
+
+        // Optimistic update - use flushSync for immediate synchronous update
+        flushSync(() => {
+          setDietPlans((prev) => {
+            const updatedPlans = prev.map((plan) => {
+              if (plan.id === planId) {
+                // Get current assigned clients or empty array
+                const currentAssigned = plan.assigned_clients || [];
+
+                // Create optimistic client objects for immediate UI feedback
+                const newClients = clientIds.map((id) => ({
+                  id,
+                  name: `Client ${id}`, // Placeholder name
+                  assigned_at: new Date().toISOString(),
+                  optimistic: true, // Mark as optimistic update
+                }));
+
+                // Merge without duplicates
+                const existingIds = currentAssigned.map((c) => c.id);
+                const uniqueNewClients = newClients.filter(
+                  (c) => !existingIds.includes(c.id)
+                );
+
+                return {
+                  ...plan,
+                  assigning: true,
+                  assigned_clients: [...currentAssigned, ...uniqueNewClients],
+                  total_assignments:
+                    (plan.total_assignments || 0) + uniqueNewClients.length,
+                };
+              }
+              return plan;
+            });
+            setCacheItem("all_diet_plans", updatedPlans);
+            return updatedPlans;
+          });
+        });
+
+        // API call to assign plan to multiple clients
+        const response = await axios.post(
+          `/api/diet-plans/${planId}/assign-clients`,
+          {
+            client_ids: clientIds,
+          }
+        );
+
+        const updatedPlan = response.data.plan;
+
+        // Update with server response - replace optimistic data with real data
+        setDietPlans((prev) => {
+          const finalPlans = prev.map((plan) =>
+            plan.id === planId ? { ...updatedPlan, assigning: false } : plan
+          );
+          setCacheItem("all_diet_plans", finalPlans);
+          return finalPlans;
+        });
+
+        return updatedPlan;
+      } catch (err) {
+        // Rollback on error
+        setDietPlans(previousPlans);
+        setCacheItem("all_diet_plans", previousPlans);
+        setError(
+          err.response?.data?.message || "Failed to assign plan to clients"
+        );
+        throw err;
+      }
+    },
+    [dietPlans]
+  );
+
   const assignPlanToClient = useCallback(
     async (planId, clientId) => {
-      return updateDietPlan(planId, { client_id: clientId });
+      return assignPlanToClients(planId, [clientId]);
     },
-    [updateDietPlan]
+    [assignPlanToClients]
   );
+
+  const removeClientFromPlan = useCallback(
+    async (planId, clientId) => {
+      try {
+        // Store previous state for rollback
+        const previousPlans = dietPlans;
+
+        // Optimistic update - use flushSync for immediate synchronous removal
+        flushSync(() => {
+          setDietPlans((prev) => {
+            const updatedPlans = prev.map((plan) => {
+              if (plan.id === planId) {
+                const currentAssigned = plan.assigned_clients || [];
+                const filteredClients = currentAssigned.filter(
+                  (c) => c.id !== clientId
+                );
+
+                return {
+                  ...plan,
+                  removing: clientId, // Track which client is being removed
+                  assigned_clients: filteredClients,
+                  total_assignments: Math.max(
+                    0,
+                    (plan.total_assignments || 0) - 1
+                  ),
+                };
+              }
+              return plan;
+            });
+            setCacheItem("all_diet_plans", updatedPlans);
+            return updatedPlans;
+          });
+        });
+
+        // API call to remove client
+        await axios.delete(`/api/diet-plans/${planId}/clients/${clientId}`);
+
+        // Success - clear the removing flag
+        setDietPlans((prev) => {
+          const updatedPlans = prev.map((plan) =>
+            plan.id === planId ? { ...plan, removing: null } : plan
+          );
+          setCacheItem("all_diet_plans", updatedPlans);
+          return updatedPlans;
+        });
+      } catch (err) {
+        // Rollback on error
+        setDietPlans(previousPlans);
+        setCacheItem("all_diet_plans", previousPlans);
+        setError(
+          err.response?.data?.message || "Failed to remove client from plan"
+        );
+        throw err;
+      }
+    },
+    [dietPlans]
+  );
+
+  const getPlanClients = useCallback(async (planId, forceRefresh = false) => {
+    const cacheKey = `plan_clients_${planId}`;
+
+    // Check cache first unless forced refresh
+    if (!forceRefresh) {
+      const cachedClients = getCacheItem(cacheKey);
+      if (cachedClients) {
+        return cachedClients;
+      }
+    }
+
+    try {
+      const response = await axios.get(`/api/diet-plans/${planId}/clients`);
+      const clients = response.data.clients;
+
+      // Cache the clients data
+      setCacheItem(cacheKey, clients);
+
+      // Also update the plan in the main plans list with fresh assignment data
+      setDietPlans((prev) => {
+        const updatedPlans = prev.map((plan) => {
+          if (plan.id === planId) {
+            return {
+              ...plan,
+              assigned_clients: clients,
+              total_assignments: clients.length,
+            };
+          }
+          return plan;
+        });
+        setCacheItem("all_diet_plans", updatedPlans);
+        return updatedPlans;
+      });
+
+      return clients;
+    } catch (err) {
+      console.error("Failed to fetch plan clients:", err);
+      throw new Error("Failed to fetch plan clients");
+    }
+  }, []);
 
   const fetchPlanDetails = useCallback(async (planId, forceRefresh = false) => {
     const cacheKey = planId.toString();
@@ -280,6 +554,34 @@ export const useDietPlans = () => {
     }
   }, []);
 
+  const getClientDietPlans = useCallback(
+    async (clientId, forceRefresh = false) => {
+      const cacheKey = `client_diet_plans_${clientId}`;
+
+      // Check cache first unless forced refresh
+      if (!forceRefresh) {
+        const cachedPlans = getCacheItem(cacheKey);
+        if (cachedPlans) {
+          return cachedPlans;
+        }
+      }
+
+      try {
+        const response = await axios.get(`/api/diet-plans/client/${clientId}`);
+        const plans = response.data.plans || [];
+
+        // Cache the plans data
+        setCacheItem(cacheKey, plans);
+
+        return plans;
+      } catch (err) {
+        console.error("Failed to fetch client diet plans:", err);
+        throw new Error("Failed to fetch client diet plans");
+      }
+    },
+    []
+  );
+
   // Auto-fetch on mount with cache check
   useEffect(() => {
     // Try to load from cache first for immediate UI feedback
@@ -302,7 +604,13 @@ export const useDietPlans = () => {
     updateDietPlan,
     deleteDietPlan,
     assignPlanToClient,
+    assignPlanToClients,
+    assignPlanToClientsWithClientData, // New optimized version
+    removeClientFromPlan,
+    getPlanClients,
+    getClientDietPlans, // New method to get diet plans for a client
     fetchPlanDetails,
+    getClientDetails, // Helper function
     // Cache management
     clearCache: clearAllCache,
     // Helper methods
