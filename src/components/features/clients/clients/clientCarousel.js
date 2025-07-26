@@ -1,6 +1,6 @@
 ﻿import LinkStatusBadge from "@/components/common/LinkStatusBadge";
 import SearchInput from "@/components/common/searchInput";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import { Users, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import React, { useState } from "react";
 import ClientCard from "./clientCard";
@@ -276,4 +276,3 @@ export default function ClientCarousel({
     </div>
   );
 }
-

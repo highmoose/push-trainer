@@ -8,7 +8,7 @@ import ClientInfoModal from "@/features/clients/clientInfoModal";
 import ClientTopBar from "@/features/clients/clients/clientTopBar";
 import AddClientModal from "@/features/clients/addClientModal";
 import React, { useState, useEffect } from "react";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import ClientTopChart from "@/features/clients/clients/clientTopChart";
 import ClientImageCard from "@/features/clients/clients/clientImageCard";
 import ClientGoalChart from "@/features/clients/clients/clientGoalChart";

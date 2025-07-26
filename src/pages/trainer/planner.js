@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSessions } from "@/hooks/session";
 import { useTasks } from "@/hooks/tasks";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import updateLocale from "dayjs/plugin/updateLocale";

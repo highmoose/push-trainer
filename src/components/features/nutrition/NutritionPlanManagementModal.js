@@ -17,7 +17,10 @@ import {
 import { Select, SelectItem } from "@heroui/react";
 import PlanDetailsModal from "./PlanDetailsModal";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
-import { useDietPlans } from "@/hooks/api/diet/useDietPlans";
+import { useGetClientDietPlans } from "@/hooks/diet";
+import { useRemoveClientFromDietPlan } from "@/hooks/diet";
+import { useDeleteDietPlan } from "@/hooks/diet";
+import { useGetDietPlanDetails } from "@/hooks/diet";
 import axios from "@/lib/axios";
 
 const NutritionPlanManagementModal = ({

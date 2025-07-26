@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useWorkoutPlans } from "@/hooks/workout/useWorkoutPlans";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import WorkoutPlanModal from "@/src/components/features/workouts/WorkoutPlanModal";
 import {
   Dumbbell,

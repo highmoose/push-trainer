@@ -26,8 +26,8 @@ import {
   UserPlus,
   UserMinus,
 } from "lucide-react";
-import { useClients } from "@/hooks/api/clients/useClients";
-import { useDietPlans } from "@/hooks/api/diet/useDietPlans";
+import { useClients } from "@/hooks/clients";
+import { useDietPlans } from "@/hooks/diet";
 
 const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
   // Hooks

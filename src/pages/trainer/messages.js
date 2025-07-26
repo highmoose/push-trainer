@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState, useRef } from "react";
 import InstantMessagingChat from "@/features/messaging/instantMessagingChatNew";
 import { useMessaging } from "@/hooks/messaging";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import {
   Columns2,
   Columns3,
@@ -597,4 +597,3 @@ export default function Messages({ authUserId }) {
     </div>
   );
 }
-

@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useClients } from "@/api/clients";
-import { useDietPlans } from "@/api/diet";
+import { useClients } from "@/hooks/clients";
+import { useDietPlans } from "@/hooks/diet";
+import useFetchDietPlans from "@/hooks/diet/useFetchDietPlans";
+import useUpdateDietPlan from "@/hooks/diet/useUpdateDietPlan";
+import useDeleteDietPlan from "@/hooks/diet/useDeleteDietPlan";
+import useGetDietPlanDetails from "@/hooks/diet/useGetDietPlanDetails";
 import ConfirmationModal from "@/common/ConfirmationModal";
 import { DataTable } from "@/common/tables";
 import CreatePlanModal from "@/features/nutrition/CreatePlanModal";
@@ -18,27 +22,33 @@ import { set } from "date-fns";
 import PlanAssignModal from "@/src/components/features/nutrition/planAssignModal";
 
 export default function Nutrition() {
-  const {
-    clients,
-    loading: clientsLoading,
-    error: clientsError,
-    fetchClients,
-  } = useClients();
+  // Use composite hook for data and individual action hooks for actions
+  const { clients, fetchClients } = useClients();
+
+  // Debug clients loading
+  useEffect(() => {
+    console.log("Clients state changed:", {
+      clientsCount: clients?.length || 0,
+      clients: clients,
+      hasClients: Array.isArray(clients) && clients.length > 0,
+    });
+  }, [clients]);
+
   const {
     dietPlans,
     loading: dietPlansLoading,
     error: dietPlansError,
-    generateDietPlan,
-    createDietPlan,
-    createDietPlanWithPlaceholder,
-    updateDietPlan,
-    deleteDietPlan,
-    fetchDietPlans,
-    fetchPlanDetails,
+    generateDietPlanWithPlaceholder,
   } = useDietPlans();
 
-  // Use real diet plans data only
-  const activeDietPlans = dietPlans;
+  // Individual action hooks
+  const fetchDietPlansAction = useFetchDietPlans();
+  const updateDietPlanAction = useUpdateDietPlan();
+  const deleteDietPlanAction = useDeleteDietPlan();
+  const getDietPlanDetailsAction = useGetDietPlanDetails();
+
+  // Use real diet plans data only - ensure it's always an array
+  const activeDietPlans = Array.isArray(dietPlans) ? dietPlans : [];
 
   // State
   const [selectedClient, setSelectedClient] = useState(null);
@@ -73,19 +83,19 @@ export default function Nutrition() {
     );
   }, [activeDietPlans, searchTerm, sortBy, sortOrder, clientFilter, dietPlans]);
 
-  console.log("Display Plans:", displayPlans);
-
-  // Initialize with first client if available (removed dependency on showAllPlans)
+  // Initialize with first client if available
   useEffect(() => {
     if (clients.length > 0 && !selectedClient) {
       setSelectedClient(clients[0]);
     }
   }, [clients, selectedClient]);
-  // Fetch data on mount
+
+  // Fetch data on mount - Let useClients hook handle the fetching automatically
   useEffect(() => {
-    fetchClients();
-    fetchDietPlans();
-  }, [fetchClients, fetchDietPlans]);
+    // The useClients hook handles fetching automatically via its internal useEffect
+    // Just log what we're getting
+    console.log("Nutrition page mounted, clients hook should auto-fetch");
+  }, []);
 
   const handleOpenAssignModal = (planData) => {
     setPlanDetails(planData); // Set the selected plan
@@ -102,10 +112,17 @@ export default function Nutrition() {
     }
     try {
       // Fetch full plan details from API which includes client_metrics
-      const fullPlanDetails = await fetchPlanDetails(plan.id);
+      const result = await getDietPlanDetailsAction.execute(plan.id);
 
-      setPlanDetails(fullPlanDetails);
-      setShowPlanDetailModal(true);
+      if (result.success) {
+        setPlanDetails(result.data);
+        setShowPlanDetailModal(true);
+      } else {
+        console.error("Failed to fetch plan details:", result.error);
+        // Fallback to using the plan data we have
+        setPlanDetails(plan);
+        setShowPlanDetailModal(true);
+      }
     } catch (error) {
       console.error("Failed to fetch plan details:", error);
       // Fallback to using the plan data we have
@@ -124,14 +141,17 @@ export default function Nutrition() {
     if (!planToDelete) return;
 
     try {
-      await deleteDietPlan(planToDelete.id);
-      console.log("Diet plan deleted successfully:", planToDelete.id);
+      const result = await deleteDietPlanAction.execute(planToDelete.id);
 
-      // Close modal and reset state
-      setShowDeleteModal(false);
-      setPlanToDelete(null);
-
-      // Hook handles refresh automatically
+      if (result.success) {
+        console.log("Diet plan deleted successfully:", planToDelete.id);
+        // Close modal and reset state
+        setShowDeleteModal(false);
+        setPlanToDelete(null);
+      } else {
+        console.error("Error deleting diet plan:", result.error);
+        // Handle error appropriately - maybe show a toast notification
+      }
     } catch (error) {
       console.error("Error deleting diet plan:", error);
       // Handle error appropriately - maybe show a toast notification
@@ -182,7 +202,7 @@ export default function Nutrition() {
             <DataTable
               data={displayPlans}
               columns={tableColumns}
-              loading={clientsLoading || dietPlansLoading}
+              loading={fetchDietPlansAction.loading || dietPlansLoading}
               emptyMessage="No nutrition plans found"
               emptyDescription="Create your first AI-powered nutrition plan to help your clients achieve their health goals"
               viewMode={viewMode}
@@ -224,7 +244,7 @@ export default function Nutrition() {
         clients={clients}
         selectedClient={selectedClient}
         initialPlanName={quickPlanName}
-        createDietPlan={createDietPlanWithPlaceholder}
+        generateDietPlanWithPlaceholder={generateDietPlanWithPlaceholder}
       />
       {/* Plan Details Modal */}
       <PlanDetailsModal

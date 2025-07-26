@@ -21,19 +21,16 @@ import {
   Crown,
   Team,
 } from "lucide-react";
-import { useCheckIns } from "@/hooks/checkins/useCheckIns";
-import { useClients } from "@/api/clients";
+import { useClients } from "@/hooks/clients";
 import { useSelector } from "react-redux";
 
 export default function Dashboard() {
   const user = useSelector((state) => state.auth.user);
   // const { team, userRole } = useTeamManagement();
-  const { pendingCheckIns, loading: checkInsLoading } = useCheckIns();
   const { clients } = useClients();
 
   const [dashboardMetrics, setDashboardMetrics] = useState({
     activeClients: 0,
-    pendingCheckIns: 0,
     upcomingSessions: 0,
     teamMembers: 0,
     completionRate: 0,
@@ -43,17 +40,16 @@ export default function Dashboard() {
   // Calculate metrics
   useEffect(() => {
     const activeClients =
-      clients?.filter((client) => client.status === "active")?.length || 0;
-    const pendingCount = pendingCheckIns?.length || 0;
+      (clients || []).filter((client) => client.status === "active")?.length ||
+      0;
 
     setDashboardMetrics({
       activeClients,
-      pendingCheckIns: pendingCount,
       upcomingSessions: 8, // Mock data
       completionRate: 85, // Mock data
       weeklyProgress: 12, // Mock data
     });
-  }, [clients, pendingCheckIns]);
+  }, [clients]);
 
   const MetricCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
     <div className="bg-zinc-900 rounded-lg p-6 hover:bg-zinc-800/50 transition-colors mt-28">

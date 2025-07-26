@@ -1,1 +1,0 @@
-export { useDietPlans } from "./useDietPlans";

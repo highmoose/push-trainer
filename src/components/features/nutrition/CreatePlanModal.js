@@ -12,7 +12,7 @@ import {
 import {
   buildDietPlanPrompt,
   DIET_PLAN_TYPES,
-} from "@/builders/dietPromptBuilder";
+} from "@/lib/builders/dietPromptBuilder";
 
 // Add UI display properties to plan types
 const UI_DIET_PLAN_TYPES = DIET_PLAN_TYPES.map((type) => ({
@@ -44,10 +44,15 @@ const CreatePlanModal = ({
   clients,
   selectedClient,
   initialPlanName = "",
-  createDietPlan, // Accept createDietPlan as a prop
+  generateDietPlanWithPlaceholder,
 }) => {
+  // Use state for local loading and error tracking
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState(null);
+
   // Form state
   const [selectedClientForForm, setSelectedClientForForm] = useState(null);
+  console.log("Selected client for form:", selectedClientForForm);
   const [planTitle, setPlanTitle] = useState("");
   const [planType, setPlanType] = useState("");
   const [mealsPerDay, setMealsPerDay] = useState(4);
@@ -57,11 +62,14 @@ const CreatePlanModal = ({
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [aiProvider, setAiProvider] = useState("openai");
   const [setAsActive, setSetAsActive] = useState(false);
-  const [tailorToClient, setTailorToClient] = useState(false);
 
   useEffect(() => {
     if (isOpen && initialPlanName) {
       setPlanTitle(initialPlanName);
+    }
+    if (isOpen) {
+      setGenerationError(null);
+      setIsGenerating(false);
     }
   }, [isOpen, initialPlanName]);
 
@@ -75,10 +83,11 @@ const CreatePlanModal = ({
     setCustomCalories("");
     setUseCustomCalories(false);
     setSetAsActive(false);
-    setTailorToClient(false);
     setMealsPerDay(4);
     setMealComplexity("moderate");
     setAiProvider("openai");
+    setIsGenerating(false);
+    setGenerationError(null);
   };
 
   // Activity level multipliers for calorie calculations
@@ -135,11 +144,24 @@ const CreatePlanModal = ({
       return;
     }
 
+    // For AI generation, we need a client ID
+    const client = selectedClientForForm || selectedClient;
+
+    if (!client) {
+      alert("Please select a client for AI diet plan generation");
+      return;
+    }
+
+    if (!generateDietPlanWithPlaceholder) {
+      alert("Diet plan generation is not available");
+      return;
+    }
+
     try {
+      setIsGenerating(true);
+      setGenerationError(null);
       // Get client data
-      const client = tailorToClient
-        ? selectedClientForForm || selectedClient
-        : null;
+      const client = selectedClientForForm || selectedClient;
       const clientName = client
         ? `${client.first_name} ${client.last_name}`
         : null;
@@ -226,25 +248,44 @@ const CreatePlanModal = ({
         meal_complexity: mealComplexity,
         total_calories: targetCalories,
         generated_by_ai: true, // Since this is AI-generated
-        is_active: tailorToClient ? setAsActive : false, // Map set_as_active to is_active column
+        is_active: setAsActive, // Map set_as_active to is_active column
         description: additionalNotes || null, // Map additional_notes to description column
       };
-
-      console.log("CreatePlanModal planData for database:", planData);
 
       // Close modal immediately for better UX
       resetForm();
       onClose();
 
-      // Create the diet plan in the database with placeholder
-      await createDietPlan(planData);
+      // Create the diet plan using the generate endpoint with placeholder
+      const result = await generateDietPlanWithPlaceholder(client?.id, {
+        title: planTitle.trim(),
+        client_name: `${client?.first_name || ""} ${
+          client?.last_name || ""
+        }`.trim(),
+        client_metrics: clientMetrics,
+        plan_type: planType,
+        meals_per_day: mealsPerDay,
+        meal_complexity: mealComplexity,
+        total_calories: targetCalories,
+        generated_by_ai: true,
+        is_active: setAsActive,
+        description: additionalNotes || null,
+        ai_prompt: enhancedPrompt,
+      });
 
-      console.log("Diet plan created successfully in database");
+      if (result.success) {
+        console.log("Diet plan generated successfully");
+        setIsGenerating(false);
+      } else {
+        throw new Error(result.error || "Failed to generate diet plan");
+      }
     } catch (error) {
       console.error("Error creating diet plan:", error);
+      setIsGenerating(false);
 
       const errorMessage =
         error.message || "Failed to create diet plan. Please try again.";
+      setGenerationError(errorMessage);
       alert(`Error: ${errorMessage}`);
     }
   };
@@ -265,6 +306,13 @@ const CreatePlanModal = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto scrollbar-dark p-4 px-8 bg-zinc-900">
+          {/* Show error if exists */}
+          {generationError && (
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded text-red-300 text-sm">
+              Error: {generationError}
+            </div>
+          )}
+
           <div className="space-y-4">
             {/* Plan Title */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
@@ -284,68 +332,46 @@ const CreatePlanModal = ({
 
             {/* Client Selection */}
             <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
-              {/* Tailor to Client Checkbox */}
-              <div className="mb-3">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={tailorToClient}
-                    onChange={(e) => {
-                      setTailorToClient(e.target.checked);
-                      if (!e.target.checked) {
-                        setSelectedClientForForm(null);
-                        setSetAsActive(false); // Can't set as active without client
-                      }
-                    }}
-                    className="mt-1 w-4 h-4 text-blue-600 bg-zinc-700 border-zinc-600 focus:ring-blue-500 focus:ring-2 rounded"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-zinc-300">
-                      Tailor to client
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      Enable to customize this plan for a specific client's
-                      profile and goals
-                    </div>
-                  </div>
+              <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                Client Selection <span className="text-red-400">*</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mb-3">
+                AI diet plan generation requires client information to create
+                personalized plans.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  Select Client
                 </label>
+                <select
+                  value={selectedClientForForm?.id || selectedClient?.id || ""}
+                  onChange={(e) => {
+                    const clientId = e.target.value;
+                    if (clientId) {
+                      const client = clients.find(
+                        (c) => c.id === parseInt(clientId)
+                      );
+                      setSelectedClientForForm(client);
+                    } else {
+                      setSelectedClientForForm(null);
+                      setSetAsActive(false);
+                    }
+                  }}
+                  className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  required
+                >
+                  <option value="">Select a client (required)</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.first_name} {client.last_name} - {client.email}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Client Selection Dropdown - Only shown when tailorToClient is enabled */}
-              {tailorToClient && (
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
-                    Select Client
-                  </label>
-                  <select
-                    value={
-                      selectedClientForForm?.id || selectedClient?.id || ""
-                    }
-                    onChange={(e) => {
-                      const clientId = e.target.value;
-                      if (clientId) {
-                        const client = clients.find(
-                          (c) => c.id === parseInt(clientId)
-                        );
-                        setSelectedClientForForm(client);
-                      } else {
-                        setSelectedClientForForm(null);
-                      }
-                    }}
-                    className="w-full p-2 rounded bg-zinc-800 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  >
-                    <option value="">Select a client</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.first_name} {client.last_name} - {client.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {/* Client Profile Information */}
-              {tailorToClient && (selectedClientForForm || selectedClient) && (
+              {(selectedClientForForm || selectedClient) && (
                 <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
                   <h4 className="text-sm font-medium text-zinc-300 mb-2">
                     Client Profile Data
@@ -413,7 +439,7 @@ const CreatePlanModal = ({
                 </div>
               )}
 
-              {tailorToClient && selectedClient && !selectedClientForForm && (
+              {selectedClient && !selectedClientForForm && (
                 <p className="text-sm text-blue-400 mt-1">
                   Currently creating for: {selectedClient.first_name}{" "}
                   {selectedClient.last_name}
@@ -421,8 +447,8 @@ const CreatePlanModal = ({
               )}
             </div>
 
-            {/* Set as Active Option - Only show if tailoring to client */}
-            {tailorToClient && (selectedClientForForm || selectedClient) && (
+            {/* Set as Active Option - Only show if client is selected */}
+            {(selectedClientForForm || selectedClient) && (
               <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
                 <h3 className="text-sm font-medium text-zinc-300 mb-3">
                   Plan Assignment
@@ -656,11 +682,11 @@ const CreatePlanModal = ({
           </button>
           <button
             onClick={handleGeneratePlan}
-            disabled={!planType || !planTitle.trim()}
+            disabled={!planType || !planTitle.trim() || isGenerating}
             className="px-6 py-2 bg-zinc-800 hover:bg-white hover:text-black text-white rounded transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-4 h-4" />
-            Generate Plan
+            {isGenerating ? "Generating Plan..." : "Generate Plan"}
           </button>
         </div>
       </div>

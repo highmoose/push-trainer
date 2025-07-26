@@ -36,8 +36,10 @@ const DataPreloadWrapper = ({ children }) => {
     const hasPreloadedData = sessionStorage.getItem("data_preloaded");
 
     if (!hasPreloadedData && !hasPreloaded) {
+      console.log("Starting data preload for user:", user.id);
       setShouldPreload(true);
     } else {
+      console.log("Data already preloaded, skipping preload");
       setHasPreloaded(true);
     }
   }, [user, hasPreloaded]);
@@ -47,9 +49,11 @@ const DataPreloadWrapper = ({ children }) => {
     if (shouldPreload && user && !isPreloading) {
       const startPreloading = async () => {
         try {
+          console.log("Starting data preloading...");
           await preloadAllData();
           // Mark as preloaded for this session
           sessionStorage.setItem("data_preloaded", "true");
+          console.log("Data preloading completed successfully");
           setHasPreloaded(true);
           setShouldPreload(false);
         } catch (error) {
@@ -72,6 +76,14 @@ const DataPreloadWrapper = ({ children }) => {
       sessionStorage.removeItem("data_preloaded");
     }
   }, [user]);
+
+  // Development: Clear preload flag if in development mode for testing
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      // Uncomment the line below to force preload on every refresh during development
+      // sessionStorage.removeItem("data_preloaded");
+    }
+  }, []);
 
   // Show loading screen if we need to preload or are currently preloading
   if (user && (shouldPreload || isPreloading || !hasPreloaded)) {
