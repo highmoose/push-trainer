@@ -48,11 +48,11 @@ import {
 // OLD
 import {
   CreatePlanModal,
-  PlanDetailsModal,
+  ViewDietPlanModal,
 } from "@/components/trainer/nutrition";
 
 // NEW
-import { CreatePlanModal, PlanDetailsModal } from "@/features/nutrition";
+import { CreatePlanModal, ViewDietPlanModal } from "@/features/nutrition";
 ```
 
 ### 3. Update hook imports

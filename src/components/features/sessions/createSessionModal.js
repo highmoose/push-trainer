@@ -499,6 +499,7 @@ export default function CreateSessionModal({
                           variant="light"
                           color="danger"
                           size="sm"
+                          aria-label="Remove selected client"
                         >
                           ✕
                         </Button>

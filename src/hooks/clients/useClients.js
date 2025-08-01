@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import useFetchClients from "./useFetchClients";
-import useCreateClient from "./useCreateClient";
-import useUpdateClient from "./useUpdateClient";
-import useDeleteClient from "./useDeleteClient";
-import useInviteClient from "./useInviteClient";
-import useGetClient from "./useGetClient";
+import useFetchClients from "./api/useFetchClients";
+import useCreateClient from "./api/useCreateClient";
+import useUpdateClient from "./api/useUpdateClient";
+import useDeleteClient from "./api/useDeleteClient";
+import useInviteClient from "./api/useInviteClient";
+import useGetClient from "./api/useGetClient";
 
 // Global cache for clients with optimistic updates
 const clientsCache = new Map();
@@ -20,10 +20,14 @@ const triggerGlobalRefresh = () => {
 };
 
 export const useClients = () => {
+  // State management
   const [clients, setClients] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  console.log("clients", clients);
 
   // Individual action hooks
   const fetchAction = useFetchClients();

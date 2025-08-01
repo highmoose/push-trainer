@@ -325,6 +325,7 @@ function AddClientModal({ close, selectedClient = "" }) {
                   variant="ghost"
                   isIconOnly
                   className="text-zinc-400 hover:text-white"
+                  aria-label="Back to selection"
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
@@ -407,6 +408,7 @@ function AddClientModal({ close, selectedClient = "" }) {
                     variant="ghost"
                     isIconOnly
                     className="text-zinc-400 hover:text-white"
+                    aria-label="Back to selection"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </Button>
@@ -859,4 +861,3 @@ function AddClientModal({ close, selectedClient = "" }) {
 
 // Export the component WITHOUT React.memo
 export default AddClientModal;
-

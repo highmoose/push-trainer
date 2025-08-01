@@ -1,5 +1,5 @@
 import Image from "next/image";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "@/store/slices/authSlice";
@@ -17,10 +17,14 @@ import {
 } from "lucide-react";
 import { Button, Tabs, Tab } from "@heroui/react";
 import NotificationBadge from "@/components/common/NotificationBadge";
+import ProfileImageModal from "../common/modals/profileImageModal";
 
 export default function Header({ setShowTab, currentTab }) {
   const dispatch = useDispatch();
   const router = useRouter();
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileImageModalOpen, setProfileImageModalOpen] = useState(false);
 
   const user = useSelector((state) => state.auth.user);
 
@@ -30,7 +34,8 @@ export default function Header({ setShowTab, currentTab }) {
       clearAllCaches();
 
       await dispatch(logout()).unwrap(); // logout thunk
-      console.log("✅ Logout completed successfully");
+      // toast
+
       router.push("/welcome"); // redirect
     } catch (err) {
       // Since logout always proceeds (see authSlice), this shouldn't happen
@@ -54,6 +59,43 @@ export default function Header({ setShowTab, currentTab }) {
   const handleTabChange = (key) => {
     setShowTab(key);
   };
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuOpen) {
+        const userMenuElement = event.target.closest("[data-user-menu]");
+        const userButtonElement = event.target.closest("[data-user-button]");
+
+        if (!userMenuElement && !userButtonElement) {
+          setUserMenuOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
+  const UserMenu = () => (
+    <div
+      data-user-menu
+      onClick={() => setUserMenuOpen(false)}
+      className="absolute bottom-0 left-16 mt-2 w-48 bg-white rounded-md shadow-lg z-50"
+    >
+      <div className="py-1">
+        <button
+          onClick={() => setProfileImageModalOpen(true)}
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+        >
+          Update Trainer Profile
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-[120px] bg-[#121214]">
       <div className="flex flex-col h-full items-center justify-between px-6 py-8">
@@ -62,7 +104,7 @@ export default function Header({ setShowTab, currentTab }) {
             src="/images/logo/push-logo-emblem.svg"
             width={46}
             height={46}
-            alt="logo"
+            alt="Push Trainer logo"
           />
         </div>
 
@@ -105,26 +147,45 @@ export default function Header({ setShowTab, currentTab }) {
           >
             <NotificationBadge />
           </div>
-          {/* <Button
-            isIconOnly
-            onPress={() => setShowTab("settings")}
-            variant="ghost"
-            className="text-white hover:bg-zinc-800"
-            size="md"
-          >
-            <Settings size={20} />
-          </Button> */}
+          <div className="relative">
+            <Button
+              data-user-button
+              isIconOnly
+              onPress={() => setUserMenuOpen(!userMenuOpen)}
+              variant="ghost"
+              className="text-white hover:bg-zinc-800"
+              size="md"
+              aria-label="Open user menu"
+            >
+              <Image
+                src={user.profile_image}
+                width={40}
+                height={40}
+                alt={
+                  user.name
+                    ? `${user.name} profile picture`
+                    : "User profile picture"
+                }
+              />
+            </Button>
+            {userMenuOpen && <UserMenu />}
+          </div>
           <Button
             isIconOnly
             onPress={handleLogout}
             variant="ghost"
             className="text-white hover:bg-zinc-800"
             size="md"
+            aria-label="Logout"
           >
             <LogOut size={20} />
           </Button>
         </div>
       </div>
+      <ProfileImageModal
+        isOpen={profileImageModalOpen}
+        onClose={() => setProfileImageModalOpen(false)}
+      />
     </div>
   );
 }

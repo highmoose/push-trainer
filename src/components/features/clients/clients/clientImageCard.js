@@ -9,7 +9,11 @@ export default function ClientImageCard({ selectedClient }) {
         src="/images/placeholder/profile-image-placeholder-2.png"
         width={500}
         height={750}
-        alt="logo"
+        alt={
+          selectedClient
+            ? `Profile picture of ${selectedClient.first_name} ${selectedClient.last_name}`
+            : "Client profile picture placeholder"
+        }
         className="object-cover"
       />
       <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/60 to-transparent "></div>

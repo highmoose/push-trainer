@@ -27,7 +27,12 @@ export default function ClientGoalChart({ client, progress = 70 }) {
       <p className="text-xl font-thin ">Goal Progress</p>
 
       <div className="flex h-full relative items-center justify-center">
-        <svg width={size} height={size}>
+        <svg
+          width={size}
+          height={size}
+          role="img"
+          aria-label={`Goal progress chart showing ${progress}% completion`}
+        >
           <defs>
             <linearGradient
               id="progressGradient"
@@ -89,7 +94,9 @@ export default function ClientGoalChart({ client, progress = 70 }) {
         </div>
       </div>
       <div className="flex w-full justify-start mt-6">
-        <Button variant="secondary">View Progress map</Button>
+        <Button variant="secondary" aria-label="View detailed progress map">
+          View Progress map
+        </Button>
       </div>
     </div>
   );

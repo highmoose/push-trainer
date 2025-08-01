@@ -38,7 +38,7 @@ const UI_DIET_PLAN_TYPES = DIET_PLAN_TYPES.map((type) => ({
       : "emerald",
 }));
 
-const CreatePlanModal = ({
+const CreateDietPlanModal = ({
   isOpen,
   onClose,
   clients,
@@ -52,7 +52,6 @@ const CreatePlanModal = ({
 
   // Form state
   const [selectedClientForForm, setSelectedClientForForm] = useState(null);
-  console.log("Selected client for form:", selectedClientForForm);
   const [planTitle, setPlanTitle] = useState("");
   const [planType, setPlanType] = useState("");
   const [mealsPerDay, setMealsPerDay] = useState(4);
@@ -188,12 +187,12 @@ const CreatePlanModal = ({
           age: age || null,
           weight: client.weight || null,
           height: client.height || null,
-          fitness_level: client.fitness_level || null,
-          fitness_goals: client.fitness_goals || null,
-          fitness_experience: client.fitness_experience || null,
-          food_likes: client.food_likes || null,
-          food_dislikes: client.food_dislikes || null,
-          allergies: client.allergies || null,
+          fitness_level: client.metrics.fitness_level || null,
+          fitness_goals: client.metrics.fitness_goals || null,
+          fitness_experience: client.metrics.fitness_experience || null,
+          food_likes: client.metrics.food_likes || null,
+          food_dislikes: client.metrics.food_dislikes || null,
+          allergies: client.metrics.allergies || null,
         };
       }
 
@@ -291,8 +290,8 @@ const CreatePlanModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-zinc-950 border border-zinc-900 rounded max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/80 flex  justify-center items-center z-50 p-4">
+      <div className="bg-zinc-950 border border-zinc-900 rounded max-w-5xl  w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex bg-zinc-900 items-center justify-between p-4 px-8 border-b border-zinc-800">
           <h2 className="text-xl font-semibold text-white">Create Diet Plan</h2>
@@ -315,7 +314,7 @@ const CreatePlanModal = ({
 
           <div className="space-y-4">
             {/* Plan Title */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+            <div className="bg-zinc-900 rounded">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Plan Title
@@ -331,7 +330,7 @@ const CreatePlanModal = ({
             </div>
 
             {/* Client Selection */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
+            <div className="bg-zinc-900  rounded">
               <h3 className="text-sm font-medium text-zinc-300 mb-3">
                 Client Selection <span className="text-red-400">*</span>
               </h3>
@@ -372,70 +371,118 @@ const CreatePlanModal = ({
 
               {/* Client Profile Information */}
               {(selectedClientForForm || selectedClient) && (
-                <div className="mt-3 p-3 bg-zinc-800 rounded border border-zinc-700">
-                  <h4 className="text-sm font-medium text-zinc-300 mb-2">
-                    Client Profile Data
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                    {(selectedClientForForm || selectedClient)?.height && (
-                      <div>
-                        <span className="text-zinc-500">Height:</span>
-                        <span className="text-zinc-300 ml-1">
-                          {(selectedClientForForm || selectedClient).height} cm
-                        </span>
-                      </div>
-                    )}
-                    {(selectedClientForForm || selectedClient)?.weight && (
-                      <div>
-                        <span className="text-zinc-500">Weight:</span>
-                        <span className="text-zinc-300 ml-1">
-                          {(selectedClientForForm || selectedClient).weight} kg
-                        </span>
-                      </div>
-                    )}
+                <div className="flex flex-col gap-2 p-4 bg-green-500/10 mt-2 ">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-green-300 uppercase tracking-wide">
+                      Client preferences
+                    </h3>
+                    <p className="text-sm text-white">
+                      ✓ This data will be used to personalise the diet plan
+                    </p>
+                  </div>
+
+                  <dl className="grid grid-cols-3 gap-x-6 gap-y-2 text-xs">
                     {(selectedClientForForm || selectedClient)
+                      ?.date_of_birth && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Age
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
+                          {Math.floor(
+                            (new Date() -
+                              new Date(
+                                (
+                                  selectedClientForForm || selectedClient
+                                )?.date_of_birth
+                              )) /
+                              (365.25 * 24 * 60 * 60 * 1000)
+                          )}{" "}
+                        </dd>
+                      </div>
+                    )}
+
+                    {(selectedClientForForm || selectedClient)?.height && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Height
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
+                          {(selectedClientForForm || selectedClient).height} cm
+                        </dd>
+                      </div>
+                    )}
+
+                    {(selectedClientForForm || selectedClient)?.weight && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Weight
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
+                          {(selectedClientForForm || selectedClient).weight} kg
+                        </dd>
+                      </div>
+                    )}
+
+                    {(selectedClientForForm || selectedClient)?.metrics
                       ?.fitness_level && (
-                      <div>
-                        <span className="text-zinc-500">Activity Level:</span>
-                        <span className="text-zinc-300 ml-1 capitalize">
+                      <div className="flex flex-col">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Activity Level
+                        </dt>
+                        <dd className="text-sm font-medium text-white capitalize">
                           {(
                             selectedClientForForm || selectedClient
-                          ).fitness_level.replace("_", " ")}
-                        </span>
+                          ).metrics.fitness_level.replace("_", " ")}
+                        </dd>
                       </div>
                     )}
-                    {(selectedClientForForm || selectedClient)?.allergies && (
-                      <div className="col-span-2 md:col-span-3">
-                        <span className="text-zinc-500">Allergies:</span>
-                        <span className="text-zinc-300 ml-1">
-                          {(selectedClientForForm || selectedClient).allergies}
-                        </span>
-                      </div>
-                    )}
-                    {(selectedClientForForm || selectedClient)?.food_likes && (
-                      <div className="col-span-2 md:col-span-3">
-                        <span className="text-zinc-500">Food Likes:</span>
-                        <span className="text-zinc-300 ml-1">
-                          {(selectedClientForForm || selectedClient).food_likes}
-                        </span>
-                      </div>
-                    )}
-                    {(selectedClientForForm || selectedClient)
-                      ?.food_dislikes && (
-                      <div className="col-span-2 md:col-span-3">
-                        <span className="text-zinc-500">Food Dislikes:</span>
-                        <span className="text-zinc-300 ml-1">
+
+                    {(selectedClientForForm || selectedClient)?.metrics
+                      ?.allergies && (
+                      <div className="col-span-1 ">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Allergies
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
                           {
-                            (selectedClientForForm || selectedClient)
+                            (selectedClientForForm || selectedClient).metrics
+                              .allergies
+                          }
+                        </dd>
+                      </div>
+                    )}
+
+                    {(selectedClientForForm || selectedClient)?.metrics
+                      ?.food_likes && (
+                      <div className="col-span-1 ">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Food Likes
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
+                          {
+                            (selectedClientForForm || selectedClient).metrics
+                              .food_likes
+                          }
+                        </dd>
+                      </div>
+                    )}
+
+                    {(selectedClientForForm || selectedClient)?.metrics
+                      ?.food_dislikes && (
+                      <div className="col-span-1 ">
+                        <dt className="text-xs text-zinc-400 uppercase tracking-wide">
+                          Food Dislikes
+                        </dt>
+                        <dd className="text-sm font-medium text-white">
+                          {
+                            (selectedClientForForm || selectedClient).metrics
                               .food_dislikes
                           }
-                        </span>
+                        </dd>
                       </div>
                     )}
-                  </div>
-                  <p className="text-xs text-green-400 mt-2">
-                    ✓ This data will be used to personalize the diet plan
-                  </p>
+                  </dl>
                 </div>
               )}
 
@@ -694,4 +741,4 @@ const CreatePlanModal = ({
   );
 };
 
-export default CreatePlanModal;
+export default CreateDietPlanModal;

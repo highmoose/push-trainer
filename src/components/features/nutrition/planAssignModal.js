@@ -33,9 +33,8 @@ const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
   // Hooks
   const { clients, loading: clientsLoading } = useClients();
   const {
-    assignPlanToClients,
-    getPlanClients,
-    removeClientFromPlan,
+    assignPlanToClient,
+    unassignPlanFromClient,
     loading: planLoading,
   } = useDietPlans();
 
@@ -47,23 +46,14 @@ const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
 
   // Load existing assignments when modal opens
   useEffect(() => {
-    const loadExistingAssignments = async () => {
-      if (isOpen && selectedPlan?.id) {
-        setLoadingAssignments(true);
-        try {
-          const existingClients = await getPlanClients(selectedPlan.id);
-          setAssignedClients(existingClients || []);
-        } catch (error) {
-          console.error("Failed to load existing assignments:", error);
-          setAssignedClients([]);
-        } finally {
-          setLoadingAssignments(false);
-        }
+    const loadExistingAssignments = () => {
+      if (isOpen && selectedPlan?.assigned_clients) {
+        setAssignedClients(selectedPlan.assigned_clients || []);
       }
     };
 
     loadExistingAssignments();
-  }, [isOpen, selectedPlan?.id, getPlanClients]);
+  }, [isOpen, selectedPlan?.assigned_clients]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -106,7 +96,7 @@ const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
     ]);
 
     try {
-      await assignPlanToClients(selectedPlan.id, [client.id]);
+      await assignPlanToClient(selectedPlan.id, [client.id]);
 
       // Success - update local state with confirmed data
       setAssignedClients((prev) =>
@@ -137,7 +127,7 @@ const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
     setAssignedClients((prev) => prev.filter((c) => c.id !== client.id));
 
     try {
-      await removeClientFromPlan(selectedPlan.id, client.id);
+      await unassignPlanFromClient(selectedPlan.id, client.id);
 
       // Success - local state already updated optimistically
       console.log(

@@ -55,6 +55,7 @@ export default function NotificationBadge() {
           onPress={handleNotificationClick}
           className="text-zinc-400 hover:text-white"
           title="Notifications"
+          aria-label="Open notifications"
         >
           <Bell size={20} />
         </Button>

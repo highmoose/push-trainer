@@ -241,6 +241,7 @@ export default function NotificationCenter({ isOpen, onClose }) {
                                 onPress={() => markAsRead(notification.id)}
                                 className="text-blue-400 hover:text-blue-300 min-w-unit-6 w-unit-6 h-unit-6"
                                 title="Mark as read"
+                                aria-label="Mark notification as read"
                               >
                                 <Check size={16} />
                               </Button>
@@ -255,6 +256,7 @@ export default function NotificationCenter({ isOpen, onClose }) {
                               }
                               className="text-zinc-500 hover:text-red-400 min-w-unit-6 w-unit-6 h-unit-6"
                               title="Delete notification"
+                              aria-label="Delete notification"
                             >
                               <X size={16} />
                             </Button>

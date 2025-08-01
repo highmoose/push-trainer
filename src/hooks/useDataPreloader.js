@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSelector } from "react-redux";
-import useFetchClients from "./clients/useFetchClients";
-import useFetchDietPlans from "./diet/useFetchDietPlans";
+import useFetchClients from "./clients/api/useFetchClients";
+import useFetchDietPlans from "./diet/api/useFetchDietPlans";
 
 /**
  * Hook for preloading all essential data after user login

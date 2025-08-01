@@ -336,6 +336,7 @@ export default function ClientTopChart({ setSelectedClient }) {
                 variant="bordered"
                 size="sm"
                 className="border-none bg-zinc-800/50 text-zinc-200 data-[hover=true]:border-zinc-500 rounded-none"
+                aria-label="Toggle chart data series visibility"
               >
                 Toggle Data
               </Button>
@@ -386,6 +387,7 @@ export default function ClientTopChart({ setSelectedClient }) {
               }}
               size="sm"
               variant="bordered"
+              aria-label="Select date range for chart"
               classNames={{
                 base: "max-w-xs",
                 trigger:
@@ -422,6 +424,8 @@ export default function ClientTopChart({ setSelectedClient }) {
           height={height}
           className="w-full block"
           style={{ padding: 0, margin: 0, display: "block" }}
+          role="img"
+          aria-label="Client progress chart showing weight, body fat, muscle mass, and endurance over time"
         >
           {/* Define gradients for each line */}
           <defs>

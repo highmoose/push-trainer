@@ -1,13 +1,12 @@
 // Individual action hooks
-export { default as useFetchDietPlans } from "./useFetchDietPlans";
-export { default as useUpdateDietPlan } from "./useUpdateDietPlan";
-export { default as useDeleteDietPlan } from "./useDeleteDietPlan";
-export { default as useAssignDietPlanToClients } from "./useAssignDietPlanToClients";
-export { default as useRemoveClientFromDietPlan } from "./useRemoveClientFromDietPlan";
-export { default as useGetDietPlanClients } from "./useGetDietPlanClients";
-export { default as useGetClientDietPlans } from "./useGetClientDietPlans";
-export { default as useGetDietPlanDetails } from "./useGetDietPlanDetails";
-export { default as useGenerateDietPlan } from "./useGenerateDietPlan";
+export { default as useFetchDietPlans } from "./api/useFetchDietPlans";
+export { default as useUpdateDietPlan } from "./api/useUpdateDietPlan";
+export { default as useDeleteDietPlan } from "./api/useDeleteDietPlan";
+export { default as useAssignDietPlanToClients } from "./api/useAssignDietPlanToClients";
+export { default as useRemoveClientFromDietPlan } from "./api/useRemoveClientFromDietPlan";
+export { default as useGetDietPlanClients } from "./api/useGetDietPlanClients";
+export { default as useGetDietPlanDetails } from "./api/useGetDietPlanDetails";
+export { default as useGenerateDietPlan } from "./api/useGenerateDietPlan";
 
 // Composite hooks
 export { default as useDietPlans } from "./useDietPlans";

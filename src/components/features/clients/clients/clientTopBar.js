@@ -25,6 +25,7 @@ export default function clientTopBar({
             }
             onSelectionChange={handleSelectionChange}
             className="w-[400px]"
+            aria-label="Select a client from the list"
             classNames={{
               trigger: "bg-chip rounded-none border-none h-12",
               value: "text-white",
@@ -54,6 +55,7 @@ export default function clientTopBar({
           <Button
             onClick={() => setAddClientModalOpen(true)}
             className="bg-chip rounded-none h-12 px-6 "
+            aria-label="Add new client"
           >
             <Plus size={16} /> Add Client
           </Button>

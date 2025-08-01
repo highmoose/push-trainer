@@ -8,7 +8,7 @@ import {
   Zap,
   Plus,
 } from "lucide-react";
-import { AvatarGroup, Avatar } from "@heroui/react";
+import { AvatarGroup, Avatar, Tooltip } from "@heroui/react";
 import VSXCalorieChart from "./VSXCalorieChart";
 
 /**
@@ -23,15 +23,6 @@ export const getNutritionTableColumns = (onAssignClick) => [
     className: "w-1/4", // Increased from 20% to 25% of width
     render: (value, row) => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-500/20 to-zinc-600/20 flex items-center justify-center border border-zinc-600/30">
-          <img
-            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-              row.title || "Plan"
-            )}&size=40&background=random&color=fff&format=svg`}
-            alt="Plan"
-            className="w-8 h-8 rounded-full"
-          />
-        </div>
         <div className="min-w-0">
           <div className="font-semibold text-white flex items-center gap-2">
             <span className="truncate">{row.title}</span>
@@ -48,9 +39,9 @@ export const getNutritionTableColumns = (onAssignClick) => [
               </span>
             )}
           </div>
-          <div className="text-sm text-zinc-400 truncate">
+          {/* <div className="text-sm text-zinc-400 truncate">
             {row.client_name || ""}
-          </div>
+          </div> */}
         </div>
       </div>
     ),
@@ -249,51 +240,90 @@ export const getNutritionTableColumns = (onAssignClick) => [
         );
       }
 
-      // For now, we'll show a single assigned user and placeholder for multiple assignments
-      const assignedUsers = [
-        {
-          id: row.client_id || 1,
-          name: value || "Generic",
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            value || "Generic"
-          )}&size=32&background=random&color=fff&format=svg`,
-        },
-      ];
+      // Map over the assigned_clients array to show all assigned users
+      const assignedUsers = (row.assigned_clients || []).map((client) => ({
+        id: client.id,
+        name: client.name,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          client.name
+        )}&size=32&background=random&color=fff&format=svg`,
+        profile_image: client.profile_image,
+      }));
 
       return (
         <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent row click
-              onAssignClick(row); // Pass the row data
-            }}
-            className="flex items-center justify-center bg-black/20 hover:bg-black/40 h-10 w-10 rounded-full mr-2 "
-          >
-            <Plus className=" text-white/50" size={20} />
-          </button>
-          <AvatarGroup
-            isBordered
-            max={3}
-            size="sm"
-            classNames={{
-              base: "gap-2",
-              count: "text-xs bg-zinc-700 text-zinc-300",
-            }}
-          >
-            {assignedUsers.map((user) => (
-              <Avatar
-                key={user.id}
-                src={user.avatar}
-                alt={user.name}
+          {assignedUsers.length > 0 ? (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent row click
+                  onAssignClick(row); // Pass the row data
+                }}
+                aria-label="Assign additional clients to plan"
+                className="flex items-center justify-center bg-black/20 hover:bg-black/40 h-10 w-10 rounded-full mr-2 "
+              >
+                <Plus className=" text-white/50" size={20} />
+              </button>
+              <AvatarGroup
+                isBordered
+                max={3}
                 size="sm"
-                className="w-6 h-6"
-              />
-            ))}
-          </AvatarGroup>
-          {assignedUsers.length > 3 && (
-            <span className="text-zinc-400 text-xs">
-              +{assignedUsers.length - 3}
-            </span>
+                classNames={{
+                  base: "gap-1",
+                  count: "text-xs bg-zinc-700 text-zinc-300",
+                }}
+              >
+                {console.log("Assigned Users:", assignedUsers)}
+                {assignedUsers.map((user) =>
+                  user.profile_image ? (
+                    <Tooltip
+                      content={user.name}
+                      key={user.id}
+                      classNames={{
+                        content: "whitespace-nowrap",
+                      }}
+                    >
+                      <Avatar
+                        src={user.profile_image}
+                        alt={user.name}
+                        size="sm"
+                        className="w-8 h-8"
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip
+                      content={user.name}
+                      key={user.id}
+                      classNames={{
+                        content: "whitespace-nowrap",
+                      }}
+                    >
+                      <Avatar
+                        src={user.avatar}
+                        alt={user.name}
+                        size="sm"
+                        className="w-8 h-8"
+                      />
+                    </Tooltip>
+                  )
+                )}
+              </AvatarGroup>
+            </>
+          ) : (
+            <>
+              {" "}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent row click
+                  onAssignClick(row); // Pass the row data
+                }}
+                aria-label="Assign clients to plan"
+                className="flex items-center justify-center bg-black/20 hover:bg-black/40 h-10 w-10 rounded-full mr-2 "
+              >
+                <Plus className=" text-white/50" size={20} />
+              </button>
+              <span className="text-zinc-400 text-sm">No assignments</span>
+            </>
           )}
         </div>
       );

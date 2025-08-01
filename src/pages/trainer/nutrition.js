@@ -3,14 +3,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useClients } from "@/hooks/clients";
 import { useDietPlans } from "@/hooks/diet";
-import useFetchDietPlans from "@/hooks/diet/useFetchDietPlans";
-import useUpdateDietPlan from "@/hooks/diet/useUpdateDietPlan";
-import useDeleteDietPlan from "@/hooks/diet/useDeleteDietPlan";
-import useGetDietPlanDetails from "@/hooks/diet/useGetDietPlanDetails";
 import ConfirmationModal from "@/common/ConfirmationModal";
 import { DataTable } from "@/common/tables";
-import CreatePlanModal from "@/features/nutrition/CreatePlanModal";
-import PlanDetailsModal from "@/features/nutrition/PlanDetailsModal";
+import CreateDietPlanModal from "@/features/nutrition/CreateDietPlanModal";
+import ViewDietPlanModal from "@/features/nutrition/ViewDietPlanModal";
 import NutritionHeroSection from "@/features/nutrition/NutritionHeroSection";
 import NutritionSearchFilters from "@/features/nutrition/NutritionSearchFilters";
 import { getNutritionTableColumns } from "@/features/nutrition/NutritionTableColumns";
@@ -18,6 +14,7 @@ import {
   filterAndSortPlans,
   clearAllFilters,
 } from "@/features/nutrition/nutritionUtils";
+import { addToast } from "@heroui/toast";
 import { set } from "date-fns";
 import PlanAssignModal from "@/src/components/features/nutrition/planAssignModal";
 
@@ -39,13 +36,11 @@ export default function Nutrition() {
     loading: dietPlansLoading,
     error: dietPlansError,
     generateDietPlanWithPlaceholder,
+    updateDietPlan,
+    deleteDietPlan,
+    fetchDietPlans,
+    fetchPlanDetails,
   } = useDietPlans();
-
-  // Individual action hooks
-  const fetchDietPlansAction = useFetchDietPlans();
-  const updateDietPlanAction = useUpdateDietPlan();
-  const deleteDietPlanAction = useDeleteDietPlan();
-  const getDietPlanDetailsAction = useGetDietPlanDetails();
 
   // Use real diet plans data only - ensure it's always an array
   const activeDietPlans = Array.isArray(dietPlans) ? dietPlans : [];
@@ -112,20 +107,21 @@ export default function Nutrition() {
     }
     try {
       // Fetch full plan details from API which includes client_metrics
-      const result = await getDietPlanDetailsAction.execute(plan.id);
+      const result = await fetchPlanDetails(plan.id);
 
       if (result.success) {
         setPlanDetails(result.data);
         setShowPlanDetailModal(true);
       } else {
-        console.error("Failed to fetch plan details:", result.error);
-        // Fallback to using the plan data we have
         setPlanDetails(plan);
         setShowPlanDetailModal(true);
       }
     } catch (error) {
-      console.error("Failed to fetch plan details:", error);
-      // Fallback to using the plan data we have
+      addToast({
+        title: "Error",
+        description: "Failed to fetch plan details",
+        variant: "error",
+      });
       setPlanDetails(plan);
       setShowPlanDetailModal(true);
     }
@@ -136,25 +132,36 @@ export default function Nutrition() {
     setPlanToDelete(plan);
     setShowDeleteModal(true);
   };
+
   // Handle confirmed deletion
   const handleConfirmDelete = async () => {
     if (!planToDelete) return;
 
+    // Close modal immediately for instant feedback
+    setShowDeleteModal(false);
+    setPlanToDelete(null);
+
     try {
-      const result = await deleteDietPlanAction.execute(planToDelete.id);
+      const result = await deleteDietPlan(planToDelete.id);
 
       if (result.success) {
-        console.log("Diet plan deleted successfully:", planToDelete.id);
-        // Close modal and reset state
-        setShowDeleteModal(false);
-        setPlanToDelete(null);
+        addToast({
+          title: "Success",
+          description: "Diet plan deleted successfully",
+        });
       } else {
-        console.error("Error deleting diet plan:", result.error);
-        // Handle error appropriately - maybe show a toast notification
+        addToast({
+          title: "Error",
+          description: result.error || "Failed to delete diet plan",
+          variant: "error",
+        });
       }
     } catch (error) {
-      console.error("Error deleting diet plan:", error);
-      // Handle error appropriately - maybe show a toast notification
+      addToast({
+        title: "Error",
+        description: result.error || "Failed to delete diet plan",
+        variant: "error",
+      });
     }
   };
 
@@ -202,7 +209,7 @@ export default function Nutrition() {
             <DataTable
               data={displayPlans}
               columns={tableColumns}
-              loading={fetchDietPlansAction.loading || dietPlansLoading}
+              loading={dietPlansLoading}
               emptyMessage="No nutrition plans found"
               emptyDescription="Create your first AI-powered nutrition plan to help your clients achieve their health goals"
               viewMode={viewMode}
@@ -235,7 +242,7 @@ export default function Nutrition() {
         </div>
       </div>{" "}
       {/* Create Plan Modal */}
-      <CreatePlanModal
+      <CreateDietPlanModal
         isOpen={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
@@ -247,7 +254,7 @@ export default function Nutrition() {
         generateDietPlanWithPlaceholder={generateDietPlanWithPlaceholder}
       />
       {/* Plan Details Modal */}
-      <PlanDetailsModal
+      <ViewDietPlanModal
         isOpen={showPlanDetailModal}
         onClose={() => {
           setShowPlanDetailModal(false);

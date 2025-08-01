@@ -169,6 +169,13 @@ const authSlice = createSlice({
       state.status = "idle";
       state.error = null;
     },
+    updateUser: (state, action) => {
+      if (state.user && action.payload) {
+        state.user = { ...state.user, ...action.payload };
+        localStorage.setItem("user", JSON.stringify(state.user));
+        localStorage.setItem("lastActivity", Date.now().toString());
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -265,5 +272,6 @@ export const {
   updateActivity,
   setSessionExpired,
   resetAuthStatus,
+  updateUser,
 } = authSlice.actions;
 export default authSlice.reducer;

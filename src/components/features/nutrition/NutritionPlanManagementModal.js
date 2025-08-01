@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   X,
   Utensils,
@@ -15,93 +15,43 @@ import {
   Trash2,
 } from "lucide-react";
 import { Select, SelectItem } from "@heroui/react";
-import PlanDetailsModal from "./PlanDetailsModal";
+import ViewDietPlanModal from "./ViewDietPlanModal";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
-import { useGetClientDietPlans } from "@/hooks/diet";
-import { useRemoveClientFromDietPlan } from "@/hooks/diet";
-import { useDeleteDietPlan } from "@/hooks/diet";
-import { useGetDietPlanDetails } from "@/hooks/diet";
-import axios from "@/lib/axios";
+import useClientDietPlans from "@/hooks/clientDietPlans";
+import { useDietPlans } from "@/hooks/diet";
 
-const NutritionPlanManagementModal = ({
-  isOpen,
-  onClose,
-  client,
-  clientNutritionPlansHookData,
-}) => {
-  // Ensure we have all required data
-  if (!clientNutritionPlansHookData) {
-    console.error(
-      "NutritionPlanManagementModal: clientNutritionPlansHookData is required"
-    );
-    return null;
-  }
-
-  // Use the useDietPlans hook directly
+const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
+  // Use the enhanced client diet plans hook with internal state management
   const {
-    assignPlanToClients,
-    getPlanClients,
-    removeClientFromPlan,
-    getClientDietPlans,
-    fetchPlanDetails,
-    deleteDietPlan,
-    loading: planLoading,
-  } = useDietPlans();
-
-  // Use the hook data passed as props for client nutrition plans
-  const {
-    plans: clientPlans,
+    clientPlans,
     activePlan,
     loading,
     error,
-    setAsActive,
+    activatePlan,
     deactivatePlan,
-    refresh,
-  } = clientNutritionPlansHookData;
+    refetch,
+  } = useClientDietPlans(client?.id);
 
-  // State for managing assigned diet plans for this client
-  const [assignedDietPlans, setAssignedDietPlans] = useState([]);
-  const [loadingAssignedPlans, setLoadingAssignedPlans] = useState(false);
+  // Use the diet plans hook for fetching plan details
+  const { fetchPlanDetails } = useDietPlans();
 
+  // Local state for UI management
   const [actionLoading, setActionLoading] = useState(null);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // Plan details modal state
-  const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
+  // View diet plan modal state
+  const [showViewDietPlanModal, setShowViewDietPlanModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
-
-  console.log("selectedPlanDetails:", selectedPlanDetails);
   const [loadingPlanDetails, setLoadingPlanDetails] = useState(null);
 
-  // Delete confirmation modal state
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [planToDelete, setPlanToDelete] = useState(null);
+  console.log("Client Plans:", clientPlans);
 
-  // Function to fetch assigned diet plans for the client
-  const fetchAssignedDietPlans = async (clientId) => {
-    setLoadingAssignedPlans(true);
-    try {
-      console.log("Fetching assigned diet plans for client:", clientId);
-
-      // Use the hook method for consistency and caching
-      const assignedPlans = await getClientDietPlans(clientId);
-
-      console.log("Fetched assigned diet plans:", assignedPlans);
-      setAssignedDietPlans(assignedPlans);
-    } catch (error) {
-      console.error("Error fetching assigned diet plans:", error);
-      setAssignedDietPlans([]);
-    } finally {
-      setLoadingAssignedPlans(false);
-    }
-  };
-
-  // Memoized sorted plans for better performance - now using assigned diet plans
+  // Memoized sorted plans for better performance
   const sortedPlans = useMemo(() => {
-    if (!assignedDietPlans || assignedDietPlans.length === 0) return [];
+    if (!clientPlans || clientPlans.length === 0) return [];
 
-    return [...assignedDietPlans].sort((a, b) => {
+    return [...clientPlans].sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
 
@@ -123,33 +73,18 @@ const NutritionPlanManagementModal = ({
         return aValue < bValue ? 1 : -1;
       }
     });
-  }, [assignedDietPlans, sortBy, sortOrder]);
+  }, [clientPlans, sortBy, sortOrder]);
 
-  // Load data when modal first opens or client changes
-  useEffect(() => {
-    if (isOpen && client?.id) {
-      // Refresh client nutrition plans
-      const hasNoClientPlans = !clientPlans || clientPlans.length === 0;
-      if (hasNoClientPlans) {
-        refresh();
-      }
-
-      // Fetch assigned diet plans
-      fetchAssignedDietPlans(client.id);
-    }
-  }, [isOpen, client?.id, refresh]);
-
+  // Handlers for plan actions
   const handleActivatePlan = async (planId) => {
     try {
       setActionLoading(planId);
-      const result = await setAsActive(planId);
-
-      if (!result.success) {
-        console.error("Failed to activate plan:", result.error);
-        // Error handling could be improved here with toast notifications
-      }
+      console.log("Activating plan:", planId);
+      await activatePlan(planId);
+      console.log("Plan activated successfully");
     } catch (error) {
       console.error("Error activating plan:", error);
+      // You might want to show an error toast here
     } finally {
       setActionLoading(null);
     }
@@ -158,14 +93,12 @@ const NutritionPlanManagementModal = ({
   const handleDeactivatePlan = async () => {
     try {
       setActionLoading("deactivate");
-      const result = await deactivatePlan();
-
-      if (!result.success) {
-        console.error("Failed to deactivate plan:", result.error);
-        // Error handling could be improved here with toast notifications
-      }
+      console.log("Deactivating current plan");
+      await deactivatePlan();
+      console.log("Plan deactivated successfully");
     } catch (error) {
       console.error("Error deactivating plan:", error);
+      // You might want to show an error toast here
     } finally {
       setActionLoading(null);
     }
@@ -176,12 +109,16 @@ const NutritionPlanManagementModal = ({
       console.log("Viewing plan details for ID:", planId);
       setLoadingPlanDetails(planId);
 
-      const planDetails = await fetchPlanDetails(planId);
-      console.log("Plan details response:", planDetails);
+      const result = await fetchPlanDetails(planId);
+      console.log("Plan details response:", result);
 
-      setSelectedPlanDetails(planDetails);
-      setShowPlanDetailsModal(true);
-      console.log("Plan details modal should be open", planDetails);
+      if (result.success) {
+        setSelectedPlanDetails(result.data);
+        setShowViewDietPlanModal(true);
+        console.log("Plan details modal should be open", result.data);
+      } else {
+        console.error("Failed to fetch plan details:", result.error);
+      }
     } catch (error) {
       console.error("Error fetching plan details:", error);
     } finally {
@@ -190,55 +127,8 @@ const NutritionPlanManagementModal = ({
   };
 
   const handleClosePlanDetails = () => {
-    setShowPlanDetailsModal(false);
+    setShowViewDietPlanModal(false);
     setSelectedPlanDetails(null);
-  };
-
-  const handleDeletePlanClick = (plan) => {
-    setPlanToDelete(plan);
-    setShowDeleteConfirmation(true);
-  };
-
-  const handleCloseDeleteConfirmation = () => {
-    setShowDeleteConfirmation(false);
-    setPlanToDelete(null);
-  };
-
-  const handleRemoveFromClient = async (planId) => {
-    try {
-      setActionLoading(`remove-${planId}`);
-      await removeClientFromPlan(planId, client.id);
-
-      // Refresh the assigned diet plans to reflect the removal
-      await fetchAssignedDietPlans(client.id);
-
-      // Also refresh client nutrition plans in case this was the active plan
-      refresh();
-    } catch (error) {
-      console.error("Error removing plan from client:", error);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!planToDelete) return;
-
-    try {
-      setActionLoading(planToDelete.id);
-      await deleteDietPlan(planToDelete.id);
-
-      // Refresh both the client plans and assigned diet plans to reflect the deletion
-      refresh();
-      await fetchAssignedDietPlans(client.id);
-
-      // Close the confirmation modal
-      handleCloseDeleteConfirmation();
-    } catch (error) {
-      console.error("Error deleting plan:", error);
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   const formatDate = (dateString) => {
@@ -296,7 +186,7 @@ const NutritionPlanManagementModal = ({
   if (!isOpen) return null;
 
   console.log("NutritionPlanManagementModal state:", {
-    showPlanDetailsModal,
+    showViewDietPlanModal,
     selectedPlanDetails: !!selectedPlanDetails,
     loadingPlanDetails,
   });
@@ -427,7 +317,7 @@ const NutritionPlanManagementModal = ({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Utensils className="w-5 h-5 text-orange-400" />
-                Assigned Diet Plans ({sortedAvailablePlans.length})
+                Client Diet Plans ({sortedAvailablePlans.length})
               </h3>
 
               <div className="min-w-[200px]">
@@ -468,7 +358,7 @@ const NutritionPlanManagementModal = ({
 
             {/* Scrollable Plans List */}
             <div className="flex-1 overflow-y-auto pr-2 -mr-2">
-              {loading || loadingAssignedPlans ? (
+              {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
                   <p className="text-zinc-500">Loading plans...</p>
@@ -477,12 +367,10 @@ const NutritionPlanManagementModal = ({
                 <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg p-6 text-center">
                   <User className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
                   <p className="text-zinc-400">
-                    No available diet plans assigned
+                    No diet plans assigned to this client
                   </p>
                   <p className="text-sm text-zinc-500 mt-1">
-                    {activePlan
-                      ? "All assigned diet plans are either active or none exist"
-                      : "Assign diet plans to this client to manage them here"}
+                    Assign diet plans to this client to manage them here
                   </p>
                 </div>
               ) : (
@@ -549,32 +437,6 @@ const NutritionPlanManagementModal = ({
                               : "View Plan"}
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveFromClient(plan.id);
-                            }}
-                            disabled={actionLoading === `remove-${plan.id}`}
-                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                          >
-                            <X className="w-3 h-3" />
-                            {actionLoading === `remove-${plan.id}`
-                              ? "Removing..."
-                              : "Remove"}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeletePlanClick(plan);
-                            }}
-                            disabled={actionLoading === plan.id}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            {actionLoading === plan.id
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
-                          <button
                             onClick={() => handleActivatePlan(plan.id)}
                             disabled={actionLoading === plan.id}
                             className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
@@ -604,29 +466,12 @@ const NutritionPlanManagementModal = ({
         </div>
       </div>
 
-      {/* Plan Details Modal */}
-      <PlanDetailsModal
-        isOpen={showPlanDetailsModal}
+      {/* View Diet Plan Modal */}
+      <ViewDietPlanModal
+        isOpen={showViewDietPlanModal}
         onClose={handleClosePlanDetails}
         planDetails={selectedPlanDetails}
         zIndex="z-[60]"
-      />
-
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showDeleteConfirmation}
-        onClose={handleCloseDeleteConfirmation}
-        onConfirm={handleConfirmDelete}
-        title="Delete Nutrition Plan"
-        message={
-          planToDelete
-            ? `Are you sure you want to delete "${planToDelete.title}"? This action cannot be undone and will remove the plan from all clients.`
-            : "Are you sure you want to delete this nutrition plan?"
-        }
-        confirmText="Delete Plan"
-        cancelText="Cancel"
-        variant="danger"
-        isLoading={planToDelete && actionLoading === planToDelete.id}
       />
     </div>
   );

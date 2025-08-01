@@ -1,31 +1,26 @@
 import { useState, useCallback } from "react";
 import axios from "@/lib/axios";
 
-const useAssignDietPlanToClients = () => {
+const useGetClientDietPlans = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const execute = useCallback(async (planId, clientIds) => {
+  const execute = useCallback(async (clientId) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post(
-        `/api/diet-plans/${planId}/assign-clients`,
-        {
-          client_ids: clientIds,
-        }
-      );
+      const response = await axios.get(`/api/diet-plans/client/${clientId}`);
       setLoading(false);
       return {
         success: true,
-        data: response.data,
+        data: response.data.data || response.data,
       };
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
         err.message ||
-        "Failed to assign diet plan to clients";
+        "Failed to get client diet plans";
       setError(errorMessage);
       setLoading(false);
       return {
@@ -42,4 +37,4 @@ const useAssignDietPlanToClients = () => {
   };
 };
 
-export default useAssignDietPlanToClients;
+export default useGetClientDietPlans;

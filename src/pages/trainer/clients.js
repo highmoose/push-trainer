@@ -45,8 +45,15 @@ export default function Clients() {
   return (
     <div className=" flex-1 w-full ">
       {loading || !isInitialized ? (
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+        <div
+          className="flex items-center justify-center h-screen"
+          role="status"
+          aria-live="polite"
+        >
+          <div
+            className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full"
+            aria-hidden="true"
+          ></div>
           <p className="ml-3 text-zinc-400">Loading clients...</p>
         </div>
       ) : (

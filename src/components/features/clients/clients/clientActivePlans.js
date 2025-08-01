@@ -2,7 +2,7 @@
 import { Clock, Dumbbell, Utensils, Settings } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import NutritionPlanManagementModal from "@/features/nutrition/NutritionPlanManagementModal";
-import { useGetClientDietPlans } from "@/hooks/diet";
+import useClientDietPlans from "@/hooks/clientDietPlans";
 
 // Progress bar component that calculates percentage based on dates
 const ProgressBar = ({ startDate, endDate }) => {
@@ -58,41 +58,37 @@ const ProgressBar = ({ startDate, endDate }) => {
 export default function ClientActivePlans({ selectedClient }) {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
 
-  // Get client's diet plans using single-action hook
-  const clientDietPlansHook = useGetClientDietPlans();
+  // Use the dedicated client diet plans hook
+  const { fetchClientDietPlans, loading } = useClientDietPlans();
   const [activePlan, setActivePlan] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   // Load client's diet plans when selectedClient changes
   useEffect(() => {
     if (selectedClient?.id) {
-      setLoading(true);
-      clientDietPlansHook
-        .execute(selectedClient.id)
+      fetchClientDietPlans(selectedClient.id)
         .then((result) => {
           if (result.success) {
-            // Find the active plan (for now just take the first one)
-            const active =
-              result.data?.find((plan) => plan.is_active) ||
-              result.data?.[0] ||
-              null;
+            // Find the active plan
+            const active = result.data?.find((plan) => plan.is_active) || null;
             setActivePlan(active);
           }
         })
-        .finally(() => setLoading(false));
+        .catch((error) => {
+          console.error("Error fetching client diet plans:", error);
+        });
+    } else {
+      // Clear state if no client selected
+      setActivePlan(null);
     }
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, fetchClientDietPlans]);
 
   const handleNutritionModalClose = () => {
     setShowNutritionModal(false);
     // Refresh client's diet plans after modal closes
     if (selectedClient?.id) {
-      clientDietPlansHook.execute(selectedClient.id).then((result) => {
+      fetchClientDietPlans(selectedClient.id).then((result) => {
         if (result.success) {
-          const active =
-            result.data?.find((plan) => plan.is_active) ||
-            result.data?.[0] ||
-            null;
+          const active = result.data?.find((plan) => plan.is_active) || null;
           setActivePlan(active);
         }
       });

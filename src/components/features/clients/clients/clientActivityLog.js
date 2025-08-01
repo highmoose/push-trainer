@@ -85,7 +85,9 @@ export default function ClientActivityLog({ selectedClient }) {
           </div>
 
           <div className="flex w-full justify-start mt-6">
-            <Button variant="secondary">View activity details</Button>
+            <Button variant="secondary" aria-label="View detailed activity log">
+              View activity details
+            </Button>
           </div>
         </>
       )}

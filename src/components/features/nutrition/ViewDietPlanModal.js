@@ -660,18 +660,11 @@ const MealDisplay = ({
 
 // Macro Display Component
 const MacroDisplay = ({ currentMeal }) => (
-  console.log("Current Meal Macros:", currentMeal),
-  (
-    <div className="flex items-center gap-6">
-      <MacroItem
-        color="blue"
-        label="Protein"
-        value={`${currentMeal.protein}g`}
-      />
-      <MacroItem color="green" label="Carbs" value={`${currentMeal.carbs}g`} />
-      <MacroItem color="yellow" label="Fats" value={`${currentMeal.fats}g`} />
-    </div>
-  )
+  <div className="flex items-center gap-6">
+    <MacroItem color="blue" label="Protein" value={`${currentMeal.protein}g`} />
+    <MacroItem color="green" label="Carbs" value={`${currentMeal.carbs}g`} />
+    <MacroItem color="yellow" label="Fats" value={`${currentMeal.fats}g`} />
+  </div>
 );
 
 // Macro Item Component
@@ -893,7 +886,7 @@ const AdditionalNotes = ({ notes }) => (
 );
 
 // Main Modal Component
-const PlanDetailsModal = ({
+const ViewDietPlanModal = ({
   isOpen,
   onClose,
   planDetails,
@@ -903,7 +896,7 @@ const PlanDetailsModal = ({
 
   if (!isOpen || !planDetails) return null;
 
-  console.log("Rendering PlanDetailsModal with planDetails:", planDetails);
+  console.log("Rendering ViewDietPlanModal with planDetails:", planDetails);
 
   return (
     <div
@@ -977,4 +970,4 @@ const TabNavigation = ({ activeTab, setActiveTab }) => (
   </div>
 );
 
-export default PlanDetailsModal;
+export default ViewDietPlanModal;

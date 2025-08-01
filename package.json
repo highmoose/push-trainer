@@ -13,6 +13,7 @@
   "dependencies": {
     "@heroui/react": "^2.7.11",
     "@heroui/theme": "^2.4.17",
+    "@heroui/toast": "^2.0.14",
     "@reduxjs/toolkit": "^2.7.0",
     "@visx/tooltip": "^3.12.0",
     "@visx/visx": "^3.12.0",

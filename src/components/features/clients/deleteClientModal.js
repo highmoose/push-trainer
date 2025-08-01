@@ -88,6 +88,7 @@ export default function DeleteClientConfirmationModal({
             variant="light"
             onPress={close}
             className="text-zinc-400 hover:text-white"
+            aria-label="Cancel client deletion"
           >
             Cancel
           </Button>
@@ -96,6 +97,7 @@ export default function DeleteClientConfirmationModal({
             onPress={handleDeleteClient}
             isDisabled={!isMatch}
             className="font-bold"
+            aria-label="Confirm delete client"
           >
             Delete Client
           </Button>

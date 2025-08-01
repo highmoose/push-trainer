@@ -315,6 +315,8 @@ export default function ClientTimeline({ selectedClient }) {
       className={`bg-zinc-900 h-full transition-all duration-700 relative rounded-3xl overflow-hidden  ${
         expandTimeline ? "w-1/3" : "w-[100px]"
       }`}
+      role="region"
+      aria-label="Client timeline"
     >
       {/* Timeline Content */}
       <div
@@ -324,6 +326,10 @@ export default function ClientTimeline({ selectedClient }) {
         } ${isDragging ? "cursor-grabbing" : ""}`}
         style={{ transform: `translateY(${-scrollOffset}px)` }}
         onMouseDown={handleMouseDown}
+        role="scrollbar"
+        aria-orientation="vertical"
+        aria-label="Timeline scroll area"
+        tabIndex={expandTimeline ? 0 : -1}
       >
         {loading ? (
           <div className="flex justify-center py-4">

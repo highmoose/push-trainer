@@ -16,25 +16,39 @@ export const filterAndSortPlans = (
 
   // Apply search filter
   if (searchTerm) {
-    filteredPlans = filteredPlans.filter(
-      (plan) =>
-        plan.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        plan.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const searchLower = searchTerm.toLowerCase();
+    filteredPlans = filteredPlans.filter((plan) => {
+      // Search in plan title
+      const titleMatch = plan.title?.toLowerCase().includes(searchLower);
+
+      // Search in assigned client names
+      const clientMatch = plan.assigned_clients?.some((client) =>
+        client.name?.toLowerCase().includes(searchLower)
+      );
+
+      // Also check legacy client_name field for backward compatibility
+      const legacyClientMatch = plan.client_name
+        ?.toLowerCase()
+        .includes(searchLower);
+
+      return titleMatch || clientMatch || legacyClientMatch;
+    });
   }
 
   // Apply client filter
   if (clientFilter) {
     if (clientFilter === "template") {
-      // Show only plans without clients (template plans)
-      filteredPlans = filteredPlans.filter((plan) => !plan.client_id);
+      // Show only plans without assigned clients (template plans)
+      filteredPlans = filteredPlans.filter(
+        (plan) => !plan.assigned_clients || plan.assigned_clients.length === 0
+      );
     } else {
-      // Show plans for specific client
+      // Show plans assigned to specific client
+      const targetClientId = parseInt(clientFilter);
       filteredPlans = filteredPlans.filter(
         (plan) =>
-          plan.client_id === parseInt(clientFilter) ||
-          (plan.client_name &&
-            plan.client_name.toLowerCase().includes(clientFilter.toLowerCase()))
+          plan.assigned_clients &&
+          plan.assigned_clients.some((client) => client.id === targetClientId)
       );
     }
   }

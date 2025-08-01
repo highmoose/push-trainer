@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import useFetchDietPlans from "./useFetchDietPlans";
-import useUpdateDietPlan from "./useUpdateDietPlan";
-import useDeleteDietPlan from "./useDeleteDietPlan";
-import useGetDietPlanDetails from "./useGetDietPlanDetails";
-import useGenerateDietPlan from "./useGenerateDietPlan";
+import useFetchDietPlans from "./api/useFetchDietPlans";
+import useUpdateDietPlan from "./api/useUpdateDietPlan";
+import useDeleteDietPlan from "./api/useDeleteDietPlan";
+import useGetDietPlanDetails from "./api/useGetDietPlanDetails";
+import useGenerateDietPlan from "./api/useGenerateDietPlan";
+import useAssignDietPlanToClients from "./api/useAssignDietPlanToClients";
+import useGetClientDietPlans from "../clientDietPlans/api/useGetClientDietPlans";
+import useUnassignDietPlanFromClient from "./api/useUnassignDietPlanFromClient";
+import { addToast } from "@heroui/toast";
 
 // Global cache for diet plans with optimistic updates
 const dietPlansCache = new Map();
@@ -13,18 +17,31 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let globalRefreshTrigger = 0;
 const refreshListeners = new Set();
 
+// Global fetch state to prevent concurrent fetches
+let isGloballyFetching = false;
+
+// Global data listeners for syncing across hook instances
+const dataListeners = new Set();
+
 const triggerGlobalRefresh = () => {
   globalRefreshTrigger++;
   refreshListeners.forEach((listener) => listener(globalRefreshTrigger));
 };
 
+const triggerGlobalDataSync = (data) => {
+  dataListeners.forEach((listener) => listener(data));
+};
+
 const useDietPlans = () => {
+  // State management
   const [dietPlans, setDietPlans] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [generatingPlans, setGeneratingPlans] = useState([]); // Track generating plans separately
   const fetchDietPlansRef = useRef(); // Ref to avoid stale closure issues
+  const getClientDietPlansRef = useRef(); // Ref for getClientDietPlans to avoid stale closure
 
   // Individual action hooks
   const fetchAction = useFetchDietPlans();
@@ -32,6 +49,9 @@ const useDietPlans = () => {
   const deleteAction = useDeleteDietPlan();
   const detailsAction = useGetDietPlanDetails();
   const generateAction = useGenerateDietPlan();
+  const assignAction = useAssignDietPlanToClients();
+  const unassignAction = useUnassignDietPlanFromClient();
+  const getClientDietPlansAction = useGetClientDietPlans();
 
   // Cache management
   const getCacheKey = () => "diet_plans";
@@ -57,34 +77,39 @@ const useDietPlans = () => {
   // Fetch diet plans
   const fetchDietPlans = useCallback(
     async (forceRefresh = false) => {
-      console.log("🌐 fetchDietPlans called, forceRefresh:", forceRefresh);
-
       const cacheKey = getCacheKey();
       const cached = dietPlansCache.get(cacheKey);
 
       if (!forceRefresh && isCacheValid(cached)) {
         const data = Array.isArray(cached.data) ? cached.data : [];
-        console.log("📦 Using cached data:", data.length, "plans");
         setDietPlans(data);
         return { success: true, data };
       }
 
-      console.log("🔄 Fetching fresh data from API...");
+      // Prevent concurrent fetches from multiple hook instances
+      if (isGloballyFetching && !forceRefresh) {
+        console.log("Fetch already in progress, will receive data via sync...");
+        return { success: true, data: dietPlans };
+      }
+
+      isGloballyFetching = true;
       setLoading(true);
       const result = await fetchAction.execute();
 
       if (result.success) {
         const data = Array.isArray(result.data) ? result.data : [];
-        console.log("✅ Fresh data received:", data.length, "plans");
         setDietPlans(data);
         setCacheItem(data);
         setError(null);
+
+        // Sync data to all hook instances
+        triggerGlobalDataSync(data);
       } else {
-        console.log("❌ Failed to fetch data:", result.error);
         setError(result.error);
       }
 
       setLoading(false);
+      isGloballyFetching = false;
       return result;
     },
     [fetchAction]
@@ -93,47 +118,7 @@ const useDietPlans = () => {
   // Keep ref updated
   fetchDietPlansRef.current = fetchDietPlans;
 
-  // Create diet plan with optimistic update
-  const createDietPlan = useCallback(
-    async (planData) => {
-      const optimisticPlan = {
-        id: `temp_${Date.now()}`,
-        ...planData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // Optimistic update
-      setDietPlans((prev) => [optimisticPlan, ...prev]);
-      setCacheItem([optimisticPlan, ...dietPlans]);
-
-      const result = await createAction.execute(planData);
-
-      if (result.success) {
-        // Replace optimistic with real data
-        setDietPlans((prev) =>
-          prev.map((plan) =>
-            plan.id === optimisticPlan.id ? result.data : plan
-          )
-        );
-        setCacheItem(
-          dietPlans.map((plan) =>
-            plan.id === optimisticPlan.id ? result.data : plan
-          )
-        );
-        triggerGlobalRefresh();
-      } else {
-        // Revert optimistic update
-        setDietPlans((prev) =>
-          prev.filter((plan) => plan.id !== optimisticPlan.id)
-        );
-        setCacheItem(dietPlans.filter((plan) => plan.id !== optimisticPlan.id));
-      }
-
-      return result;
-    },
-    [createAction, dietPlans]
-  );
+  // Note: createDietPlan removed - use generateDietPlanWithPlaceholder instead
 
   // Update diet plan with optimistic update
   const updateDietPlan = useCallback(
@@ -149,12 +134,14 @@ const useDietPlans = () => {
       const result = await updateAction.execute(planId, updates);
 
       if (result.success) {
-        setDietPlans((prev) =>
-          prev.map((plan) => (plan.id === planId ? result.data : plan))
-        );
-        setCacheItem(
-          dietPlans.map((plan) => (plan.id === planId ? result.data : plan))
-        );
+        setDietPlans((prev) => {
+          const updatedPlans = prev.map((plan) =>
+            plan.id === planId ? result.data : plan
+          );
+          // Update cache with the current data
+          setCacheItem(updatedPlans);
+          return updatedPlans;
+        });
         triggerGlobalRefresh();
       } else {
         // Revert optimistic update
@@ -172,38 +159,39 @@ const useDietPlans = () => {
     async (planId) => {
       // Optimistic update
       const originalPlans = [...dietPlans];
-      setDietPlans((prev) => prev.filter((plan) => plan.id !== planId));
-      setCacheItem(dietPlans.filter((plan) => plan.id !== planId));
+      setDietPlans((prev) => {
+        const filteredPlans = prev.filter((plan) => plan.id !== planId);
+        // Update cache with the filtered data
+        setCacheItem(filteredPlans);
+        return filteredPlans;
+      });
 
       const result = await deleteAction.execute(planId);
 
-      if (result.success) {
-        triggerGlobalRefresh();
-      } else {
-        // Revert optimistic update
+      if (!result.success) {
+        // Revert optimistic update only if deletion failed
         setDietPlans(originalPlans);
         setCacheItem(originalPlans);
       }
+      // No need to triggerGlobalRefresh() for successful deletes since
+      // the optimistic update already handled the UI change
 
       return result;
     },
     [deleteAction, dietPlans]
   );
 
-  // Generate diet plan
-  const generateDietPlan = useCallback(
-    async (clientId, preferences) => {
-      return generateAction.execute(clientId, preferences);
-    },
-    [generateAction]
-  );
-
   // Generate diet plan with placeholder
   const generateDietPlanWithPlaceholder = useCallback(
     async (clientId, preferences) => {
-      console.log("🚀 Starting generation with placeholder");
-
       // Create optimistic placeholder
+
+      console.log(
+        "Generating diet plan with placeholder for client:",
+        clientId,
+        "with preferences:",
+        preferences
+      );
       const placeholderPlan = {
         id: `generating_${Date.now()}`,
         title: preferences.title || "Generating Plan...",
@@ -220,56 +208,31 @@ const useDietPlans = () => {
         updated_at: new Date().toISOString(),
       };
 
-      console.log("📝 Adding placeholder directly to dietPlans");
-      // Add placeholder directly to diet plans list
       setDietPlans((prev) => {
         const newList = [placeholderPlan, ...prev];
-        console.log(
-          "✅ DietPlans updated with placeholder, count:",
-          newList.length
-        );
-        // Don't update cache with placeholder
+        // Update cache with placeholder immediately for consistent state
+        setCacheItem(newList);
         return newList;
       });
 
       try {
-        console.log("🔄 Calling generation API...");
-        // Call the actual generation API
         const result = await generateAction.execute(clientId, preferences);
 
-        console.log("📥 API result:", result.success ? "SUCCESS" : "FAILED");
-
         if (result.success) {
-          console.log(
-            "🎉 Generation successful, replacing placeholder with real data:",
-            result.data
-          );
-
           // Replace placeholder with real data directly in dietPlans
           setDietPlans((prev) => {
             const newPlans = prev.map((plan) =>
               plan.id === placeholderPlan.id ? result.data : plan
             );
-            console.log(
-              "� Replaced placeholder with real plan, total count:",
-              newPlans.length
-            );
-            console.log(
-              "📋 Real plan data:",
-              result.data.title,
-              "ID:",
-              result.data.id
-            );
             // Update cache with final data
             setCacheItem(newPlans);
+            addToast({
+              title: "Success",
+              description: "Diet plan generation complete",
+            });
             return newPlans;
           });
-
-          console.log("✅ Plan replacement completed successfully");
         } else {
-          console.log(
-            "❌ Generation failed, updating placeholder to error state"
-          );
           // Replace placeholder with error state
           const errorPlan = {
             ...placeholderPlan,
@@ -277,16 +240,18 @@ const useDietPlans = () => {
             has_error: true,
             title: preferences.title || "Failed to Generate Plan",
           };
-          setDietPlans((prev) =>
-            prev.map((plan) =>
+          setDietPlans((prev) => {
+            const updatedPlans = prev.map((plan) =>
               plan.id === placeholderPlan.id ? errorPlan : plan
-            )
-          );
+            );
+            // Update cache with error state
+            setCacheItem(updatedPlans);
+            return updatedPlans;
+          });
         }
 
         return result;
       } catch (error) {
-        console.log("💥 Exception during generation:", error.message);
         // Replace placeholder with error state
         const errorPlan = {
           ...placeholderPlan,
@@ -294,11 +259,14 @@ const useDietPlans = () => {
           has_error: true,
           title: preferences.title || "Failed to Generate Plan",
         };
-        setDietPlans((prev) =>
-          prev.map((plan) =>
+        setDietPlans((prev) => {
+          const updatedPlans = prev.map((plan) =>
             plan.id === placeholderPlan.id ? errorPlan : plan
-          )
-        );
+          );
+          // Update cache with error state
+          setCacheItem(updatedPlans);
+          return updatedPlans;
+        });
 
         return {
           success: false,
@@ -317,6 +285,133 @@ const useDietPlans = () => {
     [detailsAction]
   );
 
+  // Assign plan to clients
+  const assignPlanToClient = useCallback(
+    async (planId, clientIds) => {
+      const originalPlans = [...dietPlans];
+
+      // Optimistic update
+      setDietPlans((prev) => {
+        const updatedPlans = prev.map((plan) => {
+          if (plan.id === planId) {
+            const assignedClients = plan.assigned_clients || [];
+            // Handle both single client ID and array of client IDs
+            const newClientIds = Array.isArray(clientIds)
+              ? clientIds
+              : [clientIds];
+
+            // For optimistic update, we need client names too
+            // This will be properly updated when the API returns real data
+            const newAssignedClients = newClientIds.map((clientId) => ({
+              id: clientId,
+              name: "Loading...", // Placeholder until API returns real data
+            }));
+
+            return {
+              ...plan,
+              assigned_clients: [...assignedClients, ...newAssignedClients],
+            };
+          }
+          return plan;
+        });
+        // Update cache with optimistic data
+        setCacheItem(updatedPlans);
+        return updatedPlans;
+      });
+
+      // Prepare data for API
+      const requestData = {
+        diet_plan_id: planId,
+        client_ids: Array.isArray(clientIds) ? clientIds : [clientIds],
+      };
+
+      const result = await assignAction.execute(requestData);
+
+      if (result.success) {
+        // Refresh data to get the updated assigned_clients with proper names
+        await fetchDietPlansRef.current(true);
+      } else {
+        // Revert optimistic update
+        setDietPlans(originalPlans);
+        setCacheItem(originalPlans);
+      }
+
+      return result;
+    },
+    [assignAction, dietPlans]
+  );
+
+  // Unassign plan from client
+  const unassignPlanFromClient = useCallback(
+    async (planId, clientId) => {
+      const originalPlans = [...dietPlans];
+
+      // Optimistic update - remove client from assigned_clients
+      setDietPlans((prev) => {
+        const updatedPlans = prev.map((plan) => {
+          if (plan.id === planId) {
+            const assignedClients = plan.assigned_clients || [];
+            const filteredClients = assignedClients.filter(
+              (client) => client.id !== clientId
+            );
+
+            return {
+              ...plan,
+              assigned_clients: filteredClients,
+            };
+          }
+          return plan;
+        });
+        // Update cache with optimistic data
+        setCacheItem(updatedPlans);
+        return updatedPlans;
+      });
+
+      // Prepare data for API
+      const requestData = {
+        diet_plan_id: planId,
+        client_id: clientId,
+      };
+
+      const result = await unassignAction.execute(requestData);
+
+      if (result.success) {
+        await fetchDietPlansRef.current(true);
+        addToast({
+          title: "Success",
+          description: "Client unassigned from diet plan successfully",
+        });
+      } else {
+        // Revert optimistic update
+        setDietPlans(originalPlans);
+        setCacheItem(originalPlans);
+        addToast({
+          title: "Error",
+          description:
+            result.error || "Failed to unassign client from diet plan",
+          variant: "error",
+        });
+      }
+
+      return result;
+    },
+    [unassignAction, dietPlans]
+  );
+
+  // Get client diet plans - stable function using ref
+  const getClientDietPlans = useCallback(
+    async (clientId) => {
+      if (!clientId) {
+        return { success: false, error: "Client ID is required" };
+      }
+      return await getClientDietPlansAction.execute(clientId);
+    },
+    [] // Empty dependency array for stability
+  );
+
+  // Keep ref updated
+  getClientDietPlansRef.current = getClientDietPlans;
+
   // Global refresh listener
   useEffect(() => {
     const handleRefresh = (trigger) => {
@@ -327,10 +422,19 @@ const useDietPlans = () => {
     return () => refreshListeners.delete(handleRefresh);
   }, []);
 
+  // Global data sync listener
+  useEffect(() => {
+    const handleDataSync = (data) => {
+      setDietPlans(data);
+    };
+
+    dataListeners.add(handleDataSync);
+    return () => dataListeners.delete(handleDataSync);
+  }, []);
+
   // Refresh data when global trigger changes
   useEffect(() => {
     if (refreshTrigger > 0) {
-      console.log("🔄 Global refresh triggered, calling fetchDietPlans(true)");
       fetchDietPlansRef.current(true);
     }
   }, [refreshTrigger]); // Remove fetchDietPlans dependency to prevent re-runs
@@ -339,32 +443,24 @@ const useDietPlans = () => {
   useEffect(() => {
     const cached = dietPlansCache.get(getCacheKey());
     if (!cached || !isCacheValid(cached)) {
-      fetchDietPlans();
+      fetchDietPlansRef.current();
     }
-  }, []); // Remove fetchDietPlans dependency to prevent re-runs
+  }, []); // Use ref to avoid dependency issues
 
   return {
     dietPlans,
-    loading:
-      loading ||
-      fetchAction.loading ||
-      createAction.loading ||
-      updateAction.loading ||
-      deleteAction.loading,
+    loading: loading || fetchAction.loading || updateAction.loading,
+    // Exclude deleteAction.loading since we use optimistic updates for deletes
     error:
-      error ||
-      fetchAction.error ||
-      createAction.error ||
-      updateAction.error ||
-      deleteAction.error,
-    generateDietPlan,
+      error || fetchAction.error || updateAction.error || deleteAction.error,
     generateDietPlanWithPlaceholder,
-    createDietPlan,
-    createDietPlanWithPlaceholder,
     updateDietPlan,
     deleteDietPlan,
     fetchDietPlans,
     fetchPlanDetails,
+    assignPlanToClient,
+    unassignPlanFromClient,
+    getClientDietPlans,
   };
 };
 

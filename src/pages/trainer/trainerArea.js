@@ -17,8 +17,7 @@ import { useMessaging } from "@/hooks/messaging";
 export default function trainerDashboard() {
   const user = useSelector((state) => state.auth.user);
   const [showTab, setShowTab] = useState("clients"); // Default tab
-  const authUser = useSelector((state) => state.auth.user);
-  const authUserId = authUser?.id;
+  const authUserId = user?.id;
 
   // Initialize messaging hook only
   const { fetchConversations } = useMessaging(authUserId);

@@ -702,6 +702,7 @@ Please format the response as a structured workout plan that can be easily follo
                         size="sm"
                         onPress={() => removeExercise(exercise.id)}
                         isIconOnly
+                        aria-label="Remove exercise"
                       >
                         <X size={16} />
                       </Button>
