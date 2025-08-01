@@ -80,10 +80,12 @@ const useClientDietPlans = (clientId = null) => {
       }
 
       try {
-        const response = await axios.post(`/api/diet-plans/activate`, {
-          client_id: clientId,
-          diet_plan_id: planId,
-        });
+        const response = await axios.post(
+          `/api/diet-plans/client/${clientId}/activate`,
+          {
+            plan_id: planId,
+          }
+        );
 
         // Refresh the client plans after activation
         await fetchClientDietPlans(clientId);
@@ -100,29 +102,33 @@ const useClientDietPlans = (clientId = null) => {
     [clientId, fetchClientDietPlans]
   );
 
-  const deactivatePlan = useCallback(async () => {
-    if (!clientId || !activePlan) {
-      throw new Error("Client ID and active plan are required");
-    }
+  const deactivatePlan = useCallback(
+    async (planId = null) => {
+      if (!clientId) {
+        throw new Error("Client ID is required");
+      }
 
-    try {
-      const response = await axios.post(`/api/diet-plans/deactivate`, {
-        client_id: clientId,
-        diet_plan_id: activePlan.id,
-      });
+      try {
+        const payload = planId ? { plan_id: planId } : {};
+        const response = await axios.post(
+          `/api/diet-plans/client/${clientId}/deactivate`,
+          payload
+        );
 
-      // Refresh the client plans after deactivation
-      await fetchClientDietPlans(clientId);
+        // Refresh the client plans after deactivation
+        await fetchClientDietPlans(clientId);
 
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to deactivate diet plan";
-      throw new Error(errorMessage);
-    }
-  }, [clientId, activePlan, fetchClientDietPlans]);
+        return response.data;
+      } catch (error) {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to deactivate diet plan";
+        throw new Error(errorMessage);
+      }
+    },
+    [clientId, fetchClientDietPlans]
+  );
 
   const refetch = useCallback(() => {
     if (clientId) {
