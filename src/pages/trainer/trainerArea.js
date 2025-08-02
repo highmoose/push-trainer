@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Clients from "@/pages/trainer/clients";
 import Dashboard from "@/pages/trainer/dashboard";
 import Messages from "@/pages/trainer/messages";
-import Planner from "@/pages/trainer/planner";
+import Sessions from "@/pages/trainer/sessions";
 import Workouts from "@/pages/trainer/workouts";
 import CheckIns from "@/pages/trainer/checkins";
 // import Team from "@/pages/trainer/team";
@@ -35,7 +35,7 @@ export default function trainerDashboard() {
         {/* Menu Tabs  */}
         {showTab === "dashboard" && <Dashboard />}
         {showTab === "messages" && <Messages authUserId={authUserId} />}
-        {showTab === "planner" && <Planner />}
+        {showTab === "planner" && <Sessions />}
         {showTab === "clients" && <Clients />}
         {showTab === "workouts" && <Workouts />}
         {showTab === "check-ins" && <CheckIns />}

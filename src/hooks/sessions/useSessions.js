@@ -1,343 +1,339 @@
-import { useState, useCallback, useEffect } from "react";
-import axios from "@/lib/axios";
+import { useState, useEffect, useCallback } from "react";
+import {
+  useFetchSessions,
+  useCreateSession,
+  useUpdateSession,
+  useUpdateSessionTime,
+  useCancelSession,
+  useReinstateSession,
+  useCompleteSession,
+  useDeleteSession,
+} from "./api";
 
-// Global cache for sessions
-const sessionsCache = new Map();
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes (shorter for sessions due to time-sensitive nature)
+const useSessions = () => {
+  // API hooks
+  const fetchSessionsApi = useFetchSessions();
+  const createSessionApi = useCreateSession();
+  const updateSessionApi = useUpdateSession();
+  const updateSessionTimeApi = useUpdateSessionTime();
+  const cancelSessionApi = useCancelSession();
+  const reinstateSessionApi = useReinstateSession();
+  const completeSessionApi = useCompleteSession();
+  const deleteSessionApi = useDeleteSession();
 
-// Cache management utilities
-const isCacheValid = (cacheItem) => {
-  return cacheItem && Date.now() - cacheItem.timestamp < CACHE_DURATION;
-};
-
-const setCacheItem = (key, data) => {
-  sessionsCache.set(key, {
-    data,
-    timestamp: Date.now(),
-  });
-};
-
-const getCacheItem = (key) => {
-  const cacheItem = sessionsCache.get(key);
-  return isCacheValid(cacheItem) ? cacheItem.data : null;
-};
-
-const clearSessionsCache = () => {
-  sessionsCache.clear();
-};
-
-// Make cache clearing available globally
-if (typeof window !== "undefined") {
-  window.clearSessionsCache = clearSessionsCache;
-}
-
-export const useSessions = () => {
+  // State
   const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const fetchSessions = useCallback(
-    async (includePast = false, forceRefresh = false) => {
-      const cacheKey = `sessions_${includePast ? "with_past" : "current"}`;
+  // Fetch all sessions
+  const fetchSessions = useCallback(async (includePast = false) => {
+    const result = await fetchSessionsApi.execute(includePast);
 
-      // Check cache first unless forced refresh
-      if (!forceRefresh) {
-        const cachedSessions = getCacheItem(cacheKey);
-        if (cachedSessions) {
-          setSessions(cachedSessions);
-          setLoading(false);
-          return;
-        }
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        console.log("useSessions: Fetching sessions...");
-        const response = await axios.get("/api/sessions", {
-          params: includePast ? { include_past: true } : {},
-        });
-        const sessionsData = response.data || [];
-        setSessions(sessionsData);
-        setCacheItem(cacheKey, sessionsData);
-      } catch (err) {
-        console.error("useSessions: Fetch error:", err);
-        setError(err.response?.data?.message || "Failed to fetch sessions");
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  const createSession = useCallback(async (sessionData) => {
-    // Generate temporary ID for optimistic update
-    const tempId = `temp_${Date.now()}`;
-    const tempSession = { ...sessionData, id: tempId, pending: true };
-
-    // Optimistic update
-    setSessions((prev) => {
-      const newSessions = [...prev, tempSession];
-      // Update cache with optimistic data
-      setCacheItem("sessions_current", newSessions);
-      return newSessions;
-    });
-
-    try {
-      const response = await axios.post("/api/sessions", sessionData);
-      const newSession = response.data;
-
-      // Replace temporary session with real data
-      setSessions((prev) => {
-        const updatedSessions = prev.map((session) =>
-          session.id === tempId ? newSession : session
-        );
-        // Update cache with real data
-        setCacheItem("sessions_current", updatedSessions);
-        return updatedSessions;
-      });
-
-      return newSession;
-    } catch (err) {
-      // Remove temporary session on error
-      setSessions((prev) => {
-        const revertedSessions = prev.filter(
-          (session) => session.id !== tempId
-        );
-        // Update cache by removing temporary session
-        setCacheItem("sessions_current", revertedSessions);
-        return revertedSessions;
-      });
-      setError(err.response?.data?.message || "Failed to create session");
-      throw err;
+    if (result.success) {
+      setSessions(result.data);
     }
-  }, []);
-  const updateSessionTime = useCallback(
-    async (sessionId, { start_time, end_time }) => {
-      // Store previous state for rollback
-      const previousSessions = sessions;
 
-      // Calculate duration in minutes
-      const startTime = new Date(start_time);
-      const endTime = new Date(end_time);
-      const duration = Math.round((endTime - startTime) / (1000 * 60)); // Pass the time directly as received - backend will handle timezone conversion
-      const updates = {
-        start_time: start_time,
-        end_time: end_time, // Include end_time for proper animation
-        duration: duration,
-      };
+    return result;
+  }, []); // Remove fetchSessionsApi from dependencies to prevent infinite loop
 
-      console.log("updateSessionTime: Sending to backend:", updates); // Optimistic update - include both start and end times for smooth animation
-      // Don't set pending status for time updates to avoid color changes
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                start_time: start_time,
-                end_time: end_time,
-                duration: duration,
-              }
-            : session
-        )
-      );
+  // Create a new session
+  const createSession = useCallback(
+    async (sessionData) => {
+      console.log("🆕 createSession called with data:", sessionData);
 
-      try {
-        const response = await axios.put(
-          `/api/sessions/${sessionId}/time`,
-          updates
-        );
-        const updatedSession = response.data;
+      const result = await createSessionApi.execute(sessionData);
 
-        // Update with server response - only update if data actually changed
-        setSessions((prev) =>
-          prev.map((session) => {
-            if (session.id === sessionId) {
-              // Check if the response data is different from current state
-              const hasChanges =
-                session.start_time !== updatedSession.start_time ||
-                session.end_time !== updatedSession.end_time ||
-                session.duration !== updatedSession.duration;
+      if (result.success) {
+        const newSession = result.data;
+        console.log("📥 Session creation response:", newSession);
 
-              // Only update if there are actual changes to prevent unnecessary re-renders
-              return hasChanges ? { ...updatedSession } : session;
-            }
-            return session;
-          })
-        );
-
-        return updatedSession;
-      } catch (err) {
-        // Rollback on error
-        setSessions(previousSessions);
-        setError(
-          err.response?.data?.message || "Failed to update session time"
-        );
-        throw err;
+        // Optimistically update state
+        setSessions((prev) => [newSession, ...prev]);
+        console.log("✅ Session created successfully");
+      } else {
+        console.error("❌ Error creating session:", result.error);
       }
+
+      return result;
     },
-    [sessions]
+    [] // Remove createSessionApi from dependencies to prevent infinite loop
   );
 
-  const updateSessionTimeOptimistic = useCallback(
-    (sessionId, { start_time, end_time }) => {
-      // Calculate duration in minutes
-      const startTime = new Date(start_time);
-      const endTime = new Date(end_time);
-      const duration = Math.round((endTime - startTime) / (1000 * 60));
+  // Update session (optimistic)
+  const updateSession = useCallback(
+    async (id, updates) => {
+      // Store original session for rollback
+      const originalSession = sessions.find((s) => s.id === id);
+      if (!originalSession) {
+        return { success: false, message: "Session not found" };
+      }
 
-      // Immediate optimistic update without API call
+      // Optimistically update state
       setSessions((prev) =>
         prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                start_time: start_time,
-                end_time: end_time,
-                duration: duration,
-              }
-            : session
+          session.id === id ? { ...session, ...updates } : session
         )
       );
-    },
-    []
-  );
 
-  const updateSession = useCallback(
-    async (sessionId, updates) => {
-      // Store previous state for rollback
-      const previousSessions = sessions;
+      const result = await updateSessionApi.execute(id, updates);
 
-      // Optimistic update
-      setSessions((prev) => {
-        const updatedSessions = prev.map((session) =>
-          session.id === sessionId
-            ? { ...session, ...updates, pending: true }
-            : session
-        );
-        // Clear cache to ensure fresh data on next fetch
-        clearSessionsCache();
-        return updatedSessions;
-      });
-
-      try {
-        const response = await axios.put(`/api/sessions/${sessionId}`, updates);
-        const updatedSession = response.data;
+      if (result.success) {
+        const updatedSession = result.data;
 
         // Update with server response
-        setSessions((prev) => {
-          const finalSessions = prev.map((session) =>
-            session.id === sessionId
-              ? { ...updatedSession, pending: false }
-              : session
-          );
-          // Update cache with fresh data
-          setCacheItem("sessions_current", finalSessions);
-          return finalSessions;
-        });
-
-        return updatedSession;
-      } catch (err) {
-        // Rollback on error
-        setSessions(previousSessions);
-        setCacheItem("sessions_current", previousSessions);
-        setError(err.response?.data?.message || "Failed to update session");
-        throw err;
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? updatedSession : session))
+        );
+      } else {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
       }
+
+      return result;
     },
-    [sessions]
+    [sessions] // Keep sessions dependency but remove updateSessionApi
   );
 
-  const deleteSession = useCallback(
-    async (sessionId) => {
-      // Store previous state for rollback
-      const previousSessions = sessions;
+  // Update session time (for drag and drop) - optimistic
+  const updateSessionTime = useCallback(
+    async (id, timeData) => {
+      console.log("⏰ updateSessionTime called:", { id, timeData });
 
-      // Optimistic update - mark as deleting
-      setSessions((prev) => {
-        const updatedSessions = prev.map((session) =>
-          session.id === sessionId ? { ...session, deleting: true } : session
-        );
-        // Clear cache during deletion
-        clearSessionsCache();
-        return updatedSessions;
+      // Store original session for rollback
+      const originalSession = sessions.find((s) => s.id === id);
+      if (!originalSession) {
+        return { success: false, message: "Session not found" };
+      }
+
+      // Extract start_time and end_time from timeData
+      const { start_time, end_time } = timeData;
+
+      // Calculate duration in minutes
+      const start = new Date(start_time);
+      const end = new Date(end_time);
+      const duration = Math.round((end - start) / (1000 * 60));
+
+      const updates = {
+        start_time,
+        end_time,
+        duration,
+      };
+
+      // Optimistically update state
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === id ? { ...session, ...updates } : session
+        )
+      );
+
+      console.log("📤 Making PUT request to update session time:", {
+        id,
+        updates,
       });
 
-      try {
-        await axios.delete(`/api/sessions/${sessionId}`);
+      const result = await updateSessionTimeApi.execute(id, timeData);
 
-        // Remove session from list
-        setSessions((prev) => {
-          const filteredSessions = prev.filter(
-            (session) => session.id !== sessionId
-          );
-          // Update cache with filtered data
-          setCacheItem("sessions_current", filteredSessions);
-          return filteredSessions;
-        });
-      } catch (err) {
-        // Rollback on error
-        setSessions(previousSessions);
-        setCacheItem("sessions_current", previousSessions);
-        setError(err.response?.data?.message || "Failed to delete session");
-        throw err;
+      if (result.success) {
+        const updatedSession = result.data;
+        console.log("📥 Session time update response:", updatedSession);
+
+        // Update with server response
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? updatedSession : session))
+        );
+
+        console.log("✅ Session time updated successfully");
+      } else {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
+
+        console.error("❌ Error updating session time:", result.error);
       }
+
+      return result;
     },
-    [sessions]
+    [sessions] // Keep sessions dependency but remove updateSessionTimeApi
   );
 
-  const completeSession = useCallback(
-    async (sessionId) => {
-      return updateSession(sessionId, { status: "completed" });
-    },
-    [updateSession]
-  );
-
+  // Cancel session (optimistic)
   const cancelSession = useCallback(
-    async (sessionId) => {
-      return updateSession(sessionId, { status: "cancelled" });
-    },
-    [updateSession]
-  );
-  // Auto-fetch on mount with cache check
-  useEffect(() => {
-    // Try to load from cache first for immediate UI feedback
-    const cachedSessions = getCacheItem("sessions_current");
-    if (cachedSessions) {
-      setSessions(cachedSessions);
-    }
+    async (id) => {
+      // Store original session for rollback
+      const originalSession = sessions.find((s) => s.id === id);
+      if (!originalSession) {
+        return { success: false, message: "Session not found" };
+      }
 
-    // Always fetch fresh data, but cache will provide immediate feedback
+      // Optimistically update state
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === id ? { ...session, status: "cancelled" } : session
+        )
+      );
+
+      const result = await cancelSessionApi.execute(id);
+
+      if (result.success) {
+        const updatedSession = result.data;
+
+        // Update with server response
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? updatedSession : session))
+        );
+      } else {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
+      }
+
+      return result;
+    },
+    [sessions] // Keep sessions dependency but remove cancelSessionApi
+  );
+
+  // Reinstate session (optimistic)
+  const reinstateSession = useCallback(
+    async (id) => {
+      // Store original session for rollback
+      const originalSession = sessions.find((s) => s.id === id);
+      if (!originalSession) {
+        return { success: false, message: "Session not found" };
+      }
+
+      // Optimistically update state
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === id ? { ...session, status: "scheduled" } : session
+        )
+      );
+
+      const result = await reinstateSessionApi.execute(id);
+
+      if (result.success) {
+        const updatedSession = result.data;
+
+        // Update with server response
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? updatedSession : session))
+        );
+      } else {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
+      }
+
+      return result;
+    },
+    [sessions] // Keep sessions dependency but remove reinstateSessionApi
+  );
+
+  // Complete session (optimistic)
+  const completeSession = useCallback(
+    async (id) => {
+      // Store original session for rollback
+      const originalSession = sessions.find((s) => s.id === id);
+      if (!originalSession) {
+        return { success: false, message: "Session not found" };
+      }
+
+      // Optimistically update state
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === id ? { ...session, status: "completed" } : session
+        )
+      );
+
+      const result = await completeSessionApi.execute(id);
+
+      if (result.success) {
+        const updatedSession = result.data;
+
+        // Update with server response
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? updatedSession : session))
+        );
+      } else {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
+      }
+
+      return result;
+    },
+    [sessions] // Keep sessions dependency but remove completeSessionApi
+  );
+
+  // Delete session
+  const deleteSession = useCallback(
+    async (id) => {
+      const result = await deleteSessionApi.execute(id);
+
+      if (result.success) {
+        // Remove from state
+        setSessions((prev) => prev.filter((session) => session.id !== id));
+      }
+
+      return result;
+    },
+    [] // Remove deleteSessionApi from dependencies to prevent infinite loop
+  );
+
+  // Optimistic update for external state management (drag/drop)
+  const updateSessionTimeOptimistic = useCallback((id, startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const duration = Math.round((end - start) / (1000 * 60));
+
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === id
+          ? {
+              ...session,
+              start_time: startTime,
+              end_time: endTime,
+              duration: duration,
+            }
+          : session
+      )
+    );
+  }, []);
+
+  // Load sessions on mount
+  useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
+
   return {
     sessions,
-    loading,
-    error,
+    loading:
+      fetchSessionsApi.loading ||
+      createSessionApi.loading ||
+      deleteSessionApi.loading,
+    error:
+      fetchSessionsApi.error ||
+      createSessionApi.error ||
+      updateSessionApi.error ||
+      updateSessionTimeApi.error ||
+      cancelSessionApi.error ||
+      reinstateSessionApi.error ||
+      completeSessionApi.error ||
+      deleteSessionApi.error,
     fetchSessions,
     createSession,
     updateSession,
     updateSessionTime,
     updateSessionTimeOptimistic,
-    deleteSession,
-    completeSession,
     cancelSession,
-    // Cache management
-    clearCache: clearSessionsCache,
-    // Helper methods
-    getSession: useCallback(
-      (id) => sessions.find((s) => s.id === id),
-      [sessions]
-    ),
-    getSessionsByClient: useCallback(
-      (clientId) => sessions.filter((s) => s.client_id === clientId),
-      [sessions]
-    ),
-    getUpcomingSessions: useCallback(() => {
-      const now = new Date();
-      return sessions.filter((s) => new Date(s.start_time) > now);
-    }, [sessions]),
-    getSessionCount: useCallback(() => sessions.length, [sessions]),
+    reinstateSession,
+    completeSession,
+    deleteSession,
   };
 };
+
+export default useSessions;

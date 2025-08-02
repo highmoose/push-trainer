@@ -284,7 +284,7 @@ export default function CreateSessionModal({
         client_id: sessionForm.client_id || null,
         first_name: sessionForm.first_name,
         last_name: sessionForm.last_name,
-        scheduled_at: formattedScheduledAt,
+        start_time: formattedScheduledAt, // Changed from scheduled_at to start_time
         duration: parseInt(sessionForm.duration, 10),
         notes: sessionForm.notes,
         status: sessionForm.status,

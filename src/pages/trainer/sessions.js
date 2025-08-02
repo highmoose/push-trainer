@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSessions } from "@/src/hooks/sessions";
-import { useTasks } from "@/hooks/tasks";
-import { useClients } from "@/hooks/clients";
+import useSessions from "@/src/hooks/sessions/useSessions";
+import useTasks from "@/src/hooks/tasks/useTasks";
+import { useClients } from "@/src/hooks/clients";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import updateLocale from "dayjs/plugin/updateLocale";
@@ -38,7 +38,7 @@ const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
   m.toString().padStart(2, "0")
 );
 
-export default function TrainerCalendarPage() {
+export default function Sessions() {
   const calendarRef = useRef(null);
   const calendarContainerRef = useRef(null);
   const hoverLineRef = useRef(null);
@@ -61,13 +61,21 @@ export default function TrainerCalendarPage() {
       dayjs().format("YYYY-MM-DD HH:mm:ss Z")
     );
   }, [userTimezone]);
+  // Explicitly use useSessions hook for all session-related operations
   const sessionsHookData = useSessions();
   const { sessions, updateSessionTime, updateSessionTimeOptimistic } =
     sessionsHookData;
+
+  // Explicitly use useClients hook for client data
   const clientsHookData = useClients();
   const { clients } = clientsHookData;
+
+  // Explicitly use useTasks hook for all task-related operations
   const tasksHookData = useTasks();
-  const { tasks, updateTask, completeTask } = tasksHookData;
+  const { tasks, updateTask: updateTaskHook, completeTask } = tasksHookData;
+
+  // Ensure we're using the correct updateTask function from useTasks hook
+  const updateTask = updateTaskHook;
 
   // Process sessions with timezone-aware datetime conversion
   const processedSessions = sessions.map((session) => ({
@@ -475,13 +483,19 @@ export default function TrainerCalendarPage() {
           return;
         }
         try {
+          console.log("🔥 ABOUT TO CALL updateSessionTime:", {
+            sessionId: draggingSession.id,
+            start_time: draggingSession.start_time,
+            end_time: draggingSession.end_time,
+          });
+
           // Pass the time directly to the hook - it already handles timezone conversion
           await updateSessionTime(draggingSession.id, {
             start_time: draggingSession.start_time,
             end_time: draggingSession.end_time,
           });
 
-          console.log("Session time updated successfully", {
+          console.log("✅ Session time updated successfully", {
             id: draggingSession.id,
             start_time: draggingSession.start_time,
             end_time: draggingSession.end_time,
@@ -495,6 +509,8 @@ export default function TrainerCalendarPage() {
 
       // Update task time via hooks
       if (draggingTask && draggingTask.id) {
+        console.log("✅ FOUND DRAGGING TASK IN MOUSE UP:", draggingTask);
+
         // Store original task for potential revert
         const originalTask = tasks.find((t) => t.id === draggingTask.id);
 
@@ -510,13 +526,38 @@ export default function TrainerCalendarPage() {
           return;
         } // Update task time via hooks (which handles optimistic updates)
         try {
-          await updateTask(draggingTask.id, {
+          console.log("� ABOUT TO CALL updateTask:", {
+            taskId: draggingTask.id,
+            due_date: draggingTask.due_date,
+            duration: draggingTask.duration,
+            originalDueDate: originalTask.due_date,
+            originalDuration: originalTask.duration,
+          });
+
+          console.log(
+            "🎯 CALLING updateTask RIGHT NOW with function:",
+            typeof updateTask
+          );
+          console.log("🔍 VERIFYING: This should be useTasks.updateTask");
+          console.log("🎯 Parameters:", draggingTask.id, {
             due_date: draggingTask.due_date,
             duration: draggingTask.duration,
           });
+
+          const result = await updateTask(draggingTask.id, {
+            due_date: draggingTask.due_date,
+            duration: draggingTask.duration,
+          });
+
+          console.log("✅ Task update completed successfully");
+          console.log("📤 updateTask result:", result);
         } catch (error) {
           console.error("Failed to update task:", error);
         }
+      } else {
+        console.log("❌ NO DRAGGING TASK FOUND IN MOUSE UP");
+        console.log("📋 draggingTask:", draggingTask);
+        console.log("📋 tasks array length:", tasks?.length || 0);
       }
 
       setDraggingSession(null);
@@ -673,10 +714,19 @@ export default function TrainerCalendarPage() {
       } // Update task time via hook
       if (resizingTask && resizingTask.id) {
         try {
+          console.log("📏 Updating task from resize:", {
+            id: resizingTask.id,
+            due_date: resizingTask.due_date,
+            duration: resizingTask.duration,
+            resizeType,
+          });
+
           await updateTask(resizingTask.id, {
             due_date: resizingTask.due_date,
             duration: resizingTask.duration,
           });
+
+          console.log("✅ Task resize update completed successfully");
         } catch (error) {
           console.error("Failed to update task:", error);
         }
@@ -968,6 +1018,11 @@ export default function TrainerCalendarPage() {
                                 setResizeType(isTopResize ? "top" : "bottom");
                               } else {
                                 // Start dragging
+                                console.log(
+                                  "🎯 SESSION DRAG STARTED:",
+                                  s.id,
+                                  s.title
+                                );
                                 const clickOffset = e.clientY - sessionRect.top;
                                 const currentColumn = days.findIndex((day) =>
                                   dayjs(s.start_time).isSame(day, "day")
@@ -1175,11 +1230,20 @@ export default function TrainerCalendarPage() {
 
                               if (isTopResize || isBottomResize) {
                                 // Start resizing (for tasks we'll just update due_date time)
+                                console.log("🔧 Starting task resize", {
+                                  task: task.id,
+                                  type: isTopResize ? "top" : "bottom",
+                                });
                                 setResizingTask(task);
                                 setIsResizingTask(true);
                                 setResizeType(isTopResize ? "top" : "bottom");
                               } else {
                                 // Start dragging
+                                console.log(
+                                  "🎯 TASK MOUSE DOWN TRIGGERED:",
+                                  task.title
+                                );
+                                console.log("📋 Task data:", task);
                                 const clickOffset = e.clientY - taskRect.top;
                                 const currentColumn = days.findIndex((day) =>
                                   dayjs(task.due_date).isSame(day, "day")
@@ -1189,12 +1253,24 @@ export default function TrainerCalendarPage() {
                                 const taskTopInCalendar =
                                   taskRect.top - calendarRect.top;
 
+                                console.log("📋 Setting dragging task:", {
+                                  taskId: task.id,
+                                  title: task.title,
+                                  currentColumn,
+                                  clickOffset,
+                                  taskTopInCalendar,
+                                });
+
                                 setDraggingTask(task);
                                 setDragOffsetY(clickOffset);
                                 setDragPositionY(taskTopInCalendar);
                                 setIsDraggingTask(true);
                                 setDragStartColumn(currentColumn);
                                 setDragCurrentColumn(currentColumn);
+
+                                console.log(
+                                  "✅ Task drag state set successfully"
+                                );
                               }
                             }}
                           >
@@ -1324,6 +1400,45 @@ export default function TrainerCalendarPage() {
       </div>
     );
   };
+
+  // Test function for debugging - can be called from browser console
+  window.testDragAPI = {
+    testSessionUpdate: async () => {
+      if (sessions.length > 0) {
+        const testSession = sessions[0];
+        console.log("🧪 Testing session update with session:", testSession);
+        try {
+          await updateSessionTime(testSession.id, {
+            start_time: testSession.start_time,
+            end_time: testSession.end_time,
+          });
+          console.log("✅ Test session update completed");
+        } catch (error) {
+          console.error("❌ Test session update failed:", error);
+        }
+      } else {
+        console.log("No sessions available for testing");
+      }
+    },
+    testTaskUpdate: async () => {
+      if (tasks.length > 0) {
+        const testTask = tasks[0];
+        console.log("🧪 Testing task update with task:", testTask);
+        try {
+          await updateTask(testTask.id, {
+            due_date: testTask.due_date,
+            duration: testTask.duration,
+          });
+          console.log("✅ Test task update completed");
+        } catch (error) {
+          console.error("❌ Test task update failed:", error);
+        }
+      } else {
+        console.log("No tasks available for testing");
+      }
+    },
+  };
+
   return (
     <div className="w-full h-full mt-28 flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Professional Trainer Sidebar */}
@@ -1337,6 +1452,54 @@ export default function TrainerCalendarPage() {
             <Plus size={18} />
             <p className="font-semibold">Create Session</p>
           </button>
+          {/* Debug Test Buttons */}
+          <div className="mx-4 mt-2 p-2 bg-red-900/20 border border-red-700 rounded">
+            <p className="text-xs text-red-300 mb-2">Debug API Tests</p>
+            <button
+              onClick={async () => {
+                if (sessions.length > 0) {
+                  const testSession = sessions[0];
+                  console.log("🧪 Testing session update with:", testSession);
+                  try {
+                    await updateSessionTime(testSession.id, {
+                      start_time: testSession.start_time,
+                      end_time: testSession.end_time,
+                    });
+                    console.log("✅ Test session update completed");
+                  } catch (error) {
+                    console.error("❌ Test session update failed:", error);
+                  }
+                } else {
+                  console.log("No sessions available for testing");
+                }
+              }}
+              className="w-full mb-1 text-xs p-1 bg-red-800 hover:bg-red-700 rounded"
+            >
+              Test Session API
+            </button>
+            <button
+              onClick={async () => {
+                if (tasks.length > 0) {
+                  const testTask = tasks[0];
+                  console.log("🧪 Testing task update with:", testTask);
+                  try {
+                    await updateTask(testTask.id, {
+                      due_date: testTask.due_date,
+                      duration: testTask.duration,
+                    });
+                    console.log("✅ Test task update completed");
+                  } catch (error) {
+                    console.error("❌ Test task update failed:", error);
+                  }
+                } else {
+                  console.log("No tasks available for testing");
+                }
+              }}
+              className="w-full text-xs p-1 bg-red-800 hover:bg-red-700 rounded"
+            >
+              Test Task API
+            </button>
+          </div>
           <button
             onClick={() => setCreateTaskModalOpen(true)}
             className="cursor-pointer flex items-center justify-center gap-2 p-2 bg-zinc-800 hover:bg-zinc-900 border-zinc-400 text-white rounded mx-4 mt-3 mb-2"

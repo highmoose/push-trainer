@@ -27,8 +27,6 @@ export const useClients = () => {
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  console.log("clients", clients);
-
   // Individual action hooks
   const fetchAction = useFetchClients();
   const createAction = useCreateClient();
@@ -72,16 +70,14 @@ export const useClients = () => {
         setError(null);
       } else {
         setError(result.error);
-        // Ensure clients remains an array even on error
-        if (!Array.isArray(clients)) {
-          setClients([]);
-        }
+        // Use functional update to avoid dependency on clients
+        setClients((prev) => (Array.isArray(prev) ? prev : []));
       }
 
       setLoading(false);
       return result;
     },
-    [fetchAction, clients]
+    [fetchAction] // Remove 'clients' from dependency array to prevent infinite loop
   );
 
   // Add client with optimistic update
@@ -96,65 +92,66 @@ export const useClients = () => {
       };
 
       // Optimistic update
-      setClients((prev) => [optimisticClient, ...prev]);
-      setCacheItem([optimisticClient, ...clients]);
+      setClients((prev) => {
+        const updated = [optimisticClient, ...prev];
+        setCacheItem(updated);
+        return updated;
+      });
 
       const result = await createAction.execute(clientData);
 
       if (result.success) {
         // Replace optimistic with real data
-        setClients((prev) =>
-          prev.map((client) =>
+        setClients((prev) => {
+          const updated = prev.map((client) =>
             client.id === optimisticClient.id ? result.data : client
-          )
-        );
-        setCacheItem(
-          clients.map((client) =>
-            client.id === optimisticClient.id ? result.data : client
-          )
-        );
+          );
+          setCacheItem(updated);
+          return updated;
+        });
         triggerGlobalRefresh();
       } else {
         // Revert optimistic update
-        setClients((prev) =>
-          prev.filter((client) => client.id !== optimisticClient.id)
-        );
-        setCacheItem(
-          clients.filter((client) => client.id !== optimisticClient.id)
-        );
+        setClients((prev) => {
+          const filtered = prev.filter(
+            (client) => client.id !== optimisticClient.id
+          );
+          setCacheItem(filtered);
+          return filtered;
+        });
       }
 
       return result;
     },
-    [createAction, clients]
+    [createAction] // Remove 'clients' from dependency array to prevent infinite loop
   );
 
   // Update client with optimistic update
   const updateClient = useCallback(
     async (clientId, updates) => {
+      // Store original for rollback
+      let originalClients = [];
+
       // Optimistic update
-      const originalClients = [...clients];
-      setClients((prev) =>
-        prev.map((client) =>
+      setClients((prev) => {
+        originalClients = [...prev];
+        return prev.map((client) =>
           client.id === clientId
             ? { ...client, ...updates, pending: true }
             : client
-        )
-      );
+        );
+      });
 
       const result = await updateAction.execute(clientId, updates);
 
       if (result.success) {
-        setClients((prev) =>
-          prev.map((client) =>
+        setClients((prev) => {
+          const updated = prev.map((client) =>
             client.id === clientId ? { ...result.data, pending: false } : client
-          )
-        );
-        setCacheItem(
-          clients.map((client) =>
-            client.id === clientId ? { ...result.data, pending: false } : client
-          )
-        );
+          );
+          setCacheItem(updated);
+          return updated;
+        });
         triggerGlobalRefresh();
       } else {
         // Revert optimistic update
@@ -164,25 +161,31 @@ export const useClients = () => {
 
       return result;
     },
-    [updateAction, clients]
+    [updateAction] // Remove 'clients' from dependency array to prevent infinite loop
   );
 
   // Delete client with optimistic update
   const deleteClient = useCallback(
     async (clientId) => {
+      // Store original for rollback
+      let originalClients = [];
+
       // Optimistic update
-      const originalClients = [...clients];
-      setClients((prev) =>
-        prev.map((client) =>
+      setClients((prev) => {
+        originalClients = [...prev];
+        return prev.map((client) =>
           client.id === clientId ? { ...client, deleting: true } : client
-        )
-      );
+        );
+      });
 
       const result = await deleteAction.execute(clientId);
 
       if (result.success) {
-        setClients((prev) => prev.filter((client) => client.id !== clientId));
-        setCacheItem(clients.filter((client) => client.id !== clientId));
+        setClients((prev) => {
+          const filtered = prev.filter((client) => client.id !== clientId);
+          setCacheItem(filtered);
+          return filtered;
+        });
         triggerGlobalRefresh();
       } else {
         // Revert optimistic update
@@ -192,7 +195,7 @@ export const useClients = () => {
 
       return result;
     },
-    [deleteAction, clients]
+    [deleteAction] // Remove 'clients' from dependency array to prevent infinite loop
   );
 
   // Invite client
@@ -206,8 +209,13 @@ export const useClients = () => {
   // Get specific client
   const getClient = useCallback(
     async (clientId) => {
-      // First check if client is in local state
-      const localClient = clients.find((c) => c.id === clientId);
+      // Use functional approach to check current state
+      let localClient = null;
+      setClients((prev) => {
+        localClient = prev.find((c) => c.id === clientId);
+        return prev; // Don't actually update state
+      });
+
       if (localClient && !localClient.pending) {
         return { success: true, data: localClient };
       }
@@ -215,7 +223,7 @@ export const useClients = () => {
       // If not found or pending, fetch from server
       return getAction.execute(clientId);
     },
-    [getAction, clients]
+    [getAction] // Remove 'clients' from dependency array to prevent infinite loop
   );
 
   // Global refresh listener
@@ -262,9 +270,23 @@ export const useClients = () => {
     getClient,
     // Helper methods
     getClientById: useCallback(
-      (id) => clients.find((c) => c.id === id),
-      [clients]
+      (id) => {
+        let foundClient = null;
+        setClients((prev) => {
+          foundClient = prev.find((c) => c.id === id);
+          return prev;
+        });
+        return foundClient;
+      },
+      [] // Remove 'clients' from dependency array
     ),
-    getClientCount: useCallback(() => clients.length, [clients]),
+    getClientCount: useCallback(() => {
+      let count = 0;
+      setClients((prev) => {
+        count = prev.length;
+        return prev;
+      });
+      return count;
+    }, []), // Remove 'clients' from dependency array,
   };
 };
