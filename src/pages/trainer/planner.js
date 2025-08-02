@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSessions } from "@/hooks/session";
+import { useSessions } from "@/src/hooks/sessions";
 import { useTasks } from "@/hooks/tasks";
 import { useClients } from "@/hooks/clients";
 import dayjs from "dayjs";
