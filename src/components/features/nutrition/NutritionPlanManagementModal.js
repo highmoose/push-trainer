@@ -36,7 +36,6 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   const { fetchPlanDetails } = useDietPlans();
 
   // Local state for UI management
-  const [actionLoading, setActionLoading] = useState(null);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
 
@@ -78,29 +77,23 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   // Handlers for plan actions
   const handleActivatePlan = async (planId) => {
     try {
-      setActionLoading(planId);
       console.log("Activating plan:", planId);
       await activatePlan(planId);
       console.log("Plan activated successfully");
     } catch (error) {
       console.error("Error activating plan:", error);
       // You might want to show an error toast here
-    } finally {
-      setActionLoading(null);
     }
   };
 
   const handleDeactivatePlan = async () => {
     try {
-      setActionLoading("deactivate");
       console.log("Deactivating current plan");
       await deactivatePlan();
       console.log("Plan deactivated successfully");
     } catch (error) {
       console.error("Error deactivating plan:", error);
       // You might want to show an error toast here
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -290,12 +283,9 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
                     </button>
                     <button
                       onClick={handleDeactivatePlan}
-                      disabled={actionLoading === "deactivate"}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                     >
-                      {actionLoading === "deactivate"
-                        ? "Deactivating..."
-                        : "Deactivate"}
+                      Deactivate
                     </button>
                   </div>
                 </div>
@@ -438,12 +428,9 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
                           </button>
                           <button
                             onClick={() => handleActivatePlan(plan.id)}
-                            disabled={actionLoading === plan.id}
-                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors whitespace-nowrap"
                           >
-                            {actionLoading === plan.id
-                              ? "Activating..."
-                              : "Activate"}
+                            Activate
                           </button>
                         </div>
                       </div>

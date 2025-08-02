@@ -66,6 +66,42 @@ const useClientDietPlans = (clientId = null) => {
     [clientId]
   );
 
+  // Silent fetch for syncing - doesn't trigger loading states
+  const silentFetchClientDietPlans = useCallback(
+    async (targetClientId = null) => {
+      const idToUse = targetClientId || clientId;
+
+      if (!idToUse) {
+        return { success: false, error: "Client ID is required" };
+      }
+
+      try {
+        const response = await axios.get(`/api/diet-plans/client/${idToUse}`);
+        const rawData = response.data;
+        const plans = Array.isArray(rawData.data?.data)
+          ? response.data.data.data
+          : [];
+
+        return {
+          success: true,
+          data: plans,
+        };
+      } catch (err) {
+        const errorMessage =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to get client diet plans";
+
+        return {
+          success: false,
+          error: errorMessage,
+          data: [],
+        };
+      }
+    },
+    [clientId]
+  );
+
   // Auto-fetch when clientId changes
   useEffect(() => {
     if (clientId) {
@@ -79,7 +115,22 @@ const useClientDietPlans = (clientId = null) => {
         throw new Error("Client ID and Plan ID are required");
       }
 
+      // Optimistic update - update UI immediately
+      const previousPlans = [...clientPlans];
+      const previousActivePlan = activePlan;
+
       try {
+        // Optimistically update the state
+        const updatedPlans = clientPlans.map((plan) => ({
+          ...plan,
+          is_active: plan.id === planId,
+        }));
+
+        setClientPlans(updatedPlans);
+        const newActivePlan = updatedPlans.find((plan) => plan.id === planId);
+        setActivePlan(newActivePlan);
+
+        // Make the API call
         const response = await axios.post(
           `/api/diet-plans/client/${clientId}/activate`,
           {
@@ -87,11 +138,33 @@ const useClientDietPlans = (clientId = null) => {
           }
         );
 
-        // Refresh the client plans after activation
-        await fetchClientDietPlans(clientId);
+        // Sync with server data only if different (avoid unnecessary re-renders)
+        const serverResult = await silentFetchClientDietPlans(clientId);
+        if (serverResult.success) {
+          const serverPlans = serverResult.data;
+          // Only update if server data differs from our optimistic state
+          const hasChanges = serverPlans.some((serverPlan, index) => {
+            const optimisticPlan = updatedPlans[index];
+            return (
+              !optimisticPlan ||
+              serverPlan.is_active !== optimisticPlan.is_active
+            );
+          });
+
+          if (hasChanges) {
+            setClientPlans(serverPlans);
+            const serverActivePlan =
+              serverPlans.find((plan) => plan.is_active) || null;
+            setActivePlan(serverActivePlan);
+          }
+        }
 
         return response.data;
       } catch (error) {
+        // Revert optimistic updates on error
+        setClientPlans(previousPlans);
+        setActivePlan(previousActivePlan);
+
         const errorMessage =
           error.response?.data?.message ||
           error.message ||
@@ -99,7 +172,7 @@ const useClientDietPlans = (clientId = null) => {
         throw new Error(errorMessage);
       }
     },
-    [clientId, fetchClientDietPlans]
+    [clientId, clientPlans, activePlan, silentFetchClientDietPlans]
   );
 
   const deactivatePlan = useCallback(
@@ -108,18 +181,67 @@ const useClientDietPlans = (clientId = null) => {
         throw new Error("Client ID is required");
       }
 
+      // Optimistic update - update UI immediately
+      const previousPlans = [...clientPlans];
+      const previousActivePlan = activePlan;
+
       try {
+        // Optimistically update the state
+        let updatedPlans;
+        if (planId) {
+          // Deactivate specific plan
+          updatedPlans = clientPlans.map((plan) =>
+            plan.id === planId ? { ...plan, is_active: false } : plan
+          );
+        } else {
+          // Deactivate all plans
+          updatedPlans = clientPlans.map((plan) => ({
+            ...plan,
+            is_active: false,
+          }));
+        }
+
+        setClientPlans(updatedPlans);
+
+        // Update active plan state
+        const newActivePlan =
+          updatedPlans.find((plan) => plan.is_active) || null;
+        setActivePlan(newActivePlan);
+
+        // Make the API call
         const payload = planId ? { plan_id: planId } : {};
         const response = await axios.post(
           `/api/diet-plans/client/${clientId}/deactivate`,
           payload
         );
 
-        // Refresh the client plans after deactivation
-        await fetchClientDietPlans(clientId);
+        // Sync with server data only if different (avoid unnecessary re-renders)
+        const serverResult = await silentFetchClientDietPlans(clientId);
+        if (serverResult.success) {
+          const serverPlans = serverResult.data;
+          // Only update if server data differs from our optimistic state
+          const hasChanges = serverPlans.some((serverPlan, index) => {
+            const optimisticPlan = updatedPlans[index];
+            return (
+              !optimisticPlan ||
+              serverPlan.is_active !== optimisticPlan.is_active
+            );
+          });
+
+          if (hasChanges) {
+            setClientPlans(serverPlans);
+            const serverActivePlan =
+              serverPlans.find((plan) => plan.is_active) || null;
+            setActivePlan(serverActivePlan);
+          }
+        }
 
         return response.data;
       } catch (error) {
+        // Revert optimistic updates on error
+        setClientPlans(previousPlans);
+        setActivePlan(previousActivePlan);
+
         const errorMessage =
           error.response?.data?.message ||
           error.message ||
@@ -127,7 +249,7 @@ const useClientDietPlans = (clientId = null) => {
         throw new Error(errorMessage);
       }
     },
-    [clientId, fetchClientDietPlans]
+    [clientId, clientPlans, activePlan, silentFetchClientDietPlans]
   );
 
   const refetch = useCallback(() => {
