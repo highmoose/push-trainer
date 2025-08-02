@@ -110,7 +110,7 @@ const useClientDietPlans = (clientId = null) => {
   }, [clientId, fetchClientDietPlans]);
 
   const activatePlan = useCallback(
-    async (planId) => {
+    async (planId, activationData = null) => {
       if (!clientId || !planId) {
         throw new Error("Client ID and Plan ID are required");
       }
@@ -130,12 +130,20 @@ const useClientDietPlans = (clientId = null) => {
         const newActivePlan = updatedPlans.find((plan) => plan.id === planId);
         setActivePlan(newActivePlan);
 
+        // Build request payload
+        const payload = {
+          plan_id: planId,
+        };
+
+        // Add activation data if provided
+        if (activationData) {
+          payload.activation_data = activationData;
+        }
+
         // Make the API call
         const response = await axios.post(
           `/api/diet-plans/client/${clientId}/activate`,
-          {
-            plan_id: planId,
-          }
+          payload
         );
 
         // Sync with server data only if different (avoid unnecessary re-renders)

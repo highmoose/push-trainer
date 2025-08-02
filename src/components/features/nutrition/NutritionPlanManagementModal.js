@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Select, SelectItem } from "@heroui/react";
 import ViewDietPlanModal from "./ViewDietPlanModal";
+import DietPlanActivationModal from "./DietPlanActivationModal";
 import ConfirmationModal from "@/components/common/ConfirmationModal";
 import useClientDietPlans from "@/hooks/clientDietPlans";
 import { useDietPlans } from "@/hooks/diet";
@@ -43,6 +44,12 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   const [showViewDietPlanModal, setShowViewDietPlanModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
   const [loadingPlanDetails, setLoadingPlanDetails] = useState(null);
+
+  // Activation modals state
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [planToActivate, setPlanToActivate] = useState(null);
+  const [activationLoading, setActivationLoading] = useState(false);
 
   console.log("Client Plans:", clientPlans);
 
@@ -77,13 +84,66 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
   // Handlers for plan actions
   const handleActivatePlan = async (planId) => {
     try {
-      console.log("Activating plan:", planId);
-      await activatePlan(planId);
+      const planToActivate = clientPlans.find((plan) => plan.id === planId);
+      if (!planToActivate) {
+        console.error("Plan not found:", planId);
+        return;
+      }
+
+      // Set the plan to activate
+      setPlanToActivate(planToActivate);
+
+      // Check if there's already an active plan
+      if (activePlan) {
+        // Show confirmation modal first
+        setShowConfirmationModal(true);
+      } else {
+        // No active plan, go directly to activation modal
+        setShowActivationModal(true);
+      }
+    } catch (error) {
+      console.error("Error setting up activation:", error);
+    }
+  };
+
+  const handleConfirmOverwrite = () => {
+    // Close confirmation modal and open activation modal
+    setShowConfirmationModal(false);
+    setShowActivationModal(true);
+  };
+
+  const handleActivationConfirm = async (activationData) => {
+    if (!planToActivate) return;
+
+    try {
+      setActivationLoading(true);
+      console.log(
+        "Activating plan:",
+        planToActivate.id,
+        "with data:",
+        activationData
+      );
+
+      await activatePlan(planToActivate.id, activationData);
+
       console.log("Plan activated successfully");
+
+      // Close modals and reset state
+      setShowActivationModal(false);
+      setPlanToActivate(null);
     } catch (error) {
       console.error("Error activating plan:", error);
       // You might want to show an error toast here
+    } finally {
+      setActivationLoading(false);
     }
+  };
+
+  const handleCancelActivation = () => {
+    setShowConfirmationModal(false);
+    setShowActivationModal(false);
+    setPlanToActivate(null);
+    setActivationLoading(false);
   };
 
   const handleDeactivatePlan = async () => {
@@ -459,6 +519,27 @@ const NutritionPlanManagementModal = ({ isOpen, onClose, client }) => {
         onClose={handleClosePlanDetails}
         planDetails={selectedPlanDetails}
         zIndex="z-[60]"
+      />
+
+      {/* Confirmation Modal for Overwriting Active Plan */}
+      <ConfirmationModal
+        isOpen={showConfirmationModal}
+        onClose={handleCancelActivation}
+        onConfirm={handleConfirmOverwrite}
+        title="Replace Active Diet Plan"
+        message={`There is already an active diet plan (${activePlan?.title}). This will deactivate the current plan and activate "${planToActivate?.title}". Are you sure you want to proceed?`}
+        confirmText="Yes, Replace Plan"
+        cancelText="Cancel"
+        variant="warning"
+      />
+
+      {/* Diet Plan Activation Modal */}
+      <DietPlanActivationModal
+        isOpen={showActivationModal}
+        onClose={handleCancelActivation}
+        onConfirm={handleActivationConfirm}
+        planTitle={planToActivate?.title || ""}
+        loading={activationLoading}
       />
     </div>
   );

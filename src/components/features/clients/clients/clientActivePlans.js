@@ -6,9 +6,86 @@ import useClientDietPlans from "@/hooks/clientDietPlans";
 
 // Progress bar component that calculates percentage based on dates
 const ProgressBar = ({ startDate, endDate }) => {
+  // Helper function to parse date format like '21 Jul 25'
+  const parseCustomDate = (dateStr) => {
+    if (!dateStr) return null;
+
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+
+    const parts = dateStr.split(" ");
+    if (parts.length !== 3) return new Date(dateStr); // Fallback to standard parsing
+
+    const day = parseInt(parts[0]);
+    const month = months[parts[1]];
+    const year = 2000 + parseInt(parts[2]); // Convert 2-digit year to full year
+
+    return new Date(year, month, day);
+  };
+
   const now = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseCustomDate(startDate);
+  const end = parseCustomDate(endDate);
+
+  if (!start) return null; // No start date provided
+
+  // Check if plan hasn't started yet
+  const hasStarted = now >= start;
+
+  if (!hasStarted) {
+    // Plan hasn't started - show days until start
+    const daysUntilStart = Math.ceil(
+      (start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return (
+      <div className="w-full mt-2">
+        <div className="w-full h-1 mb-2 bg-zinc-800/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-500 transition-all duration-300 rounded-full"
+            style={{ width: "0%" }}
+          />
+        </div>
+        <div className="flex justify-between text-xs mt-1">
+          <span className="text-zinc-600">Not started</span>
+          <span className="text-blue-400">
+            Starting in {daysUntilStart} days
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Plan has started - calculate progress
+  if (!end) {
+    // Indefinite plan - just show it's active
+    return (
+      <div className="w-full mt-2">
+        <div className="w-full h-1 mb-2 bg-zinc-800/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-lime-500 transition-all duration-300 rounded-full"
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div className="flex justify-between text-xs mt-1">
+          <span className="text-zinc-600">Active</span>
+          <span className="text-lime-400">Indefinite</span>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate total duration and elapsed time
   const totalDuration = end.getTime() - start.getTime();
@@ -22,7 +99,6 @@ const ProgressBar = ({ startDate, endDate }) => {
 
   // Progress bar always green, but text color changes based on percentage
   const barColor = "bg-lime-500";
-  const bgColor = "bg-lime-500/20";
 
   // Determine text color for days remaining based on percentage
   let daysRemainingColor = "text-zinc-400"; // Default
@@ -33,13 +109,15 @@ const ProgressBar = ({ startDate, endDate }) => {
     daysRemainingColor = "text-orange-400";
   }
 
+  const daysRemaining = Math.ceil(
+    (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   return (
     <div className="w-full mt-2">
-      <div
-        className={`w-full h-1 mb-2 bg-zinc-800/50 rounded-full overflow-hidden `}
-      >
+      <div className="w-full h-1 mb-2 bg-zinc-800/50 rounded-full overflow-hidden">
         <div
-          className={`h-full  ${barColor} transition-all duration-300 rounded-full`}
+          className={`h-full ${barColor} transition-all duration-300 rounded-full`}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -48,7 +126,7 @@ const ProgressBar = ({ startDate, endDate }) => {
           {Math.round(percentage)}% complete
         </span>
         <span className={daysRemainingColor}>
-          {Math.max(0, Math.round(100 - percentage))} days remaining
+          {Math.max(0, daysRemaining)} days remaining
         </span>
       </div>
     </div>
@@ -68,6 +146,7 @@ export default function ClientActivePlans({ selectedClient }) {
       fetchClientDietPlans(selectedClient.id)
         .then((result) => {
           if (result.success) {
+            console.log("Fetched client diet plans:", result.data);
             // Find the active plan
             const active = result.data?.find((plan) => plan.is_active) || null;
             setActivePlan(active);
@@ -133,24 +212,42 @@ export default function ClientActivePlans({ selectedClient }) {
               <p className="text-sm font-medium text-white mb-1">
                 {activePlan.title}
               </p>
-              <p className="text-xs text-zinc-400 mb-2">
-                {activePlan.plan_type
-                  ?.replace(/_/g, " ")
-                  .replace(/\b\w/g, (l) => l.toUpperCase())}{" "}
-                • {activePlan.meals_per_day} meals/day
-                {activePlan.total_calories &&
-                  ` • ${activePlan.total_calories.toLocaleString()} cal`}
-              </p>
+              <div className="flex justify-between">
+                <p className="text-xs text-zinc-400 ">
+                  {activePlan.plan_type
+                    ?.replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}{" "}
+                  • {activePlan.meals_per_day} meals/day
+                  {activePlan.total_calories &&
+                    ` • ${activePlan.total_calories.toLocaleString()} cal`}
+                </p>
+                <div className="flex items-center gap-2 text-xs text-zinc-400 ">
+                  <p className="text-xs text-zinc-400 ">
+                    {activePlan.start_date && `Start: ${activePlan.start_date}`}
+                  </p>
+                  -
+                  <p className="text-xs text-zinc-400 ">
+                    {activePlan.end_date
+                      ? activePlan.end_date && `End: ${activePlan.end_date}`
+                      : "Indefinite"}
+                  </p>
+                </div>
+              </div>
+              {activePlan.start_date && (
+                <ProgressBar
+                  startDate={activePlan.start_date}
+                  endDate={activePlan.end_date}
+                />
+              )}
             </>
           ) : (
             <>
               <p className="text-sm text-zinc-500">No active nutrition plan</p>
-              <p className="text-xs text-zinc-600 mb-2">
+              <p className="text-xs text-zinc-600 ">
                 Click manage to assign a plan
               </p>
             </>
           )}
-          <ProgressBar startDate="2025-06-01" endDate="2025-07-08" />
         </div>
       </div>
       <div className="flex w-full justify-start">
