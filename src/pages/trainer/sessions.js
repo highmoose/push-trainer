@@ -14,13 +14,7 @@ import CreateTaskModal from "@/src/components/features/sessions/CreateTaskModal"
 import CalendarContextMenu from "@/src/components/features/sessions/CalendarContextMenu";
 import "@/features/sessions/calendarStyles.css";
 import { Circle, CircleCheck, Plus } from "lucide-react";
-import {
-  convertFromServerTime,
-  convertForCalendar,
-  getUserTimezone,
-  formatWithTimezone,
-  convertToServerTime,
-} from "@/lib/timezone";
+import { convertFromServerTime, getUserTimezone } from "@/lib/timezone";
 
 // Configure dayjs to start week on Monday
 dayjs.extend(weekday);
@@ -44,23 +38,6 @@ export default function Sessions() {
   const hoverLineRef = useRef(null);
   const userTimezone = getUserTimezone();
 
-  // Debug timezone detection
-  useEffect(() => {
-    console.log("=== TIMEZONE DEBUG ===");
-    console.log("User timezone from getUserTimezone():", userTimezone);
-    console.log(
-      "Browser detected timezone:",
-      Intl.DateTimeFormat().resolvedOptions().timeZone
-    );
-    console.log(
-      "Current date in user timezone:",
-      dayjs.tz(dayjs(), userTimezone).format("YYYY-MM-DD HH:mm:ss Z")
-    );
-    console.log(
-      "Current date in browser timezone:",
-      dayjs().format("YYYY-MM-DD HH:mm:ss Z")
-    );
-  }, [userTimezone]);
   // Explicitly use useSessions hook for all session-related operations
   const sessionsHookData = useSessions();
   const { sessions, updateSessionTime, updateSessionTimeOptimistic } =
@@ -72,7 +49,7 @@ export default function Sessions() {
 
   // Explicitly use useTasks hook for all task-related operations
   const tasksHookData = useTasks();
-  const { tasks, updateTask: updateTaskHook, completeTask } = tasksHookData;
+  const { tasks, updateTask: updateTaskHook } = tasksHookData;
 
   // Ensure we're using the correct updateTask function from useTasks hook
   const updateTask = updateTaskHook;
@@ -86,35 +63,6 @@ export default function Sessions() {
     start_time_original: session.start_time,
     end_time_original: session.end_time,
   })); // Debug: Log session and task changes
-  useEffect(() => {
-    console.log("Planner - User timezone:", userTimezone);
-    console.log("Planner - Raw sessions from hook:", sessions);
-    console.log("Planner - Raw tasks from hook:", tasks);
-    console.log(
-      "Planner - Sessions updated:",
-      processedSessions.map((s) => ({
-        id: s.id,
-        status: s.status,
-        name: `${s.first_name} ${s.last_name}`,
-        original_time: s.start_time_original,
-        local_time: s.start_time_local?.format("YYYY-MM-DD HH:mm"),
-        timezone: userTimezone,
-        has_local_time: !!s.start_time_local,
-      }))
-    );
-    console.log(
-      "Planner - Tasks with due_date:",
-      tasks
-        .filter((t) => t.due_date)
-        .map((t) => ({
-          id: t.id,
-          title: t.title,
-          due_date: t.due_date,
-          status: t.status,
-          duration: t.duration,
-        }))
-    );
-  }, [sessions, tasks, userTimezone]);
 
   const [selectedSession, setSelectedSession] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -280,26 +228,26 @@ export default function Sessions() {
     setEditTaskModalOpen(false);
     setSelectedTask(null);
   };
+
   const handleTaskCompletionToggle = async (task, event) => {
     event.stopPropagation();
     event.preventDefault();
 
     if (updatingTasks.has(task.id)) {
       return;
-    } // Add task to updating set immediately
+    }
+
+    // Add task to updating set immediately
     setUpdatingTasks((prev) => new Set(prev).add(task.id));
 
+    // Determine new status
     const newStatus = task.status === "completed" ? "pending" : "completed";
 
     try {
-      // Use the hook which handles optimistic updates automatically
-      if (newStatus === "completed") {
-        await completeTask(task.id);
-      } else {
-        await updateTask(task.id, { status: "pending" });
-      } // Success - hook handles the state update
+      // Use updateTask directly for consistent behavior with modal
+      await updateTask(task.id, { status: newStatus });
     } catch (error) {
-      console.error("Failed to update task status:", error);
+      console.error("Failed to toggle task completion:", error);
       // Hook already handles revert on error
     } finally {
       // Remove task from updating set with a minimal delay to prevent rapid re-clicks
@@ -338,7 +286,7 @@ export default function Sessions() {
       revenue: weekSessions.reduce((acc, s) => acc + (s.rate || 0), 0),
     };
   };
-  // Enhanced useEffect for dragging with cross-day support (sessions and tasks)
+
   useEffect(() => {
     if (!isDragging && !isDraggingTask) return;
 
@@ -509,8 +457,6 @@ export default function Sessions() {
 
       // Update task time via hooks
       if (draggingTask && draggingTask.id) {
-        console.log("✅ FOUND DRAGGING TASK IN MOUSE UP:", draggingTask);
-
         // Store original task for potential revert
         const originalTask = tasks.find((t) => t.id === draggingTask.id);
 
@@ -526,40 +472,30 @@ export default function Sessions() {
           return;
         } // Update task time via hooks (which handles optimistic updates)
         try {
-          console.log("� ABOUT TO CALL updateTask:", {
-            taskId: draggingTask.id,
+          // Add detailed logging for the API call
+          const updatePayload = {
             due_date: draggingTask.due_date,
             duration: draggingTask.duration,
-            originalDueDate: originalTask.due_date,
-            originalDuration: originalTask.duration,
-          });
+          };
 
-          console.log(
-            "🎯 CALLING updateTask RIGHT NOW with function:",
-            typeof updateTask
-          );
-          console.log("🔍 VERIFYING: This should be useTasks.updateTask");
-          console.log("🎯 Parameters:", draggingTask.id, {
-            due_date: draggingTask.due_date,
-            duration: draggingTask.duration,
-          });
-
-          const result = await updateTask(draggingTask.id, {
-            due_date: draggingTask.due_date,
-            duration: draggingTask.duration,
-          });
-
-          console.log("✅ Task update completed successfully");
-          console.log("📤 updateTask result:", result);
+          const result = await updateTask(draggingTask.id, updatePayload);
+          if (result && result.success) {
+          } else {
+            console.error(
+              "❌ API call failed:",
+              result?.error || result?.message
+            );
+            console.error("❌ Full result object:", result);
+          }
         } catch (error) {
           console.error("Failed to update task:", error);
+          console.error("Error details:", {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+          });
         }
-      } else {
-        console.log("❌ NO DRAGGING TASK FOUND IN MOUSE UP");
-        console.log("📋 draggingTask:", draggingTask);
-        console.log("📋 tasks array length:", tasks?.length || 0);
       }
-
       setDraggingSession(null);
       setDraggingTask(null);
     };
@@ -714,19 +650,18 @@ export default function Sessions() {
       } // Update task time via hook
       if (resizingTask && resizingTask.id) {
         try {
-          console.log("📏 Updating task from resize:", {
-            id: resizingTask.id,
+          const resizePayload = {
             due_date: resizingTask.due_date,
             duration: resizingTask.duration,
-            resizeType,
-          });
+          };
 
-          await updateTask(resizingTask.id, {
-            due_date: resizingTask.due_date,
-            duration: resizingTask.duration,
-          });
+          const result = await updateTask(resizingTask.id, resizePayload);
 
-          console.log("✅ Task resize update completed successfully");
+          if (result && result.success) {
+            console.log("✅ Task resize API call successful");
+          } else {
+            console.error("❌ Task resize API call failed:", result?.error);
+          }
         } catch (error) {
           console.error("Failed to update task:", error);
         }
@@ -784,30 +719,6 @@ export default function Sessions() {
             style={{ top: hoveredLine, left: "50px" }}
           />
         )}{" "}
-        {/* Cross-day drag indicator */}
-        {(isDragging || isDraggingTask) &&
-          dragCurrentColumn !== null &&
-          dragCurrentColumn !== dragStartColumn && (
-            <div
-              className="absolute top-0 bottom-0 bg-blue-500/20 border-2 border-blue-500 border-dashed z-30 pointer-events-none"
-              style={{
-                left: `${
-                  50 +
-                  dragCurrentColumn *
-                    ((100 -
-                      (50 /
-                        calendarRef.current?.getBoundingClientRect().width) *
-                        100 || 50) /
-                      7)
-                }%`,
-                width: `${
-                  (100 -
-                    (50 / calendarRef.current?.getBoundingClientRect().width) *
-                      100 || 50) / 7
-                }%`,
-              }}
-            />
-          )}
         <div
           className="grid pb-4"
           style={{ gridTemplateColumns: "50px repeat(7, minmax(0, 1fr))" }}
@@ -1239,11 +1150,6 @@ export default function Sessions() {
                                 setResizeType(isTopResize ? "top" : "bottom");
                               } else {
                                 // Start dragging
-                                console.log(
-                                  "🎯 TASK MOUSE DOWN TRIGGERED:",
-                                  task.title
-                                );
-                                console.log("📋 Task data:", task);
                                 const clickOffset = e.clientY - taskRect.top;
                                 const currentColumn = days.findIndex((day) =>
                                   dayjs(task.due_date).isSame(day, "day")
@@ -1253,24 +1159,12 @@ export default function Sessions() {
                                 const taskTopInCalendar =
                                   taskRect.top - calendarRect.top;
 
-                                console.log("📋 Setting dragging task:", {
-                                  taskId: task.id,
-                                  title: task.title,
-                                  currentColumn,
-                                  clickOffset,
-                                  taskTopInCalendar,
-                                });
-
                                 setDraggingTask(task);
                                 setDragOffsetY(clickOffset);
                                 setDragPositionY(taskTopInCalendar);
                                 setIsDraggingTask(true);
                                 setDragStartColumn(currentColumn);
                                 setDragCurrentColumn(currentColumn);
-
-                                console.log(
-                                  "✅ Task drag state set successfully"
-                                );
                               }
                             }}
                           >
@@ -1399,44 +1293,6 @@ export default function Sessions() {
         Only week view is styled for now
       </div>
     );
-  };
-
-  // Test function for debugging - can be called from browser console
-  window.testDragAPI = {
-    testSessionUpdate: async () => {
-      if (sessions.length > 0) {
-        const testSession = sessions[0];
-        console.log("🧪 Testing session update with session:", testSession);
-        try {
-          await updateSessionTime(testSession.id, {
-            start_time: testSession.start_time,
-            end_time: testSession.end_time,
-          });
-          console.log("✅ Test session update completed");
-        } catch (error) {
-          console.error("❌ Test session update failed:", error);
-        }
-      } else {
-        console.log("No sessions available for testing");
-      }
-    },
-    testTaskUpdate: async () => {
-      if (tasks.length > 0) {
-        const testTask = tasks[0];
-        console.log("🧪 Testing task update with task:", testTask);
-        try {
-          await updateTask(testTask.id, {
-            due_date: testTask.due_date,
-            duration: testTask.duration,
-          });
-          console.log("✅ Test task update completed");
-        } catch (error) {
-          console.error("❌ Test task update failed:", error);
-        }
-      } else {
-        console.log("No tasks available for testing");
-      }
-    },
   };
 
   return (

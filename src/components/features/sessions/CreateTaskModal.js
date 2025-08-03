@@ -38,7 +38,6 @@ export default function CreateTaskModal({
     createTask,
     updateTask,
     deleteTask,
-    completeTask,
     loading: tasksLoading,
     error: tasksError,
   } = tasksHookData;

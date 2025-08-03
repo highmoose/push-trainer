@@ -10,12 +10,6 @@ const api = axios.create({
 
 // 🔑 Interceptor to attach the CSRF token and Authorization token
 api.interceptors.request.use((config) => {
-  console.log(
-    "📤 Making API request:",
-    config.method?.toUpperCase(),
-    config.url
-  );
-
   // Get CSRF token
   const csrfToken = getCookie("XSRF-TOKEN");
   if (csrfToken) {
@@ -34,12 +28,6 @@ api.interceptors.request.use((config) => {
 // Add response interceptor to log responses and errors
 api.interceptors.response.use(
   (response) => {
-    console.log(
-      "📥 API response:",
-      response.config.method?.toUpperCase(),
-      response.config.url,
-      response.status
-    );
     return response;
   },
   (error) => {
