@@ -1,110 +1,171 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  useFetchSessions,
-  useCreateSession,
-  useUpdateSession,
-  useUpdateSessionTime,
-  useCancelSession,
-  useReinstateSession,
-  useCompleteSession,
-  useDeleteSession,
-} from "./api";
+import useFetchSessions from "./api/useFetchSessions";
+import useCreateSession from "./api/useCreateSession";
+import useUpdateSession from "./api/useUpdateSession";
+import useUpdateSessionTime from "./api/useUpdateSessionTime";
+import useCancelSession from "./api/useCancelSession";
+import useReinstateSession from "./api/useReinstateSession";
+import useCompleteSession from "./api/useCompleteSession";
+import useDeleteSession from "./api/useDeleteSession";
 
 const useSessions = () => {
-  // API hooks
-  const fetchSessionsApi = useFetchSessions();
-  const createSessionApi = useCreateSession();
-  const updateSessionApi = useUpdateSession();
-  const updateSessionTimeApi = useUpdateSessionTime();
-  const cancelSessionApi = useCancelSession();
-  const reinstateSessionApi = useReinstateSession();
-  const completeSessionApi = useCompleteSession();
-  const deleteSessionApi = useDeleteSession();
-
-  // State
   const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Fetch all sessions
-  const fetchSessions = useCallback(async (includePast = false) => {
-    const result = await fetchSessionsApi.execute(includePast);
+  // Individual action hooks
+  const fetchAction = useFetchSessions();
+  const createAction = useCreateSession();
+  const updateAction = useUpdateSession();
+  const updateTimeAction = useUpdateSessionTime();
+  const cancelAction = useCancelSession();
+  const reinstateAction = useReinstateSession();
+  const completeAction = useCompleteSession();
+  const deleteAction = useDeleteSession();
 
-    if (result.success) {
-      setSessions(result.data);
-    }
+  // Fetch all sessions with optional filters
+  const fetchSessions = useCallback(
+    async (includePast = false) => {
+      setLoading(true);
+      setError(null);
 
-    return result;
-  }, []); // Remove fetchSessionsApi from dependencies to prevent infinite loop
+      try {
+        const result = await fetchAction.execute(includePast);
 
-  // Create a new session
+        if (result.success) {
+          // The API returns the sessions array directly, not wrapped in a sessions property
+          const sessionsData = Array.isArray(result.data) ? result.data : [];
+          setSessions(sessionsData);
+          return { success: true, data: sessionsData };
+        } else {
+          setError(result.error);
+          setSessions([]);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
+        const errorMessage = "Failed to fetch sessions";
+        setError(errorMessage);
+        console.error("Error fetching sessions:", err);
+        setSessions([]);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchAction]
+  );
+
+  // Create session (optimistic)
   const createSession = useCallback(
     async (sessionData) => {
-      console.log("🆕 createSession called with data:", sessionData);
+      setError(null);
 
-      const result = await createSessionApi.execute(sessionData);
+      // Create optimistic session with temporary ID
+      const optimisticSession = {
+        ...sessionData,
+        id: `temp-${Date.now()}`,
+        status: sessionData.status || "scheduled",
+        duration: sessionData.duration || 60,
+        rate: sessionData.rate || 0.0,
+        session_type: sessionData.session_type || "general",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (result.success) {
-        const newSession = result.data;
-        console.log("📥 Session creation response:", newSession);
+      // Optimistically add to state
+      setSessions((prev) => [optimisticSession, ...prev]);
 
-        // Optimistically update state
-        setSessions((prev) => [newSession, ...prev]);
-        console.log("✅ Session created successfully");
-      } else {
-        console.error("❌ Error creating session:", result.error);
+      try {
+        const result = await createAction.execute(sessionData);
+
+        if (result.success) {
+          // Replace optimistic session with real one
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === optimisticSession.id ? result.data : session
+            )
+          );
+          return { success: true, data: result.data };
+        } else {
+          // Rollback optimistic updates
+          setSessions((prev) =>
+            prev.filter((session) => session.id !== optimisticSession.id)
+          );
+          setError(result.error);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
+        // Rollback optimistic updates
+        setSessions((prev) =>
+          prev.filter((session) => session.id !== optimisticSession.id)
+        );
+
+        const errorMessage = "Failed to create session";
+        setError(errorMessage);
+        console.error("Error creating session:", err);
+        return { success: false, message: errorMessage };
       }
-
-      return result;
     },
-    [] // Remove createSessionApi from dependencies to prevent infinite loop
+    [createAction]
   );
 
   // Update session (optimistic)
   const updateSession = useCallback(
     async (id, updates) => {
-      // Store original session for rollback
-      const originalSession = sessions.find((s) => s.id === id);
+      setError(null);
+
+      // Store original session for potential rollback
+      let originalSession = null;
+      setSessions((prev) => {
+        originalSession = prev.find((s) => s.id === id);
+        return prev.map((session) =>
+          session.id === id ? { ...session, ...updates } : session
+        );
+      });
+
       if (!originalSession) {
+        setError("Session not found");
         return { success: false, message: "Session not found" };
       }
 
-      // Optimistically update state
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id ? { ...session, ...updates } : session
-        )
-      );
+      try {
+        const result = await updateAction.execute(id, updates);
 
-      const result = await updateSessionApi.execute(id, updates);
-
-      if (result.success) {
-        const updatedSession = result.data;
-
-        // Update with server response
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? updatedSession : session))
-        );
-      } else {
+        if (result.success) {
+          // Update with server response
+          setSessions((prev) =>
+            prev.map((session) => (session.id === id ? result.data : session))
+          );
+          return { success: true, data: result.data };
+        } else {
+          // Rollback optimistic update
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === id ? originalSession : session
+            )
+          );
+          setError(result.error);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
         // Rollback optimistic update
         setSessions((prev) =>
           prev.map((session) => (session.id === id ? originalSession : session))
         );
-      }
 
-      return result;
+        const errorMessage = "Failed to update session";
+        setError(errorMessage);
+        console.error("Error updating session:", err);
+        return { success: false, message: errorMessage };
+      }
     },
-    [sessions] // Keep sessions dependency but remove updateSessionApi
+    [updateAction]
   );
 
   // Update session time (for drag and drop) - optimistic
   const updateSessionTime = useCallback(
     async (id, timeData) => {
-      console.log("⏰ updateSessionTime called:", { id, timeData });
-
-      // Store original session for rollback
-      const originalSession = sessions.find((s) => s.id === id);
-      if (!originalSession) {
-        return { success: false, message: "Session not found" };
-      }
+      setError(null);
 
       // Extract start_time and end_time from timeData
       const { start_time, end_time } = timeData;
@@ -120,174 +181,194 @@ const useSessions = () => {
         duration,
       };
 
-      // Optimistically update state
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id ? { ...session, ...updates } : session
-        )
-      );
+      // Store original session for potential rollback
+      let originalSession = null;
 
-      console.log("📤 Making PUT request to update session time:", {
-        id,
-        updates,
+      // Use a promise to properly handle the async state update
+      const updateResult = await new Promise((resolve) => {
+        setSessions((prev) => {
+          originalSession = prev.find((s) => s.id === id);
+
+          if (!originalSession) {
+            resolve({ found: false });
+            return prev; // Return unchanged if session not found
+          }
+
+          const updatedSessions = prev.map((session) =>
+            session.id === id ? { ...session, ...updates } : session
+          );
+          resolve({ found: true, originalSession });
+          return updatedSessions;
+        });
       });
 
-      const result = await updateSessionTimeApi.execute(id, timeData);
+      // Check the result of the state update
+      if (!updateResult.found) {
+        setError("Session not found");
+        return { success: false, message: "Session not found" };
+      }
 
-      if (result.success) {
-        const updatedSession = result.data;
-        console.log("📥 Session time update response:", updatedSession);
+      // Use the originalSession from the promise result
+      originalSession = updateResult.originalSession;
 
-        // Update with server response
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? updatedSession : session))
-        );
+      try {
+        const result = await updateTimeAction.execute(id, timeData);
 
-        console.log("✅ Session time updated successfully");
-      } else {
+        if (result.success) {
+          // Update with server response
+          setSessions((prev) =>
+            prev.map((session) => (session.id === id ? result.data : session))
+          );
+          return { success: true, data: result.data };
+        } else {
+          // Rollback optimistic update
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === id ? originalSession : session
+            )
+          );
+          setError(result.error);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
         // Rollback optimistic update
         setSessions((prev) =>
           prev.map((session) => (session.id === id ? originalSession : session))
         );
 
-        console.error("❌ Error updating session time:", result.error);
+        const errorMessage = "Failed to update session time";
+        setError(errorMessage);
+        console.error("Error updating session time:", err);
+        return { success: false, message: errorMessage };
       }
-
-      return result;
     },
-    [sessions] // Keep sessions dependency but remove updateSessionTimeApi
+    [updateTimeAction]
   );
 
-  // Cancel session (optimistic)
+  // Update session status (cancel, reinstate, complete)
+  const updateSessionStatus = useCallback(
+    async (id, status) => {
+      setError(null);
+
+      // Store original session for potential rollback
+      let originalSession = null;
+      setSessions((prev) => {
+        originalSession = prev.find((s) => s.id === id);
+        return prev.map((session) =>
+          session.id === id ? { ...session, status } : session
+        );
+      });
+
+      if (!originalSession) {
+        setError("Session not found");
+        return { success: false, message: "Session not found" };
+      }
+
+      try {
+        let result;
+        if (status === "cancelled") {
+          result = await cancelAction.execute(id);
+        } else if (status === "scheduled") {
+          result = await reinstateAction.execute(id);
+        } else if (status === "completed") {
+          result = await completeAction.execute(id);
+        } else {
+          throw new Error(`Unknown status: ${status}`);
+        }
+
+        if (result.success) {
+          // Update with server response
+          setSessions((prev) =>
+            prev.map((session) => (session.id === id ? result.data : session))
+          );
+          return { success: true, data: result.data };
+        } else {
+          // Rollback optimistic update
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === id ? originalSession : session
+            )
+          );
+          setError(result.error);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
+        // Rollback optimistic update
+        setSessions((prev) =>
+          prev.map((session) => (session.id === id ? originalSession : session))
+        );
+
+        const errorMessage = "Failed to update session status";
+        setError(errorMessage);
+        console.error("Error updating session status:", err);
+        return { success: false, message: errorMessage };
+      }
+    },
+    [cancelAction, reinstateAction, completeAction]
+  );
+
+  // Convenience methods for status updates
   const cancelSession = useCallback(
-    async (id) => {
-      // Store original session for rollback
-      const originalSession = sessions.find((s) => s.id === id);
-      if (!originalSession) {
-        return { success: false, message: "Session not found" };
-      }
-
-      // Optimistically update state
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id ? { ...session, status: "cancelled" } : session
-        )
-      );
-
-      const result = await cancelSessionApi.execute(id);
-
-      if (result.success) {
-        const updatedSession = result.data;
-
-        // Update with server response
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? updatedSession : session))
-        );
-      } else {
-        // Rollback optimistic update
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? originalSession : session))
-        );
-      }
-
-      return result;
-    },
-    [sessions] // Keep sessions dependency but remove cancelSessionApi
+    (id) => updateSessionStatus(id, "cancelled"),
+    [updateSessionStatus]
   );
-
-  // Reinstate session (optimistic)
   const reinstateSession = useCallback(
-    async (id) => {
-      // Store original session for rollback
-      const originalSession = sessions.find((s) => s.id === id);
-      if (!originalSession) {
-        return { success: false, message: "Session not found" };
-      }
-
-      // Optimistically update state
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id ? { ...session, status: "scheduled" } : session
-        )
-      );
-
-      const result = await reinstateSessionApi.execute(id);
-
-      if (result.success) {
-        const updatedSession = result.data;
-
-        // Update with server response
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? updatedSession : session))
-        );
-      } else {
-        // Rollback optimistic update
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? originalSession : session))
-        );
-      }
-
-      return result;
-    },
-    [sessions] // Keep sessions dependency but remove reinstateSessionApi
+    (id) => updateSessionStatus(id, "scheduled"),
+    [updateSessionStatus]
   );
-
-  // Complete session (optimistic)
   const completeSession = useCallback(
-    async (id) => {
-      // Store original session for rollback
-      const originalSession = sessions.find((s) => s.id === id);
-      if (!originalSession) {
-        return { success: false, message: "Session not found" };
-      }
-
-      // Optimistically update state
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id ? { ...session, status: "completed" } : session
-        )
-      );
-
-      const result = await completeSessionApi.execute(id);
-
-      if (result.success) {
-        const updatedSession = result.data;
-
-        // Update with server response
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? updatedSession : session))
-        );
-      } else {
-        // Rollback optimistic update
-        setSessions((prev) =>
-          prev.map((session) => (session.id === id ? originalSession : session))
-        );
-      }
-
-      return result;
-    },
-    [sessions] // Keep sessions dependency but remove completeSessionApi
+    (id) => updateSessionStatus(id, "completed"),
+    [updateSessionStatus]
   );
 
-  // Delete session
+  // Delete session (optimistic)
   const deleteSession = useCallback(
     async (id) => {
-      const result = await deleteSessionApi.execute(id);
+      setError(null);
 
-      if (result.success) {
-        // Remove from state
-        setSessions((prev) => prev.filter((session) => session.id !== id));
+      let originalSession = null;
+
+      // Optimistically remove from state
+      setSessions((prev) => {
+        originalSession = prev.find((s) => s.id === id);
+        if (!originalSession) return prev;
+        return prev.filter((session) => session.id !== id);
+      });
+
+      if (!originalSession) {
+        setError("Session not found");
+        return { success: false, message: "Session not found" };
       }
 
-      return result;
+      try {
+        const result = await deleteAction.execute(id);
+
+        if (result.success) {
+          return { success: true };
+        } else {
+          // Rollback optimistic updates
+          setSessions((prev) => [...prev, originalSession]);
+          setError(result.error);
+          return { success: false, message: result.error };
+        }
+      } catch (err) {
+        // Rollback optimistic updates
+        setSessions((prev) => [...prev, originalSession]);
+
+        const errorMessage = "Failed to delete session";
+        setError(errorMessage);
+        console.error("Error deleting session:", err);
+        return { success: false, message: errorMessage };
+      }
     },
-    [] // Remove deleteSessionApi from dependencies to prevent infinite loop
+    [deleteAction]
   );
 
   // Optimistic update for external state management (drag/drop)
-  const updateSessionTimeOptimistic = useCallback((id, startTime, endTime) => {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+  const updateSessionTimeOptimistic = useCallback((id, timeData) => {
+    const { start_time, end_time } = timeData;
+    const start = new Date(start_time);
+    const end = new Date(end_time);
     const duration = Math.round((end - start) / (1000 * 60));
 
     setSessions((prev) =>
@@ -295,9 +376,9 @@ const useSessions = () => {
         session.id === id
           ? {
               ...session,
-              start_time: startTime,
-              end_time: endTime,
-              duration: duration,
+              start_time,
+              end_time,
+              duration,
             }
           : session
       )
@@ -307,23 +388,15 @@ const useSessions = () => {
   // Load sessions on mount
   useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
+  }, []); // Empty dependency array - only run once on mount
 
   return {
+    // Data
     sessions,
-    loading:
-      fetchSessionsApi.loading ||
-      createSessionApi.loading ||
-      deleteSessionApi.loading,
-    error:
-      fetchSessionsApi.error ||
-      createSessionApi.error ||
-      updateSessionApi.error ||
-      updateSessionTimeApi.error ||
-      cancelSessionApi.error ||
-      reinstateSessionApi.error ||
-      completeSessionApi.error ||
-      deleteSessionApi.error,
+    loading,
+    error,
+
+    // Actions
     fetchSessions,
     createSession,
     updateSession,

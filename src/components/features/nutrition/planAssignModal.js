@@ -275,7 +275,6 @@ const PlanAssignModal = ({ isOpen, onClose, selectedPlan, onSuccess }) => {
                     <Card
                       key={client.id}
                       className="border border-default-200 hover:border-primary-300 transition-colors w-full"
-                      isPressable
                     >
                       <CardBody className="py-3">
                         <div className="flex items-center justify-between">

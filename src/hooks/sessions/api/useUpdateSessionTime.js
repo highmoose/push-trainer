@@ -18,11 +18,14 @@ const useUpdateSessionTime = () => {
       const end = new Date(end_time);
       const duration = Math.round((end - start) / (1000 * 60));
 
-      const response = await api.put(`/api/sessions/${id}`, {
+      const requestData = {
         start_time,
         end_time,
         duration,
-      });
+      };
+
+      const response = await api.put(`/api/sessions/${id}`, requestData);
+
       setLoading(false);
 
       return {
@@ -36,6 +39,7 @@ const useUpdateSessionTime = () => {
         "Failed to update session time";
       setError(errorMessage);
       setLoading(false);
+
       return {
         success: false,
         error: errorMessage,

@@ -55,7 +55,7 @@ export default function Sessions() {
   const updateTask = updateTaskHook;
 
   // Process sessions with timezone-aware datetime conversion
-  const processedSessions = sessions.map((session) => ({
+  const processedSessions = (sessions || []).map((session) => ({
     ...session,
     start_time_local: convertFromServerTime(session.start_time, userTimezone),
     end_time_local: convertFromServerTime(session.end_time, userTimezone),
@@ -357,21 +357,21 @@ export default function Sessions() {
         const duration = originalEnd.diff(originalStart, "minute");
         const newEnd = newStart.add(duration, "minute");
 
-        console.log("Drag calculation:", {
-          targetDay: targetDay.format("YYYY-MM-DD"),
-          targetDayTimezone: targetDay.format("YYYY-MM-DD HH:mm:ss Z"),
-          actualHour,
-          actualMinute,
-          userTimezone,
-          originalStart: originalStart.format("YYYY-MM-DD HH:mm:ss"),
-          originalEnd: originalEnd.format("YYYY-MM-DD HH:mm:ss"),
-          duration: duration + " minutes",
-          newStart: newStart.format("YYYY-MM-DD HH:mm:ss"),
-          newStartTimezone: newStart.format("YYYY-MM-DD HH:mm:ss Z"),
-          newEnd: newEnd.format("YYYY-MM-DD HH:mm:ss"),
-          newStartFormatted: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-          originalSessionStart: draggingSession.start_time_original,
-        });
+        // console.log("Drag calculation:", {
+        //   targetDay: targetDay.format("YYYY-MM-DD"),
+        //   targetDayTimezone: targetDay.format("YYYY-MM-DD HH:mm:ss Z"),
+        //   actualHour,
+        //   actualMinute,
+        //   userTimezone,
+        //   originalStart: originalStart.format("YYYY-MM-DD HH:mm:ss"),
+        //   originalEnd: originalEnd.format("YYYY-MM-DD HH:mm:ss"),
+        //   duration: duration + " minutes",
+        //   newStart: newStart.format("YYYY-MM-DD HH:mm:ss"),
+        //   newStartTimezone: newStart.format("YYYY-MM-DD HH:mm:ss Z"),
+        //   newEnd: newEnd.format("YYYY-MM-DD HH:mm:ss"),
+        //   newStartFormatted: newStart.format("YYYY-MM-DDTHH:mm:ss"),
+        //   originalSessionStart: draggingSession.start_time_original,
+        // });
         setDraggingSession({
           ...draggingSession, // Preserve all existing session data
           start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
@@ -411,7 +411,7 @@ export default function Sessions() {
       document.body.classList.remove("dragging", "no-select"); // Update session time via hook (which handles optimistic updates)
       if (draggingSession && draggingSession.id) {
         // Store original session for potential revert
-        const originalSession = sessions.find(
+        const originalSession = (sessions || []).find(
           (s) => s.id === draggingSession.id
         );
 
@@ -528,8 +528,6 @@ export default function Sessions() {
     draggingTask,
     dragOffsetY,
     currentDate,
-    sessions,
-    tasks,
     updateSessionTime,
     updateSessionTimeOptimistic,
     updateTask,
@@ -958,7 +956,9 @@ export default function Sessions() {
                             <div className="resize-handle bottom" />{" "}
                             <div className="relative z-20 pointer-events-none">
                               <div className="font-semibold truncate ">
-                                {s.first_name + " " + s.last_name || "Client"}
+                                {s.client.first_name +
+                                  " " +
+                                  s.client.last_name || "Client"}
                               </div>
                               <p className="text-xs opacity-80">{s.gym}</p>
                               <p className="text-xs opacity-80">
@@ -1590,7 +1590,7 @@ export default function Sessions() {
                       }`}
                     />
                     <div className="font-medium text-white text-sm flex-1">
-                      👥 {session.first_name} {session.last_name}
+                      👥 {session.client.first_name} {session.client.last_name}
                     </div>
                   </div>
                   <div className="text-xs text-zinc-400 mb-1">
