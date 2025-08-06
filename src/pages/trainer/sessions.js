@@ -27,7 +27,7 @@ dayjs.updateLocale("en", {
 });
 
 const views = ["day", "week", "month", "year"];
-const hours = Array.from({ length: 24 }, (_, i) => i); // 0 (12 AM) to 23 (11 PM) - full 24 hours
+const hours = Array.from({ length: 25 }, (_, i) => i); // 0 (12 AM) to 24 (12 AM next day) - full 24 hours + midnight
 const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
   m.toString().padStart(2, "0")
 );
@@ -313,7 +313,7 @@ export default function Sessions() {
       const hourHeight = 60;
       const adjustedY = Math.max(0, y - headerHeight);
 
-      // Calculate hour (0-23 for full 24 hours)
+      // Calculate hour (0-24 for full 24 hours + midnight)
       const hourIndex = Math.floor(adjustedY / hourHeight);
       const minuteInHour = adjustedY % hourHeight;
 
@@ -327,8 +327,8 @@ export default function Sessions() {
         actualHour += 1;
       }
 
-      // Ensure we don't go beyond valid hours (0-23)
-      actualHour = Math.min(23, actualHour);
+      // Ensure we don't go beyond valid hours (0-24)
+      actualHour = Math.min(24, actualHour);
       const actualMinute = snappedMinute; // Calculate new date and time - ensure days are created in user's timezone
       const days = [...Array(7)].map((_, i) =>
         dayjs.tz(currentDate.startOf("week"), userTimezone).add(i, "day")
@@ -341,11 +341,16 @@ export default function Sessions() {
           : dayjs(draggingTask.due_date); // Handle session dragging
       if (isDragging && draggingSession) {
         // Create new time in the user's timezone consistently
-        const newStart = dayjs
+        let newStart = dayjs
           .tz(targetDay.format("YYYY-MM-DD"), userTimezone)
-          .hour(actualHour)
+          .hour(actualHour === 24 ? 0 : actualHour)
           .minute(actualMinute)
           .second(0);
+
+        // If hour is 24, add one day
+        if (actualHour === 24) {
+          newStart = newStart.add(1, "day");
+        }
 
         // Calculate duration from the original session times (not the dragging session times)
         const originalStart = dayjs(
@@ -387,11 +392,17 @@ export default function Sessions() {
         });
       } // Handle task dragging
       if (isDraggingTask && draggingTask) {
-        const newStartTime = targetDay
+        let newStartTime = targetDay
           .startOf("day")
-          .hour(actualHour)
+          .hour(actualHour === 24 ? 0 : actualHour)
           .minute(actualMinute)
           .second(0);
+
+        // If hour is 24, add one day
+        if (actualHour === 24) {
+          newStartTime = newStartTime.add(1, "day");
+        }
+
         const duration = draggingTask.duration || 45; // Get task duration
         const newDueDate = newStartTime.add(duration, "minute"); // due_date = start + duration
 
@@ -549,7 +560,7 @@ export default function Sessions() {
       const hourHeight = 60;
       const adjustedY = Math.max(0, y - headerHeight);
 
-      // Calculate hour (0-23 for full 24 hours)
+      // Calculate hour (0-24 for full 24 hours + midnight)
       const hourIndex = Math.floor(adjustedY / hourHeight);
       const minuteInHour = adjustedY % hourHeight;
 
@@ -563,8 +574,8 @@ export default function Sessions() {
         actualHour += 1;
       }
 
-      // Ensure we don't go beyond valid hours (0-23)
-      actualHour = Math.min(23, actualHour);
+      // Ensure we don't go beyond valid hours (0-24)
+      actualHour = Math.min(24, actualHour);
       const actualMinute = snappedMinute; // Handle session resizing
       if (isResizing && resizingSession) {
         const start = dayjs(resizingSession.start_time);
@@ -576,14 +587,26 @@ export default function Sessions() {
 
         if (resizeType === "top") {
           // Resize from top (change start time)
-          newStart = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          newStart = baseDay
+            .hour(actualHour === 24 ? 0 : actualHour)
+            .minute(actualMinute)
+            .second(0);
+          if (actualHour === 24) {
+            newStart = newStart.add(1, "day");
+          }
           // Ensure minimum 15-minute duration
           if (newStart.isAfter(end.subtract(15, "minute"))) {
             newStart = end.subtract(15, "minute");
           }
         } else if (resizeType === "bottom") {
           // Resize from bottom (change end time)
-          newEnd = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          newEnd = baseDay
+            .hour(actualHour === 24 ? 0 : actualHour)
+            .minute(actualMinute)
+            .second(0);
+          if (actualHour === 24) {
+            newEnd = newEnd.add(1, "day");
+          }
           // Ensure minimum 15-minute duration
           if (newEnd.isBefore(start.add(15, "minute"))) {
             newEnd = start.add(15, "minute");
@@ -607,15 +630,25 @@ export default function Sessions() {
 
         if (resizeType === "top") {
           // Resize from top (move start time earlier/later, keep due_date same)
-          const newStartTime = baseDay
-            .hour(actualHour)
+          let newStartTime = baseDay
+            .hour(actualHour === 24 ? 0 : actualHour)
             .minute(actualMinute)
             .second(0);
+
+          if (actualHour === 24) {
+            newStartTime = newStartTime.add(1, "day");
+          }
           newDuration = Math.max(15, taskDueDate.diff(newStartTime, "minute")); // Minimum 15 minutes
           // due_date stays the same, duration changes
         } else if (resizeType === "bottom") {
           // Resize from bottom (move due_date earlier/later, keep start time same)
-          newDueDate = baseDay.hour(actualHour).minute(actualMinute).second(0);
+          newDueDate = baseDay
+            .hour(actualHour === 24 ? 0 : actualHour)
+            .minute(actualMinute)
+            .second(0);
+          if (actualHour === 24) {
+            newDueDate = newDueDate.add(1, "day");
+          }
           newDuration = Math.max(15, newDueDate.diff(taskStartTime, "minute")); // Minimum 15 minutes
           // If new due_date is before start time, adjust start time
           if (newDueDate.isBefore(taskStartTime.add(15, "minute"))) {
@@ -689,12 +722,12 @@ export default function Sessions() {
       document.body.classList.remove("resizing", "no-select");
     };
   }, [isResizing, isResizingTask, resizingSession, resizingTask, resizeType]);
-  // Scroll to middle of day (8 AM) on initial load
+  // Scroll to start of workday (7 AM) on initial load
   useEffect(() => {
     if (calendarContainerRef.current) {
       // Each hour is 60px tall, header is 40px
-      // 8 AM is hour index 8, so scroll to 8 * 60 = 480px
-      const scrollToPosition = 8 * 60; // 8 AM position
+      // 7 AM is hour index 7, so scroll to 7 * 60 = 420px
+      const scrollToPosition = 7 * 60; // 7 AM position
       calendarContainerRef.current.scrollTop = scrollToPosition;
     }
   }, []);
@@ -718,8 +751,11 @@ export default function Sessions() {
           />
         )}{" "}
         <div
-          className="grid pb-4"
-          style={{ gridTemplateColumns: "50px repeat(7, minmax(0, 1fr))" }}
+          className="grid pb-16"
+          style={{
+            gridTemplateColumns: "50px repeat(7, minmax(0, 1fr))",
+            minHeight: `${25 * 60 + 40}px`, // 25 hours * 60px per hour + header space
+          }}
         >
           {/* Header row */}
           <div className="text-xs text-zinc-400 p-2 "></div>
@@ -741,7 +777,9 @@ export default function Sessions() {
                 className="text-end text-zinc-500 -mt-3 px-2 py-1 bg-zinc-900/50"
                 style={{ fontSize: "11px" }}
               >
-                {dayjs().hour(hour).minute(0).format("h A")}
+                {hour === 24
+                  ? "12 AM"
+                  : dayjs().hour(hour).minute(0).format("h A")}
               </div>
               {days.map((day, i) => {
                 return (
@@ -754,10 +792,18 @@ export default function Sessions() {
                     {/* Invisible 15-minute hover zones */}
                     {[0, 15, 30, 45].map((minutes, idx) => {
                       const top = (minutes / 60) * 60; // 15, 30, 45
-                      const clickedTime = day
-                        .hour(hour)
-                        .minute(minutes)
-                        .second(0);
+                      let clickedTime;
+
+                      // Handle hour 24 (midnight) - convert to next day at hour 0
+                      if (hour === 24) {
+                        clickedTime = day
+                          .add(1, "day")
+                          .hour(0)
+                          .minute(minutes)
+                          .second(0);
+                      } else {
+                        clickedTime = day.hour(hour).minute(minutes).second(0);
+                      }
 
                       // Create unique key for this time slot
                       const timeSlotKey = `${clickedTime.format(
@@ -1276,7 +1322,7 @@ export default function Sessions() {
       return (
         <div
           ref={calendarContainerRef}
-          className="min-h-full overflow-y-auto calendar-scroll scrollbar-dark"
+          className="h-full overflow-y-auto calendar-scroll scrollbar-dark"
           onClick={(e) => {
             // Clear selection if clicking on calendar container but not on a time slot
             if (e.target === e.currentTarget) {
@@ -1308,54 +1354,6 @@ export default function Sessions() {
             <Plus size={18} />
             <p className="font-semibold">Create Session</p>
           </button>
-          {/* Debug Test Buttons */}
-          <div className="mx-4 mt-2 p-2 bg-red-900/20 border border-red-700 rounded">
-            <p className="text-xs text-red-300 mb-2">Debug API Tests</p>
-            <button
-              onClick={async () => {
-                if (sessions.length > 0) {
-                  const testSession = sessions[0];
-                  console.log("🧪 Testing session update with:", testSession);
-                  try {
-                    await updateSessionTime(testSession.id, {
-                      start_time: testSession.start_time,
-                      end_time: testSession.end_time,
-                    });
-                    console.log("✅ Test session update completed");
-                  } catch (error) {
-                    console.error("❌ Test session update failed:", error);
-                  }
-                } else {
-                  console.log("No sessions available for testing");
-                }
-              }}
-              className="w-full mb-1 text-xs p-1 bg-red-800 hover:bg-red-700 rounded"
-            >
-              Test Session API
-            </button>
-            <button
-              onClick={async () => {
-                if (tasks.length > 0) {
-                  const testTask = tasks[0];
-                  console.log("🧪 Testing task update with:", testTask);
-                  try {
-                    await updateTask(testTask.id, {
-                      due_date: testTask.due_date,
-                      duration: testTask.duration,
-                    });
-                    console.log("✅ Test task update completed");
-                  } catch (error) {
-                    console.error("❌ Test task update failed:", error);
-                  }
-                } else {
-                  console.log("No tasks available for testing");
-                }
-              }}
-              className="w-full text-xs p-1 bg-red-800 hover:bg-red-700 rounded"
-            >
-              Test Task API
-            </button>
-          </div>
           <button
             onClick={() => setCreateTaskModalOpen(true)}
             className="cursor-pointer flex items-center justify-center gap-2 p-2 bg-zinc-800 hover:bg-zinc-900 border-zinc-400 text-white rounded mx-4 mt-3 mb-2"
@@ -1660,9 +1658,9 @@ export default function Sessions() {
           </div>
         </div>
       </div>
-      <div className="w-full flex flex-col h-full overflow-hidden">
+      <div className="w-full flex flex-col h-full">
         {/* Header bar (does not shrink) */}
-        <div className="px-4 py-4 border-b border-zinc-800 flex justify-between items-center">
+        <div className="px-4 py-4 border-b border-zinc-800 flex justify-between items-center flex-shrink-0">
           <div>
             <h1 className="text-lg font-bold">
               {currentDate.format("MMMM YYYY")}
@@ -1704,7 +1702,7 @@ export default function Sessions() {
         </div>
 
         {/* Calendar grid (scrolls) */}
-        <div className="flex-1 h-0  b-4">{renderGrid()}</div>
+        <div className="flex-1 min-h-0">{renderGrid()}</div>
       </div>{" "}
       {createModalOpen && (
         <CreateSessionModal
