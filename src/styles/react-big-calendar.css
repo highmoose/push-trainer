@@ -1,0 +1,431 @@
+/* React Big Calendar Custom Styling */
+
+/*
+  USAGE GUIDE:
+  
+  1. Theme Variants:
+     - Add 'rbc-theme-blue' (default), 'rbc-theme-green', or 'rbc-theme-purple' to calendar container
+     - Add 'rbc-theme-light' for light mode
+  
+  2. Size Variants:
+     - Add 'rbc-compact' for smaller timeslots (60px)
+     - Add 'rbc-spacious' for larger timeslots (100px)
+     - Default is 80px
+  
+  3. Custom Colors:
+     - Override CSS custom properties in your component:
+       style={{
+         '--rbc-bg-primary': 'rgb(15 23 42)', // slate-900
+         '--rbc-accent-blue': 'rgb(16 185 129)', // emerald-500
+       }}
+  
+  4. Tailwind Integration:
+     - All base colors use Tailwind's zinc palette
+     - Easily override with Tailwind utility classes on parent containers
+     - Use CSS custom properties for dynamic theming
+  
+  Example:
+  <div className="rbc-theme-green rbc-spacious">
+    <DnDCalendar ... />
+  </div>
+*/
+
+/* CSS Custom Properties for easy Tailwind-like customization */
+:root {
+  --rbc-bg-primary: rgb(24 24 27); /* zinc-900 */
+  --rbc-bg-secondary: rgb(39 39 42); /* zinc-800 */
+  --rbc-border-color: rgb(63 63 70); /* zinc-700 - thick borders for hours */
+  --rbc-border-light: rgba(
+    63,
+    63,
+    70,
+    0.4
+  ); /* zinc-700/40 - thin borders for 15-min */
+  --rbc-text-primary: white;
+  --rbc-accent-blue: rgb(59 130 246); /* blue-500 */
+  --rbc-accent-red: rgb(239 68 68); /* red-500 */
+  --rbc-hover-hour: rgba(63, 63, 70, 0.08); /* Very light hover for hours */
+  --rbc-hover-15min: rgba(63, 63, 70, 0.15); /* Medium hover for 15-min slots */
+  --rbc-hover-5min: rgba(63, 63, 70, 0.25); /* Stronger hover for 5-min slots */
+}
+
+/* Calendar Container */
+.rbc-calendar {
+  background-color: var(--rbc-bg-primary);
+  color: var(--rbc-text-primary);
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Header Styling */
+.rbc-header {
+  background-color: var(--rbc-bg-secondary);
+  color: var(--rbc-text-primary);
+  border-bottom: 1px solid var(--rbc-border-color);
+  padding: 8px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* Time View Container */
+.rbc-time-view {
+  background-color: var(--rbc-bg-primary);
+}
+
+/* Time Header */
+.rbc-time-header {
+  background-color: var(--rbc-bg-secondary);
+  border-bottom: 1px solid var(--rbc-border-color);
+}
+
+/* Time Gutter (Left side with times) */
+.rbc-time-gutter {
+  background-color: var(--rbc-bg-secondary);
+  border-right: 1px solid var(--rbc-border-color);
+  width: 70px;
+}
+
+/* Hour Slot Groups - Each hour divided into 4 x 15-minute segments */
+.rbc-time-gutter .rbc-timeslot-group {
+  border-bottom: 2px solid var(--rbc-border-color); /* Thick border for hour divisions */
+  min-height: 80px; /* 80px total height per hour */
+}
+
+.rbc-timeslot-group {
+  border-bottom: 2px solid var(--rbc-border-color); /* Thick border for hour divisions */
+  min-height: 80px; /* 80px total height per hour */
+  position: relative;
+}
+
+/* 15-minute Time Slots - 4 per hour */
+.rbc-time-slot {
+  border-top: 1px solid var(--rbc-border-light); /* Thin border for 15-min divisions */
+  min-height: 20px; /* 20px per 15-minute slot (80px ÷ 4 = 20px) */
+  position: relative;
+}
+
+/* Remove border from first slot in each hour to avoid double borders */
+.rbc-timeslot-group .rbc-time-slot:first-child {
+  border-top: none;
+}
+
+/* Day Slots - Match the hour structure */
+.rbc-day-slot {
+  border-left: 1px solid var(--rbc-border-color);
+  min-height: 80px; /* Match hour slot height */
+  position: relative;
+}
+
+/* Day Slot Grid Lines - Add subtle 15-minute indicators */
+.rbc-day-slot .rbc-timeslot-group {
+  border-bottom: 2px solid var(--rbc-border-color); /* Hour divisions */
+  position: relative;
+}
+
+/* 15-minute grid lines within day slots */
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid rgba(63, 63, 70, 0.3); /* Subtle 15-min lines */
+  min-height: 20px;
+}
+
+.rbc-day-slot .rbc-timeslot-group .rbc-time-slot:first-child {
+  border-top: none; /* Remove double border */
+}
+
+/* Time Content Area */
+.rbc-time-content {
+  border-left: 1px solid var(--rbc-border-color);
+}
+
+.rbc-time-content > * > * {
+  min-height: 80px; /* Ensure content matches slot height */
+}
+
+/* Current Time Indicator */
+/* --- Now indicator customization --- */
+/* Make the current time indicator a thin line with a small 'Now' label on the left */
+.rbc-current-time-indicator {
+  height: 2px !important;
+  background: #ef4444 !important; /* Tailwind red-500 */
+  box-shadow: none !important;
+  border: none !important;
+  z-index: 80 !important; /* above slot hovers and grid, below any overlays you prefer */
+  pointer-events: none;
+}
+
+/* Hide any default dot/circle if present in your RBC version */
+.rbc-current-time-indicator::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Add a subtle 'Now' label on the left side of the line */
+.rbc-current-time-indicator::before {
+  content: "Now";
+  position: absolute;
+  left: 6px;
+  top: -10px; /* sit just above the 2px line */
+  font-size: 10px;
+  line-height: 1;
+  color: #ef4444; /* match the line color */
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: transparent;
+  padding: 0;
+  pointer-events: none;
+}
+
+/* Today Highlight */
+.rbc-today {
+  background-color: rgba(61, 156, 133, 0.1);
+}
+
+/* Off Range Background */
+.rbc-off-range-bg {
+  background-color: var(--rbc-bg-secondary);
+}
+
+/* Toolbar Styling */
+.rbc-toolbar {
+  background-color: var(--rbc-bg-secondary);
+  color: var(--rbc-text-primary);
+  padding: 10px;
+  border-bottom: 1px solid var(--rbc-border-color);
+  margin-bottom: 0;
+}
+
+.rbc-toolbar button {
+  background-color: rgb(63 63 70); /* bg-zinc-700 */
+  color: var(--rbc-text-primary);
+  border: 1px solid rgb(82 82 91); /* border-zinc-600 */
+  padding: 8px 16px;
+  border-radius: 6px;
+  margin: 0 3px;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.rbc-toolbar button:hover {
+  background-color: rgb(82 82 91); /* hover:bg-zinc-600 */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: var(--rbc-accent-blue);
+  border-color: var(--rbc-accent-blue);
+}
+
+/* Button Groups */
+.rbc-btn-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* Toolbar Label */
+.rbc-toolbar-label {
+  color: var(--rbc-text-primary);
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+/* Event Styling */
+.rbc-event {
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.rbc-event:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.rbc-event.rbc-selected {
+  outline: 2px solid var(--rbc-accent-blue);
+}
+
+/* Drag and Drop Events */
+.rbc-addons-dnd .rbc-event {
+  cursor: move;
+}
+
+.rbc-addons-dnd .rbc-event:hover {
+  cursor: move;
+}
+
+/* Custom Time Slot Wrapper - Optimized for drag performance */
+.time-slot-wrapper {
+  position: relative;
+  height: 100%;
+}
+
+/* Hover zones - completely disabled to not interfere with drag */
+.time-slot-wrapper > div.hover-zone {
+  pointer-events: none; /* Disable all pointer events during drag operations */
+  z-index: 1; /* Lower z-index */
+}
+
+/* Only enable hover zones when not dragging events */
+.rbc-calendar:not(.rbc-addons-dnd-dragging)
+  .time-slot-wrapper
+  > div.hover-zone {
+  pointer-events: auto;
+}
+
+/* Simple hover effect that doesn't interfere with drag */
+.rbc-calendar:not(.rbc-addons-dnd-dragging) .hover-zone:hover {
+  background-color: var(--rbc-hover-5min) !important;
+  transition: background-color 0.1s ease-out;
+}
+
+/* Disable default RBC hover effects completely */
+.rbc-time-view .rbc-timeslot-group:hover,
+.rbc-time-view .rbc-time-slot:hover,
+.rbc-day-slot:hover,
+.rbc-day-slot .rbc-timeslot-group:hover,
+.rbc-day-slot .rbc-time-slot:hover {
+  background-color: transparent !important;
+}
+
+/* Time slot selection feedback for active state */
+.rbc-time-slot:active {
+  background-color: rgba(63, 63, 70, 0.35);
+}
+
+/* Lightweight hover transitions for slots */
+.rbc-time-content .rbc-day-slot .rbc-timeslot-group,
+.rbc-time-content .rbc-day-slot .rbc-timeslot-group .rbc-time-slot {
+  transition: background-color 120ms ease-in-out;
+}
+
+/* Hour hover: softly highlight the whole hour group */
+.rbc-time-content .rbc-day-slot .rbc-timeslot-group:hover {
+  background-color: var(--rbc-hover-hour) !important;
+}
+
+/* 15-minute hover: slightly stronger highlight for the hovered 15-min section */
+.rbc-time-content .rbc-day-slot .rbc-timeslot-group .rbc-time-slot:hover {
+  background-color: var(--rbc-hover-15min) !important;
+}
+
+/* Ensure events remain above hover background but do not affect performance */
+.rbc-event {
+  position: relative;
+  z-index: 1;
+}
+
+/* Additional responsive utilities */
+@media (max-width: 768px) {
+  .rbc-time-gutter {
+    width: 50px;
+  }
+
+  .rbc-toolbar {
+    flex-wrap: wrap; /* flex-wrap */
+    gap: 8px; /* gap-2 */
+  }
+
+  .rbc-toolbar button {
+    padding: 4px 8px; /* px-2 py-1 */
+    font-size: 12px; /* text-xs */
+  }
+}
+
+/* Week/Day view specific styles */
+.rbc-time-view .rbc-header {
+  text-align: center; /* text-center */
+}
+
+/* Month view adjustments */
+.rbc-month-view {
+  background-color: var(--rbc-bg-primary);
+}
+
+.rbc-month-view .rbc-header {
+  background-color: var(--rbc-bg-secondary);
+  color: var(--rbc-text-primary);
+}
+
+.rbc-date-cell {
+  color: rgb(212 212 216); /* text-zinc-300 */
+}
+
+.rbc-date-cell.rbc-off-range {
+  color: rgb(82 82 91); /* text-zinc-600 */
+}
+
+.rbc-date-cell.rbc-today {
+  color: var(--rbc-text-primary);
+  background-color: rgba(59, 130, 246, 0.2); /* bg-blue-500/20 */
+}
+
+/* Event overlap handling */
+.rbc-event-overlaps {
+  z-index: 10; /* z-10 */
+}
+
+/* Resize handles */
+.rbc-addons-dnd .rbc-event .rbc-addons-dnd-resize-ns-icon {
+  cursor: ns-resize; /* cursor-ns-resize */
+}
+
+.rbc-addons-dnd .rbc-event .rbc-addons-dnd-resize-ew-icon {
+  cursor: ew-resize; /* cursor-ew-resize */
+}
+
+/* Utility Classes for Easy Customization */
+
+/* Theme Variants - You can apply these classes to the calendar container */
+.rbc-theme-blue {
+  --rbc-accent-blue: rgb(59 130 246); /* blue-500 */
+  --rbc-accent-red: rgb(239 68 68); /* red-500 */
+}
+
+.rbc-theme-green {
+  --rbc-accent-blue: rgb(34 197 94); /* green-500 */
+  --rbc-accent-red: rgb(239 68 68); /* red-500 */
+}
+
+.rbc-theme-purple {
+  --rbc-accent-blue: rgb(168 85 247); /* purple-500 */
+  --rbc-accent-red: rgb(239 68 68); /* red-500 */
+}
+
+/* Size Variants */
+.rbc-compact {
+  --rbc-timeslot-height: 60px;
+}
+
+.rbc-compact .rbc-timeslot-group,
+.rbc-compact .rbc-time-gutter .rbc-timeslot-group {
+  min-height: 60px;
+}
+
+.rbc-spacious {
+  --rbc-timeslot-height: 100px;
+}
+
+.rbc-spacious .rbc-timeslot-group,
+.rbc-spacious .rbc-time-gutter .rbc-timeslot-group {
+  min-height: 100px;
+}
+
+/* Light theme variant (if needed) */
+.rbc-theme-light {
+  --rbc-bg-primary: white;
+  --rbc-bg-secondary: rgb(248 250 252); /* slate-50 */
+  --rbc-border-color: rgb(226 232 240); /* slate-200 */
+  --rbc-border-light: rgb(241 245 249); /* slate-100 */
+  --rbc-text-primary: rgb(15 23 42); /* slate-900 */
+  --rbc-hover-bg: rgba(148, 163, 184, 0.1); /* slate-400/10 */
+}

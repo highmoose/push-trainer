@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessions from "@/src/hooks/sessions/useSessions";
 import useTasks from "@/src/hooks/tasks/useTasks";
 import { useClients } from "@/src/hooks/clients";
@@ -12,7 +12,11 @@ import timezone from "dayjs/plugin/timezone";
 import CreateSessionModal from "@/src/components/features/sessions/createSessionModal";
 import CreateTaskModal from "@/src/components/features/sessions/CreateTaskModal";
 import CalendarContextMenu from "@/src/components/features/sessions/CalendarContextMenu";
-import "@/features/sessions/calendarStyles.css";
+import { Calendar, dayjsLocalizer } from "react-big-calendar";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import "@/src/styles/react-big-calendar.css";
 import { Circle, CircleCheck, Plus } from "lucide-react";
 import { convertFromServerTime, getUserTimezone } from "@/lib/timezone";
 
@@ -26,11 +30,15 @@ dayjs.updateLocale("en", {
   weekStart: 1, // Monday = 1, Sunday = 0
 });
 
-const views = ["day", "week", "month", "year"];
+const views = ["day", "week", "month", "agenda"];
 const hours = Array.from({ length: 25 }, (_, i) => i); // 0 (12 AM) to 24 (12 AM next day) - full 24 hours + midnight
 const fifteenMinutes = Array.from({ length: 4 }, (_, i) => i * 15).map((m) =>
   m.toString().padStart(2, "0")
 );
+
+// Setup React Big Calendar with Day.js localizer
+const localizer = dayjsLocalizer(dayjs);
+const DnDCalendar = withDragAndDrop(Calendar);
 
 export default function Sessions() {
   const calendarRef = useRef(null);
@@ -40,8 +48,12 @@ export default function Sessions() {
 
   // Explicitly use useSessions hook for all session-related operations
   const sessionsHookData = useSessions();
-  const { sessions, updateSessionTime, updateSessionTimeOptimistic } =
-    sessionsHookData;
+  const {
+    sessions,
+    fetchSessions,
+    updateSessionTime,
+    updateSessionTimeOptimistic,
+  } = sessionsHookData;
 
   // Explicitly use useClients hook for client data
   const clientsHookData = useClients();
@@ -287,441 +299,307 @@ export default function Sessions() {
     };
   };
 
-  useEffect(() => {
-    if (!isDragging && !isDraggingTask) return;
+  // Map sessions/tasks to React Big Calendar events while honoring filters
+  const calendarEvents = useMemo(() => {
+    const sessionEvents = (processedSessions || [])
+      .filter((s) => {
+        if (s.status === "scheduled" && !showScheduled) return false;
+        if (s.status === "pending" && !showPending) return false;
+        if (s.status === "completed" && !showCompleted) return false;
+        if (s.status === "cancelled" && !showCancelled) return false;
+        return true;
+      })
+      .map((session) => ({
+        id: `session-${session.id}`,
+        title: `${session.client?.first_name || ""} ${
+          session.client?.last_name || "Client"
+        }`,
+        start: session.start_time_local
+          ? session.start_time_local.toDate()
+          : new Date(session.start_time),
+        end: session.end_time_local
+          ? session.end_time_local.toDate()
+          : new Date(session.end_time),
+        resource: { type: "session", data: session },
+        allDay: false,
+      }));
 
-    // Add global drag state
-    document.body.classList.add("dragging", "no-select");
-    const handleMouseMove = (e) => {
-      if (!calendarRef.current || (!draggingSession && !draggingTask)) return;
+    const taskEvents = (tasks || [])
+      .filter((task) => {
+        if (!task.due_date) return false;
+        if (task.status === "completed" && !showCompleted) return false;
+        if (task.status === "pending" && !showPending) return false;
+        if (task.status === "cancelled" && !showCancelled) return false;
+        return true;
+      })
+      .map((task) => {
+        const end = dayjs(task.due_date);
+        const duration = task.duration || 45;
+        const start = end.subtract(duration, "minute");
+        return {
+          id: `task-${task.id}`,
+          title: task.title,
+          start: start.toDate(),
+          end: end.toDate(),
+          resource: { type: "task", data: task },
+          allDay: false,
+        };
+      });
 
-      const calendarRect = calendarRef.current.getBoundingClientRect();
-      const x = e.clientX - calendarRect.left;
-      const y = e.clientY - calendarRect.top - dragOffsetY; // Determine which column (day) we're over
-      const timeColumnWidth = 50;
-      const dayColumnWidth = (calendarRect.width - timeColumnWidth) / 7;
-
-      let newColumnIndex = -1;
-      if (x > timeColumnWidth) {
-        newColumnIndex = Math.floor((x - timeColumnWidth) / dayColumnWidth);
-        newColumnIndex = Math.max(0, Math.min(6, newColumnIndex)); // Clamp to valid range
-      }
-
-      setDragCurrentColumn(newColumnIndex); // Calculate which hour and minute we're in based on the grid
-      // Each hour block is 60px tall, header is approximately 40px
-      const headerHeight = 40;
-      const hourHeight = 60;
-      const adjustedY = Math.max(0, y - headerHeight);
-
-      // Calculate hour (0-24 for full 24 hours + midnight)
-      const hourIndex = Math.floor(adjustedY / hourHeight);
-      const minuteInHour = adjustedY % hourHeight;
-
-      // Snap to 15-minute intervals
-      let snappedMinute = Math.round(minuteInHour / 15) * 15;
-      let actualHour = Math.max(0, hourIndex);
-
-      // Handle rollover when snapped minute is 60
-      if (snappedMinute >= 60) {
-        snappedMinute = 0;
-        actualHour += 1;
-      }
-
-      // Ensure we don't go beyond valid hours (0-24)
-      actualHour = Math.min(24, actualHour);
-      const actualMinute = snappedMinute; // Calculate new date and time - ensure days are created in user's timezone
-      const days = [...Array(7)].map((_, i) =>
-        dayjs.tz(currentDate.startOf("week"), userTimezone).add(i, "day")
-      );
-      const targetDay =
-        newColumnIndex >= 0
-          ? days[newColumnIndex]
-          : isDragging
-          ? dayjs(draggingSession.start_time)
-          : dayjs(draggingTask.due_date); // Handle session dragging
-      if (isDragging && draggingSession) {
-        // Create new time in the user's timezone consistently
-        let newStart = dayjs
-          .tz(targetDay.format("YYYY-MM-DD"), userTimezone)
-          .hour(actualHour === 24 ? 0 : actualHour)
-          .minute(actualMinute)
-          .second(0);
-
-        // If hour is 24, add one day
-        if (actualHour === 24) {
-          newStart = newStart.add(1, "day");
-        }
-
-        // Calculate duration from the original session times (not the dragging session times)
-        const originalStart = dayjs(
-          draggingSession.start_time_original || draggingSession.start_time
-        );
-        const originalEnd = dayjs(
-          draggingSession.end_time_original || draggingSession.end_time
-        );
-        const duration = originalEnd.diff(originalStart, "minute");
-        const newEnd = newStart.add(duration, "minute");
-
-        // console.log("Drag calculation:", {
-        //   targetDay: targetDay.format("YYYY-MM-DD"),
-        //   targetDayTimezone: targetDay.format("YYYY-MM-DD HH:mm:ss Z"),
-        //   actualHour,
-        //   actualMinute,
-        //   userTimezone,
-        //   originalStart: originalStart.format("YYYY-MM-DD HH:mm:ss"),
-        //   originalEnd: originalEnd.format("YYYY-MM-DD HH:mm:ss"),
-        //   duration: duration + " minutes",
-        //   newStart: newStart.format("YYYY-MM-DD HH:mm:ss"),
-        //   newStartTimezone: newStart.format("YYYY-MM-DD HH:mm:ss Z"),
-        //   newEnd: newEnd.format("YYYY-MM-DD HH:mm:ss"),
-        //   newStartFormatted: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-        //   originalSessionStart: draggingSession.start_time_original,
-        // });
-        setDraggingSession({
-          ...draggingSession, // Preserve all existing session data
-          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-          start_time_local: newStart, // Update local timezone version
-          end_time_local: newEnd,
-        });
-
-        // Also update the session optimistically for instant visual feedback
-        updateSessionTimeOptimistic(draggingSession.id, {
-          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-        });
-      } // Handle task dragging
-      if (isDraggingTask && draggingTask) {
-        let newStartTime = targetDay
-          .startOf("day")
-          .hour(actualHour === 24 ? 0 : actualHour)
-          .minute(actualMinute)
-          .second(0);
-
-        // If hour is 24, add one day
-        if (actualHour === 24) {
-          newStartTime = newStartTime.add(1, "day");
-        }
-
-        const duration = draggingTask.duration || 45; // Get task duration
-        const newDueDate = newStartTime.add(duration, "minute"); // due_date = start + duration
-
-        setDraggingTask({
-          ...draggingTask, // Preserve all existing task data including duration
-          due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
-        });
-      }
-    };
-    const handleMouseUp = async () => {
-      setIsDragging(false);
-      setIsDraggingTask(false);
-      setDragCurrentColumn(null);
-      setDragStartColumn(null);
-
-      // Remove global drag state
-      document.body.classList.remove("dragging", "no-select"); // Update session time via hook (which handles optimistic updates)
-      if (draggingSession && draggingSession.id) {
-        // Store original session for potential revert
-        const originalSession = (sessions || []).find(
-          (s) => s.id === draggingSession.id
-        );
-
-        if (!originalSession) {
-          console.error(
-            "Original session not found for revert:",
-            draggingSession.id
-          );
-          setDraggingSession(null);
-          return;
-        }
-
-        // Validate dragging session has required data
-        if (!draggingSession.start_time || !draggingSession.end_time) {
-          console.error("Dragging session missing time data:", draggingSession);
-          setDraggingSession(null);
-          return;
-        }
-        try {
-          console.log("🔥 ABOUT TO CALL updateSessionTime:", {
-            sessionId: draggingSession.id,
-            start_time: draggingSession.start_time,
-            end_time: draggingSession.end_time,
-          });
-
-          // Pass the time directly to the hook - it already handles timezone conversion
-          await updateSessionTime(draggingSession.id, {
-            start_time: draggingSession.start_time,
-            end_time: draggingSession.end_time,
-          });
-
-          console.log("✅ Session time updated successfully", {
-            id: draggingSession.id,
-            start_time: draggingSession.start_time,
-            end_time: draggingSession.end_time,
-            timezone: userTimezone,
-          });
-        } catch (error) {
-          console.error("Failed to update session:", error);
-          // The hook should handle rollback automatically
-        }
-      }
-
-      // Update task time via hooks
-      if (draggingTask && draggingTask.id) {
-        // Store original task for potential revert
-        const originalTask = tasks.find((t) => t.id === draggingTask.id);
-
-        if (!originalTask) {
-          console.error("Original task not found for revert:", draggingTask.id);
-          setDraggingTask(null);
-          return;
-        }
-
-        if (!draggingTask.due_date) {
-          console.error("Dragging task missing due_date:", draggingTask);
-          setDraggingTask(null);
-          return;
-        } // Update task time via hooks (which handles optimistic updates)
-        try {
-          // Add detailed logging for the API call
-          const updatePayload = {
-            due_date: draggingTask.due_date,
-            duration: draggingTask.duration,
-          };
-
-          const result = await updateTask(draggingTask.id, updatePayload);
-          if (result && result.success) {
-          } else {
-            console.error(
-              "❌ API call failed:",
-              result?.error || result?.message
-            );
-            console.error("❌ Full result object:", result);
-          }
-        } catch (error) {
-          console.error("Failed to update task:", error);
-          console.error("Error details:", {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status,
-          });
-        }
-      }
-      setDraggingSession(null);
-      setDraggingTask(null);
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setIsDragging(false);
-        setIsDraggingTask(false);
-        setDragCurrentColumn(null);
-        setDragStartColumn(null);
-        document.body.classList.remove("dragging", "no-select");
-        setDraggingSession(null);
-        setDraggingTask(null);
-      }
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.classList.remove("dragging", "no-select");
-    };
+    return [...sessionEvents, ...taskEvents];
   }, [
-    isDragging,
-    isDraggingTask,
-    draggingSession,
-    draggingTask,
-    dragOffsetY,
-    currentDate,
-    updateSessionTime,
-    updateSessionTimeOptimistic,
-    updateTask,
-    userTimezone,
+    processedSessions,
+    tasks,
+    showScheduled,
+    showPending,
+    showCompleted,
+    showCancelled,
   ]);
-  // New useEffect for resizing (sessions and tasks)
+
+  // Style events to match existing look (white sessions, grey tasks)
+  const eventPropGetter = useCallback((event) => {
+    const { resource } = event;
+    const style = {
+      borderRadius: 6,
+      opacity: 1,
+      border: 0,
+      display: "block",
+      fontSize: 12,
+      padding: "6px 8px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+      // Remove any transition to eliminate perceived drag start delay
+      transition: "none",
+      willChange: "transform, top, left, height",
+      cursor: "grab",
+    };
+
+    if (resource.type === "session") {
+      const s = resource.data;
+      if (s.status === "scheduled") {
+        style.background = "#e5e5e5"; // zinc-200
+        style.color = "#000";
+      } else if (s.status === "requested") {
+        style.background = "#09090b";
+        style.color = "#fff";
+        style.border = "2px solid #a1a1aa";
+        style.backgroundImage =
+          "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(161,161,170,0.1) 5px, rgba(161,161,170,0.1) 10px)";
+      } else if (s.status === "completed") {
+        style.background = "#041c00";
+        style.color = "#fff";
+        style.border = "2px solid #4ade80";
+      } else if (s.status === "cancelled") {
+        style.background = "#1c0000";
+        style.color = "#fff";
+        style.border = "2px solid #ef4444";
+      } else {
+        style.background = "#e5e5e5";
+        style.color = "#000";
+      }
+    } else if (resource.type === "task") {
+      const t = resource.data;
+      style.background = "#27272a"; // zinc-800
+      style.color = "#f4f4f5";
+      style.borderLeft = "3px solid #60a5fa"; // blue-400
+      if (t.priority === "high") style.borderLeft = "3px solid #f87171";
+      if (t.priority === "medium") style.borderLeft = "3px solid #fb923c";
+      if (t.priority === "low") style.borderLeft = "3px solid #facc15";
+    }
+
+    return { style };
+  }, []);
+
+  // Custom event renderers for richer content
+  const EventComponent = useCallback(
+    ({ event }) => {
+      const { resource } = event;
+      if (resource.type === "session") {
+        const s = resource.data;
+        return (
+          <div className="relative h-full w-full">
+            <div className="font-semibold truncate text-xs">
+              {s.client?.first_name} {s.client?.last_name || "Client"}
+            </div>
+            {s.gym && (
+              <div className="text-xs opacity-80 truncate">{s.gym}</div>
+            )}
+            {s.notes && (
+              <div className="text-xs opacity-80 truncate">{s.notes}</div>
+            )}
+            <div className="text-xs font-medium mt-1">
+              {dayjs(event.start).format("HH:mm")} -{" "}
+              {dayjs(event.end).format("HH:mm")}
+            </div>
+          </div>
+        );
+      }
+      if (resource.type === "task") {
+        const t = resource.data;
+        return (
+          <div className="relative h-full w-full">
+            <div className="font-semibold truncate flex items-center gap-1 text-xs">
+              <button
+                className={`flex-shrink-0 transition-transform ${
+                  updatingTasks.has(t.id)
+                    ? "cursor-wait pointer-events-none"
+                    : "cursor-pointer hover:scale-110"
+                }`}
+                onClick={(e) => handleTaskCompletionToggle(t, e)}
+                disabled={updatingTasks.has(t.id)}
+                title={
+                  updatingTasks.has(t.id)
+                    ? "Updating..."
+                    : t.status === "completed"
+                    ? "Mark as pending"
+                    : "Mark as completed"
+                }
+              >
+                {t.status === "completed" ? (
+                  <CircleCheck
+                    className="w-3 h-3"
+                    style={{ color: "#4ade80" }}
+                  />
+                ) : (
+                  <Circle className="w-3 h-3" style={{ color: "#a1a1aa" }} />
+                )}
+              </button>
+              <span className="truncate">{t.title}</span>
+            </div>
+            <div className="text-xs opacity-80 truncate">
+              {t.category?.replace("-", " ")} • {t.priority.toUpperCase()}
+            </div>
+            {t.description && (
+              <div className="text-xs opacity-80 truncate">{t.description}</div>
+            )}
+            <div className="text-xs font-medium mt-1">
+              {dayjs(event.start).format("HH:mm")} -{" "}
+              {dayjs(event.end).format("HH:mm")} ({t.duration || 45}min)
+            </div>
+          </div>
+        );
+      }
+      return null;
+    },
+    [updatingTasks]
+  );
+
+  // Select event -> open modals
+  const handleSelectEvent = useCallback((event) => {
+    const { resource } = event;
+    if (resource.type === "session") {
+      setSelectedSession(resource.data);
+      setEditModalOpen(true);
+    } else if (resource.type === "task") {
+      setSelectedTask(resource.data);
+      setEditTaskModalOpen(true);
+    }
+  }, []);
+
+  // Track mouse position for context menu placement (use ref to avoid re-renders)
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
   useEffect(() => {
-    if (!isResizing && !isResizingTask) return;
-
-    // Add global resize state
-    document.body.classList.add("resizing", "no-select");
-    const handleMouseMove = (e) => {
-      if (!calendarRef.current || (!resizingSession && !resizingTask)) return;
-
-      const calendarRect = calendarRef.current.getBoundingClientRect();
-      const y = e.clientY - calendarRect.top; // Calculate which hour and minute we're in based on the grid
-      // Each hour block is 60px tall, header is approximately 40px
-      const headerHeight = 40;
-      const hourHeight = 60;
-      const adjustedY = Math.max(0, y - headerHeight);
-
-      // Calculate hour (0-24 for full 24 hours + midnight)
-      const hourIndex = Math.floor(adjustedY / hourHeight);
-      const minuteInHour = adjustedY % hourHeight;
-
-      // Snap to 15-minute intervals
-      let snappedMinute = Math.round(minuteInHour / 15) * 15;
-      let actualHour = Math.max(0, hourIndex);
-
-      // Handle rollover when snapped minute is 60
-      if (snappedMinute >= 60) {
-        snappedMinute = 0;
-        actualHour += 1;
-      }
-
-      // Ensure we don't go beyond valid hours (0-24)
-      actualHour = Math.min(24, actualHour);
-      const actualMinute = snappedMinute; // Handle session resizing
-      if (isResizing && resizingSession) {
-        const start = dayjs(resizingSession.start_time);
-        const end = dayjs(resizingSession.end_time);
-        const baseDay = start.startOf("day");
-
-        let newStart = start;
-        let newEnd = end;
-
-        if (resizeType === "top") {
-          // Resize from top (change start time)
-          newStart = baseDay
-            .hour(actualHour === 24 ? 0 : actualHour)
-            .minute(actualMinute)
-            .second(0);
-          if (actualHour === 24) {
-            newStart = newStart.add(1, "day");
-          }
-          // Ensure minimum 15-minute duration
-          if (newStart.isAfter(end.subtract(15, "minute"))) {
-            newStart = end.subtract(15, "minute");
-          }
-        } else if (resizeType === "bottom") {
-          // Resize from bottom (change end time)
-          newEnd = baseDay
-            .hour(actualHour === 24 ? 0 : actualHour)
-            .minute(actualMinute)
-            .second(0);
-          if (actualHour === 24) {
-            newEnd = newEnd.add(1, "day");
-          }
-          // Ensure minimum 15-minute duration
-          if (newEnd.isBefore(start.add(15, "minute"))) {
-            newEnd = start.add(15, "minute");
-          }
-        }
-
-        setResizingSession({
-          ...resizingSession,
-          start_time: newStart.format("YYYY-MM-DDTHH:mm:ss"),
-          end_time: newEnd.format("YYYY-MM-DDTHH:mm:ss"),
-        });
-      } // Handle task resizing - treat due_date as end time, duration defines the start
-      if (isResizingTask && resizingTask) {
-        const taskDueDate = dayjs(resizingTask.due_date);
-        const currentDuration = resizingTask.duration || 45;
-        const taskStartTime = taskDueDate.subtract(currentDuration, "minute");
-        const baseDay = taskDueDate.startOf("day");
-
-        let newDueDate = taskDueDate;
-        let newDuration = currentDuration;
-
-        if (resizeType === "top") {
-          // Resize from top (move start time earlier/later, keep due_date same)
-          let newStartTime = baseDay
-            .hour(actualHour === 24 ? 0 : actualHour)
-            .minute(actualMinute)
-            .second(0);
-
-          if (actualHour === 24) {
-            newStartTime = newStartTime.add(1, "day");
-          }
-          newDuration = Math.max(15, taskDueDate.diff(newStartTime, "minute")); // Minimum 15 minutes
-          // due_date stays the same, duration changes
-        } else if (resizeType === "bottom") {
-          // Resize from bottom (move due_date earlier/later, keep start time same)
-          newDueDate = baseDay
-            .hour(actualHour === 24 ? 0 : actualHour)
-            .minute(actualMinute)
-            .second(0);
-          if (actualHour === 24) {
-            newDueDate = newDueDate.add(1, "day");
-          }
-          newDuration = Math.max(15, newDueDate.diff(taskStartTime, "minute")); // Minimum 15 minutes
-          // If new due_date is before start time, adjust start time
-          if (newDueDate.isBefore(taskStartTime.add(15, "minute"))) {
-            newDueDate = taskStartTime.add(15, "minute");
-            newDuration = 15;
-          }
-        }
-
-        setResizingTask({
-          ...resizingTask,
-          due_date: newDueDate.format("YYYY-MM-DDTHH:mm:ss"),
-          duration: newDuration,
-        });
-      }
+    const onMove = (e) => {
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     };
-    const handleMouseUp = async () => {
-      setIsResizing(false);
-      setIsResizingTask(false);
-      setResizeType(null); // Remove global resize state
-      document.body.classList.remove("resizing", "no-select"); // Update session time via hook
-      if (resizingSession && resizingSession.id) {
+    document.addEventListener("mousemove", onMove);
+    return () => document.removeEventListener("mousemove", onMove);
+  }, []);
+
+  // Slot select -> open context menu near cursor (read from ref)
+  const handleSelectSlot = useCallback(({ start, end, action }) => {
+    if (action !== "click") return;
+    const startTime = dayjs(start);
+    const endTime = dayjs(end);
+    setContextMenuData({
+      start_time: startTime.format("YYYY-MM-DDTHH:mm:ss"),
+      end_time: endTime.format("YYYY-MM-DDTHH:mm:ss"),
+      timeSlotKey: `${startTime.format(
+        "YYYY-MM-DD"
+      )}-${startTime.hour()}-${startTime.minute()}`,
+    });
+    setSelectedTimeSlot(
+      `${startTime.format(
+        "YYYY-MM-DD"
+      )}-${startTime.hour()}-${startTime.minute()}`
+    );
+    setContextMenuPosition(lastMousePosRef.current);
+    setContextMenuOpen(true);
+  }, []);
+
+  // Drag/drop + resize handlers -> call existing hooks
+  const handleEventDrop = useCallback(
+    async ({ event, start, end }) => {
+      const { resource } = event;
+      if (resource.type === "session") {
+        const session = resource.data;
+        const newStart = dayjs(start).format("YYYY-MM-DDTHH:mm:ss");
+        const newEnd = dayjs(end).format("YYYY-MM-DDTHH:mm:ss");
+        // Optimistic update first
+        updateSessionTimeOptimistic(session.id, {
+          start_time: newStart,
+          end_time: newEnd,
+        });
         try {
-          await updateSessionTime(resizingSession.id, {
-            start_time: resizingSession.start_time,
-            end_time: resizingSession.end_time,
+          await updateSessionTime(session.id, {
+            start_time: newStart,
+            end_time: newEnd,
           });
-        } catch (error) {
-          console.error("Failed to update session:", error);
+        } catch (e) {
+          console.error("Failed to update session:", e);
         }
-      } // Update task time via hook
-      if (resizingTask && resizingTask.id) {
+      } else if (resource.type === "task") {
+        const task = resource.data;
+        const newDue = dayjs(end).format("YYYY-MM-DDTHH:mm:ss");
+        const newDuration = dayjs(end).diff(dayjs(start), "minute");
         try {
-          const resizePayload = {
-            due_date: resizingTask.due_date,
-            duration: resizingTask.duration,
-          };
-
-          const result = await updateTask(resizingTask.id, resizePayload);
-
-          if (result && result.success) {
-            console.log("✅ Task resize API call successful");
-          } else {
-            console.error("❌ Task resize API call failed:", result?.error);
-          }
-        } catch (error) {
-          console.error("Failed to update task:", error);
+          await updateTask(task.id, {
+            due_date: newDue,
+            duration: newDuration,
+          });
+        } catch (e) {
+          console.error("Failed to update task:", e);
         }
       }
+    },
+    [updateSessionTime, updateSessionTimeOptimistic, updateTask]
+  );
 
-      setResizingSession(null);
-      setResizingTask(null);
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setIsResizing(false);
-        setResizeType(null);
-        document.body.classList.remove("resizing", "no-select");
-        setResizingSession(null);
+  const handleEventResize = useCallback(
+    async ({ event, start, end }) => {
+      const { resource } = event;
+      if (resource.type === "session") {
+        const session = resource.data;
+        const newStart = dayjs(start).format("YYYY-MM-DDTHH:mm:ss");
+        const newEnd = dayjs(end).format("YYYY-MM-DDTHH:mm:ss");
+        updateSessionTimeOptimistic(session.id, {
+          start_time: newStart,
+          end_time: newEnd,
+        });
+        try {
+          await updateSessionTime(session.id, {
+            start_time: newStart,
+            end_time: newEnd,
+          });
+        } catch (e) {
+          console.error("Failed to update session:", e);
+        }
+      } else if (resource.type === "task") {
+        const task = resource.data;
+        const newDue = dayjs(end).format("YYYY-MM-DDTHH:mm:ss");
+        const newDuration = dayjs(end).diff(dayjs(start), "minute");
+        try {
+          await updateTask(task.id, {
+            due_date: newDue,
+            duration: newDuration,
+          });
+        } catch (e) {
+          console.error("Failed to update task:", e);
+        }
       }
-    };
+    },
+    [updateSessionTime, updateSessionTimeOptimistic, updateTask]
+  );
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.classList.remove("resizing", "no-select");
-    };
-  }, [isResizing, isResizingTask, resizingSession, resizingTask, resizeType]);
   // Scroll to start of workday (7 AM) on initial load
   useEffect(() => {
     if (calendarContainerRef.current) {
@@ -1341,6 +1219,33 @@ export default function Sessions() {
     );
   };
 
+  // Fetch sessions (including past) on mount to populate the calendar
+  useEffect(() => {
+    fetchSessions?.(true).catch((e) =>
+      console.error("fetchSessions failed", e)
+    );
+  }, []);
+
+  // Memoized constants for React Big Calendar to avoid prop churn and re-renders
+  const rbcMinTime = useMemo(() => new Date(2024, 0, 1, 0, 0), []);
+  const rbcMaxTime = useMemo(() => new Date(2024, 0, 1, 23, 59), []);
+  const rbcScrollToTime = useMemo(() => new Date(2024, 0, 1, 7, 0), []);
+  const rbcViews = useMemo(() => ["day", "week", "month", "agenda"], []);
+  const rbcFormats = useMemo(
+    () => ({
+      timeGutterFormat: (date) => dayjs(date).format("HH:mm"),
+      eventTimeRangeFormat: ({ start, end }) =>
+        `${dayjs(start).format("HH:mm")} - ${dayjs(end).format("HH:mm")}`,
+      dayHeaderFormat: (date) => dayjs(date).format("ddd D MMM"),
+    }),
+    []
+  );
+  const rbcComponents = useMemo(
+    () => ({ event: EventComponent }),
+    [EventComponent]
+  );
+  const rbcAgendaLength = useMemo(() => 7, []); // 7-day agenda
+
   return (
     <div className="w-full h-full mt-28 flex bg-zinc-900 text-white overflow-hidden rounded">
       {/* Professional Trainer Sidebar */}
@@ -1666,44 +1571,107 @@ export default function Sessions() {
               {currentDate.format("MMMM YYYY")}
             </h1>
           </div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <select
-              value={currentView}
-              onChange={(e) => setCurrentView(e.target.value)}
-              className="bg-zinc-800 px-2 py-1 rounded text-sm"
-            >
-              {views.map((view) => (
-                <option key={view} value={view}>
-                  {view.charAt(0).toUpperCase() + view.slice(1)}
-                </option>
+          <div className="flex items-center gap-3 text-sm font-semibold">
+            {/* Segmented view switcher */}
+            <div className="inline-flex rounded-md overflow-hidden border border-zinc-700">
+              {["day", "week", "month", "agenda"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setCurrentView(v)}
+                  className={`px-3 py-1 text-xs uppercase tracking-wide ${
+                    currentView === v
+                      ? "bg-zinc-200 text-black"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  } ${v !== "agenda" ? "border-r border-zinc-700" : ""}`}
+                >
+                  {v}
+                </button>
               ))}
-            </select>
-            <button
-              onClick={() =>
-                setCurrentDate(currentDate.subtract(1, currentView))
-              }
-              className="bg-zinc-800 px-4 py-1 rounded"
-            >
-              ← Prev
-            </button>
-            <button
-              onClick={() => setCurrentDate(dayjs())}
-              className="bg-zinc-800 px-4 py-1 rounded"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setCurrentDate(currentDate.add(1, currentView))}
-              className="bg-zinc-800 px-4 py-1 rounded"
-            >
-              Next →
-            </button>
+            </div>
+            {/* Navigation */}
+            {(() => {
+              const navUnit =
+                currentView === "month"
+                  ? "month"
+                  : currentView === "agenda"
+                  ? "week"
+                  : currentView;
+              return (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setCurrentDate(currentDate.subtract(1, navUnit))
+                    }
+                    className="bg-zinc-800 px-4 py-1 rounded"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() => setCurrentDate(dayjs())}
+                    className="bg-zinc-800 px-4 py-1 rounded"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setCurrentDate(currentDate.add(1, navUnit))}
+                    className="bg-zinc-800 px-4 py-1 rounded"
+                  >
+                    Next →
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Calendar grid (scrolls) */}
-        <div className="flex-1 min-h-0">{renderGrid()}</div>
-      </div>{" "}
+        {/* Calendar grid replaced with React Big Calendar */}
+        <div className="flex-1 min-h-0 p-4">
+          <div className="h-full bg-zinc-900 rounded-lg overflow-hidden rbc-theme-blue">
+            <DnDCalendar
+              localizer={localizer}
+              events={calendarEvents}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: "100%" }}
+              view={
+                currentView === "week" ||
+                currentView === "day" ||
+                currentView === "month" ||
+                currentView === "agenda"
+                  ? currentView
+                  : "week"
+              }
+              onView={(v) => setCurrentView(v)}
+              date={currentDate.toDate()}
+              onNavigate={(date) => setCurrentDate(dayjs(date))}
+              onSelectEvent={handleSelectEvent}
+              onSelectSlot={handleSelectSlot}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              selectable="ignoreEvents"
+              resizable
+              step={15}
+              timeslots={4}
+              min={rbcMinTime}
+              max={rbcMaxTime}
+              components={rbcComponents}
+              eventPropGetter={eventPropGetter}
+              formats={rbcFormats}
+              dayLayoutAlgorithm="no-overlap"
+              showMultiDayTimes
+              scrollToTime={rbcScrollToTime}
+              popup={false}
+              dragRevertDuration={0}
+              resizeTimeout={0}
+              views={rbcViews}
+              toolbar={false}
+              tooltipAccessor={null}
+              longPressThreshold={5}
+              length={rbcAgendaLength}
+            />
+          </div>
+        </div>
+      </div>
       {createModalOpen && (
         <CreateSessionModal
           mode="create"

@@ -5,7 +5,6 @@ import Dashboard from "@/pages/trainer/dashboard";
 import Messages from "@/pages/trainer/messages";
 import Sessions from "@/pages/trainer/sessions";
 import Workouts from "@/pages/trainer/workouts";
-import CheckIns from "@/pages/trainer/checkins";
 // import Team from "@/pages/trainer/team";
 import Settings from "@/pages/trainer/settings";
 import Metrics from "@/pages/trainer/metrics";
@@ -38,7 +37,6 @@ export default function trainerDashboard() {
         {showTab === "planner" && <Sessions />}
         {showTab === "clients" && <Clients />}
         {showTab === "workouts" && <Workouts />}
-        {showTab === "check-ins" && <CheckIns />}
         {showTab === "team" && <Team />}
         {showTab === "metrics" && <Metrics />}
         {showTab === "nutrition" && <Nutrition />}
